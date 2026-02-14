@@ -35,11 +35,25 @@ if "quiz_data" not in st.session_state: st.session_state.quiz_data = []
 if "current_title" not in st.session_state: st.session_state.current_title = ""
 if "view_mode" not in st.session_state: st.session_state.view_mode = "setup"
 
-# 3. חיבור ל-AI - ניסיון טעינה של מודל יציב יותר
+# 3. חיבור ל-AI - מנגנון בחירת מודל עמיד בשגיאות
 if "GEMINI_API_KEY" in st.secrets:
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-    # שימוש בשם מודל ללא קידומות models/
-    model = genai.GenerativeModel('gemini-1.5-pro')
+    
+    # רשימת מודלים לניסיון לפי סדר עדיפות
+    available_models = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-pro']
+    model = None
+    
+    for m_name in available_models:
+        try:
+            test_model = genai.GenerativeModel(m_name)
+            # בדיקה קצרה אם המודל מגיב (אופציונלי, כאן רק נגדיר)
+            model = test_model
+            break
+        except:
+            continue
+    
+    if not model:
+        st.error("לא הצלחנו להתחבר לאף מודל של Gemini. בדוק את ה-API Key או עדכן את הספרייה.")
 
 def parse_quiz(quiz_text):
     questions = []
@@ -113,7 +127,7 @@ elif st.session_state.view_mode == "setup":
             st.session_state.view_mode = "lesson"
             st.rerun()
         except Exception as e:
-            st.error(f"שגיאה: {e}")
+            st.error(f"שגיאה בייצור התוכן: {e}")
 
 elif st.session_state.view_mode == "lesson":
     st.markdown(f'<div class="lesson-header"><h1>{st.session_state.current_title}</h1></div>', unsafe_allow_html=True)
@@ -127,7 +141,7 @@ elif st.session_state.view_mode == "quiz":
     st.markdown(f'<div class="lesson-header"><h1>📝 מבחן תרגול: {st.session_state.current_title}</h1></div>', unsafe_allow_html=True)
     
     if not st.session_state.quiz_data:
-        st.warning("לא נוצרו שאלות. נסה לחזור לשיעור ולייצר שוב.")
+        st.warning("לא נוצרו שאלות.")
         if st.button("חזרה לשיעור"):
             st.session_state.view_mode = "lesson"
             st.rerun()
