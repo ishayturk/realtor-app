@@ -4,7 +4,7 @@ import json
 import re
 
 # ==========================================
-# 1. עיצוב חזותי
+# 1. עיצוב חזותי (כולל תיקון צבעים לנייד)
 # ==========================================
 def apply_design():
     st.set_page_config(page_title="מתווך בקליק", layout="wide")
@@ -17,18 +17,34 @@ def apply_design():
             text-align: center !important;
             background: linear-gradient(90deg, #1E88E5, #1565C0);
             color: white !important; padding: 25px; border-radius: 15px; margin-bottom: 25px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
         }
         .lesson-box {
-            background-color: #ffffff !important; color: #000000 !important; 
+            background-color: #ffffff !important; 
+            color: #000000 !important; /* מבטיח טקסט שחור בנייד */
             padding: 25px; border-radius: 15px; border-right: 8px solid #1E88E5; 
-            box-shadow: 0 2px 12px rgba(0,0,0,0.1); line-height: 1.8;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.08); line-height: 1.8; font-size: 1.1rem;
+            direction: rtl !important; text-align: right !important;
         }
-        .stButton button { width: 100%; border-radius: 12px; font-weight: bold; height: 3em; }
+        .stButton button { width: 100% !important; height: 3.5em !important; border-radius: 12px !important; font-weight: bold !important; }
+        div[role="radiogroup"] { direction: rtl !important; text-align: right !important; }
+        [data-testid="stMarkdownContainer"] { direction: rtl !important; text-align: right !important; }
     </style>
     """, unsafe_allow_html=True)
 
 # ==========================================
-# 2. מנוע AI
+# 2. הסילבוס המלא (הוחזר למקור)
+# ==========================================
+FULL_SYLLABUS = [
+    "חוק המתווכים במקרקעין והתקנות", "חוק המקרקעין", "חוק המכר (דירות)",
+    "חוק החוזים", "חוק הגנת הצרכן", "חוק הגנת הדייר",
+    "חוק התכנון והבנייה", "חוק מיסוי מקרקעין", "חוק העונשין",
+    "חוק שמאי מקרקעין", "חוק הירושה", "חוק יחסי מומון",
+    "חוק איסור הלבנת הון", "פקודת הנזיקין", "מושגי יסוד בכלכלה", "רשות מקרקעי ישראל"
+]
+
+# ==========================================
+# 3. מנוע AI (Gemini)
 # ==========================================
 def init_gemini():
     if "GEMINI_API_KEY" in st.secrets:
@@ -40,12 +56,16 @@ def fetch_quiz(model, topic):
     prompt = f"צור 10 שאלות אמריקאיות בעברית על {topic}. החזר רק JSON: [{{'q':'','options':['','','',''],'correct':0,'explanation':''}}]"
     try:
         resp = model.generate_content(prompt)
-        match = re.search(r'\[\s*\{.*\}\s*\]', resp.text, re.DOTALL)
-        return json.loads(match.group()) if match else None
-    except: return None
+        text = resp.text.strip()
+        match = re.search(r'\[\s*\{.*\}\s*\]', text, re.DOTALL)
+        if match:
+            return json.loads(match.group())
+        return None
+    except:
+        return None
 
 # ==========================================
-# 3. ניהול האפליקציה
+# 4. ניהול האפליקציה
 # ==========================================
 def main():
     apply_design()
@@ -54,49 +74,101 @@ def main():
     if "view" not in st.session_state:
         st.session_state.update({"view": "login", "user": "", "topic": "", "lesson": "", "questions": [], "idx": 0, "show_f": False})
 
-    st.markdown('<div class="main-header"><h1>🏠 מתווך בקליק</h1></div>', unsafe_allow_html=True)
+    st.markdown(f"""
+        <div class="main-header">
+            <h1 style='margin:0; color: white;'>🏠 מתווך בקליק</h1>
+            <p style='margin:0; opacity:0.9; color: white;'>גרסה 103 - Streaming יציב וסילבוס מלא</p>
+        </div>
+    """, unsafe_allow_html=True)
 
+    # --- דף כניסה ---
     if st.session_state.view == "login":
         name = st.text_input("הכנס שם מלא:")
-        if st.button("כניסה"):
-            if name: st.session_state.user = name; st.session_state.view = "menu"; st.rerun()
+        if st.button("כניסה למערכת"):
+            if name: 
+                st.session_state.user = name
+                st.session_state.view = "menu"
+                st.rerun()
 
+    # --- תפריט ראשי ---
     elif st.session_state.view == "menu":
-        st.write(f"### שלום {st.session_state.user}")
-        selected = st.selectbox("בחר נושא:", ["בחר נושא..."] + [
-            "חוק המתווכים", "חוק המקרקעין", "חוק החוזים", "חוק הגנת הצרכן", "מיסוי מקרקעין"
-        ]) # שמתי רשימה קצרה לדוגמה, תשאיר את FULL_SYLLABUS שלך
+        st.write(f"### שלום {st.session_state.user}, מה נלמד היום?")
+        selected = st.selectbox("בחר נושא ללמוד:", ["בחר נושא..."] + FULL_SYLLABUS)
+        
         if selected != "בחר נושא...":
             st.session_state.topic = selected
-            if st.button("📖 פתח שיעור"):
-                st.session_state.lesson = ""; st.session_state.view = "lesson"; st.rerun()
+            c1, c2 = st.columns(2)
+            with c1:
+                if st.button("📖 פתח שיעור"):
+                    st.session_state.view = "lesson"
+                    st.session_state.lesson = "" 
+                    st.rerun()
+            with c2:
+                if st.button("✍️ תרגול שאלות"):
+                    with st.spinner("מכין שאלות..."):
+                        qs = fetch_quiz(model, selected)
+                        if qs:
+                            st.session_state.questions = qs
+                            st.session_state.view = "quiz"
+                            st.session_state.idx = 0
+                            st.session_state.show_f = False
+                            st.rerun()
+                        else: st.error("נסה שוב, ה-AI היה עסוק.")
 
+    # --- דף שיעור ---
     elif st.session_state.view == "lesson":
         st.subheader(f"📍 {st.session_state.topic}")
-        if st.button("🏠 חזרה"): st.session_state.view = "menu"; st.rerun()
+        if st.button("🏠 חזרה לתפריט"): st.session_state.view = "menu"; st.rerun()
         
-        # --- כאן קורה הקסם של ה-Streaming ---
+        lesson_placeholder = st.empty()
         if not st.session_state.lesson:
             full_text = ""
-            # מקום ריק לכתיבה
-            holder = st.empty() 
-            try:
-                # מפעילים הזרמה (stream=True)
-                response = model.generate_content(f"כתוב שיעור מפורט על {st.session_state.topic} למבחן המתווכים.", stream=True)
+            with st.spinner("השיעור נכתב ברגע זה..."):
+                response = model.generate_content(f"כתוב שיעור מפורט למבחן המתווכים על {st.session_state.topic} בעברית.", stream=True)
                 for chunk in response:
                     full_text += chunk.text
-                    # מציגים למשתמש את מה שנכתב עד עכשיו (בלי ה-Box כדי לא להיתקע)
-                    holder.markdown(full_text + "▌") 
-                
+                    # מציג ב-Markdown רגיל בזמן הכתיבה כדי שזה ירוץ מהר וייראה טוב
+                    lesson_placeholder.markdown(full_text + "▌")
                 st.session_state.lesson = full_text
-                st.rerun() # מרעננים פעם אחת לסיום כדי לעטוף בתיבה המעוצבת
-            except:
-                st.error("תקלה בתקשורת.")
+                st.rerun() # מרענן כדי לעטוף ב-lesson-box הסופי
         else:
-            # מציג את השיעור המוכן בתוך התיבה המעוצבת
-            st.markdown(f'<div class="lesson-box">{st.session_state.lesson}</div>', unsafe_allow_html=True)
-            if st.button("עבור לתרגול ✍️"):
-                st.info("כאן נפעיל את הפונקציה fetch_quiz")
+            lesson_placeholder.markdown(f'<div class="lesson-box">{st.session_state.lesson}</div>', unsafe_allow_html=True)
+        
+        if st.button("עבור לתרגול שאלות ✍️"):
+            with st.spinner("מייצר שאלות..."):
+                qs = fetch_quiz(model, st.session_state.topic)
+                if qs:
+                    st.session_state.questions = qs
+                    st.session_state.view = "quiz"
+                    st.session_state.idx = 0
+                    st.session_state.show_f = False
+                    st.rerun()
 
-if __name__ == "__main__":
-    main()
+    # --- דף שאלון ---
+    elif st.session_state.view == "quiz":
+        idx = st.session_state.idx
+        q = st.session_state.questions[idx]
+        st.subheader(f"תרגול: {st.session_state.topic} ({idx+1}/10)")
+        
+        if st.button("🏠 חזרה לתפריט"): st.session_state.view = "menu"; st.rerun()
+        
+        st.info(q['q'])
+        choice = st.radio("בחר תשובה:", q['options'], key=f"r_{idx}")
+        
+        if st.button("בדוק תשובה ✅"):
+            st.session_state.show_f = True
+        
+        if st.session_state.show_f:
+            correct = q['options'][q['correct']]
+            if choice == correct: st.success("נכון מאוד!")
+            else: st.error(f"לא נכון. התשובה הנכונה היא: {correct}")
+            st.markdown(f'<div class="lesson-box"><b>הסבר משפטי:</b><br>{q["explanation"]}</div>', unsafe_allow_html=True)
+            
+            if idx < 9:
+                if st.button("לשאלה הבאה ➡️"):
+                    st.session_state.idx += 1
+                    st.session_state.show_f = False
+                    st.rerun()
+            else:
+                st.balloons()
+                if st.button("🏁 סיום וחזרה לתפריט"): st.session_state
