@@ -2,8 +2,19 @@ import streamlit as st
 import google.generativeai as genai
 import re
 
-# 1. עיצוב ויישור RTL
+# 1. עיצוב, יישור RTL ופונקציית גלילה למעלה
 st.set_page_config(page_title="מתווך בקליק", layout="wide")
+
+# פונקציה להזרקת JS שגורמת לעמוד לקפוץ למעלה
+def scroll_to_top():
+    st.components.v1.html(
+        """
+        <script>
+            window.parent.document.querySelector('.main').scrollTo(0,0);
+        </script>
+        """,
+        height=0,
+    )
 
 st.markdown("""
 <style>
@@ -80,13 +91,15 @@ if st.session_state.user_name:
             st.session_state.user_answers = {}
             st.rerun()
         if st.session_state.current_topic:
-            st.info(f"לומד כעת: {st.session_state.current_topic}")
             if st.session_state.view_mode == "quiz":
                 if st.button("📖 חזרה לשיעור"):
-                    st.session_state.view_mode = "lesson"; st.rerun()
+                    st.session_state.view_mode = "lesson"
+                    st.rerun()
             if st.session_state.quiz_ready:
                 if st.button("📝 מעבר למבחן"):
-                    st.session_state.view_mode = "quiz"; st.rerun()
+                    scroll_to_top() # גלילה למעלה לפני המעבר
+                    st.session_state.view_mode = "quiz"
+                    st.rerun()
         st.markdown("---")
         for h in st.session_state.history: st.caption(f"• {h}")
 
@@ -114,51 +127,43 @@ elif m == "streaming_lesson":
     st.title(f"שיעור: {st.session_state.current_topic}")
     placeholder = st.empty()
     full_txt = ""
-    try:
-        res = model.generate_content(f"כתוב שיעור מפורט על {st.session_state.current_topic} למבחן המתווכים.", stream=True)
-        for chunk in res:
-            full_txt += chunk.text
-            placeholder.markdown(full_txt)
-        st.session_state.lesson_data = full_txt
-        
-        with st.status("מכין שאלות..."):
-            q_p = f"צור 3 שאלות על {st.session_state.current_topic}. פורמט: [START_Q] [QUESTION] שאלה [OPTIONS] 1) א 2) ב 3) ג 4) ד [ANSWER] מספר [LAW] סעיף חוק [END_Q]"
-            q_res = model.generate_content(q_p)
-            st.session_state.quiz_data = parse_robust_quiz(q_res.text) if 'parse_robust_quiz' in globals() else parse_quiz_robust(q_res.text)
-            st.session_state.quiz_ready = len(st.session_state.quiz_data) > 0
-            
-        if st.session_state.current_topic not in st.session_state.history:
-            st.session_state.history.append(st.session_state.current_topic)
-        
-        st.session_state.view_mode = "lesson"
-        st.rerun() # מעבר מיידי למצב תצוגה
-    except Exception as e:
-        st.error(f"שגיאה: {e}")
+    res = model.generate_content(f"כתוב שיעור מפורט על {st.session_state.current_topic} למבחן המתווכים.", stream=True)
+    for chunk in res:
+        full_txt += chunk.text
+        placeholder.markdown(full_txt)
+    st.session_state.lesson_data = full_txt
+    with st.status("מכין שאלות..."):
+        q_p = f"צור 3 שאלות על {st.session_state.current_topic}. פורמט: [START_Q] [QUESTION] שאלה [OPTIONS] 1) א 2) ב 3) ג 4) ד [ANSWER] מספר [LAW] סעיף חוק [END_Q]"
+        q_res = model.generate_content(q_p)
+        st.session_state.quiz_data = parse_quiz_robust(q_res.text)
+        st.session_state.quiz_ready = len(st.session_state.quiz_data) > 0
+    if st.session_state.current_topic not in st.session_state.history:
+        st.session_state.history.append(st.session_state.current_topic)
+    st.session_state.view_mode = "lesson"; st.rerun()
 
 elif m == "lesson":
     st.title(st.session_state.current_topic)
     st.markdown(st.session_state.lesson_data)
     st.markdown("---")
     if st.session_state.quiz_ready:
-        st.success("השיעור והמבחן מוכנים!")
-        if st.button("📝 לחץ כאן למעבר למבחן"):
-            st.session_state.view_mode = "quiz"; st.rerun()
-    else:
-        st.warning("המבחן עדיין לא מוכן, נסה לבחור נושא שוב.")
+        if st.button("📝 סיימתי ללמוד, עבור למבחן"):
+            scroll_to_top() # גלילה למעלה
+            st.session_state.view_mode = "quiz"
+            st.rerun()
 
 elif m == "quiz":
-    st.markdown('<div id="top"></div>', unsafe_allow_html=True)
+    scroll_to_top() # הבטחה נוספת שהעמוד יתחיל מלמעלה
     st.title(f"תרגול: {st.session_state.current_topic}")
     
     if len(st.session_state.user_answers) == len(st.session_state.quiz_data) and len(st.session_state.quiz_data) > 0:
         correct_count = sum(1 for i, val in st.session_state.user_answers.items() if val == True)
         score = int((correct_count / len(st.session_state.quiz_data)) * 100)
-        st.markdown(f'<div class="score-box"><h3>הציון שלך: {score}</h3><p>ענית נכון על {correct_count} מתוך {len(st.session_state.quiz_data)}</p></div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="score-box"><h3>הציון שלך: {score}</h3></div>', unsafe_allow_html=True)
 
     for i, q in enumerate(st.session_state.quiz_data):
         st.markdown('<div class="quiz-card">', unsafe_allow_html=True)
         st.write(f"**{i+1}. {q['q']}**")
-        ans = st.radio(f"בחר תשובה {i+1}:", q['options'], key=f"q{i}", index=None)
+        ans = st.radio(f"בחר תשובה:", q['options'], key=f"q{i}", index=None)
         if st.button(f"בדוק {i+1}", key=f"b{i}"):
             if ans:
                 is_correct = q['options'].index(ans) == q['correct']
