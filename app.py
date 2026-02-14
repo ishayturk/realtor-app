@@ -1,7 +1,7 @@
 import streamlit as st
 import google.generativeai as genai
 
-# 1. הגדרות דף ועיצוב RTL (מימין לשמאל)
+# 1. הגדרות דף ועיצוב RTL
 st.set_page_config(page_title="מנוע למידה - מתווכים", layout="centered")
 
 st.markdown("""
@@ -14,30 +14,27 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# 2. חיבור ל-API ופתרון שגיאת ה-404
-# אנחנו משתמשים ב-gemini-pro כי הוא הכי יציב בחיבורים האלו
+# 2. חיבור ל-API
 if "GEMINI_API_KEY" in st.secrets:
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-    # שימוש בשם המודל הבסיסי ביותר למניעת NotFound
+    # שימוש במודל יציב
     model = genai.GenerativeModel('gemini-pro')
 else:
-    st.error("חסרה סיסמת ה-API ב-Secrets של Streamlit!")
+    st.error("חסרה סיסמת ה-API ב-Secrets!")
     st.stop()
 
 def get_ai_content(prompt):
     try:
-        # הנחיית מערכת קבועה
-        context = "אתה מורה מומחה למבחן המתווכים בישראל. ענה בעברית רהוטה ומקצועית."
+        context = "אתה מורה מומחה למבחן המתווכים בישראל. ענה בעברית רהוטה."
         full_prompt = f"{context}\n\n{prompt}"
         response = model.generate_content(full_prompt)
         return response.text
     except Exception as e:
-        return f"חלה שגיאה בחיבור לבינה המלאכותית: {str(e)}"
+        return f"חלה שגיאה בחיבור: {str(e)}"
 
-# 3. מבנה האפליקציה (למידה מעל מבחנים)
+# 3. מבנה האפליקציה
 st.title("🎓 מתווך בקליק - למידה חכמה")
 
-# יצירת הטאבים - הטאב הראשון הוא למידה
 tab1, tab2 = st.tabs(["📚 שיעורי לימוד", "📝 מבחנים ותרגול"])
 
 with tab1:
@@ -52,13 +49,19 @@ with tab1:
     selected_lesson = st.selectbox("נושאי השיעור:", lesson_topics)
     
     if st.button("צור שיעור עכשיו"):
-        with st.spinner("מייצר שיעור עמוק ומעודכן..."):
-            prompt = f"ייצר שיעור משפטי מפורט למבחן המתווכים בנושא: {selected_lesson}. כלול פסיקה, סעיפי חוק וסיכום."
+        with st.spinner("מייצר שיעור..."):
+            prompt = f"ייצר שיעור משפטי מפורט למבחן המתווכים בנושא: {selected_lesson}. כלול פסיקה וסעיפי חוק."
             content = get_ai_content(prompt)
             st.markdown(content)
 
 with tab2:
     st.subheader("מחולל מבחנים")
     if st.button("ייצר לי מבחן תרגול (5 שאלות)"):
-        with st.spinner("בונה מבחן מכשיל..."):
-            prompt = "ייצר 5 שאלות אמריקאיות ברמה גבוהה למבחן המתווכים. לכל שאלה הצג 4 אפשרויות, ולאחר מכן את התשובה הנכונה עם הסבר משפטי
+        with st.spinner("בונה מבחן..."):
+            # כאן הייתה השגיאה - וידאתי שהשורה סגורה עם מירכאות
+            prompt = "ייצר 5 שאלות אמריקאיות ברמה גבוהה למבחן המתווכים. לכל שאלה הצג 4 אפשרויות, ולאחר מכן את התשובה הנכונה עם הסבר משפטי."
+            exam_content = get_ai_content(prompt)
+            st.markdown(exam_content)
+
+st.divider()
+st.info("האפליקציה מייצרת תוכן בזמן אמת באמצעות בינה מלאכותית.")
