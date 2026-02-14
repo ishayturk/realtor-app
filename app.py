@@ -58,7 +58,8 @@ elif st.session_state.step == "menu":
 elif st.session_state.step == "study":
     topic = st.selectbox("בחר נושא:", ["חוק המתווכים", "חוק המקרקעין", "חוק החוזים"])
     
-    if not st.session_state.quiz_active and not st.session_state.quiz_done:
+    # 1. כפתור התחלת שיעור
+    if not st.session_state.lesson_text:
         if st.button("📖 התחל שיעור"):
             try:
                 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
@@ -70,15 +71,21 @@ elif st.session_state.step == "study":
                     full_text += chunk.text
                     placeholder.markdown(f"<div class='lesson-box'>{full_text}</div>", unsafe_allow_html=True)
                 st.session_state.lesson_text = full_text
-                st.session_state.quiz_questions = [{"q": f"שאלה {i+1} על {topic}:", "options": ["תשובה 1", "תשובה 2", "תשובה 3", "תשובה 4"], "correct": "תשובה 1"} for i in range(10)]
-                st.session_state.quiz_active = True
                 st.rerun()
             except Exception as e:
                 st.error(f"שגיאה: {str(e)}")
 
+    # 2. הצגת השיעור וכפתור מעבר לשאלון (הכפתור שביקשת)
     if st.session_state.lesson_text:
         st.markdown(f"<div class='lesson-box'>{st.session_state.lesson_text}</div>", unsafe_allow_html=True)
+        
+        if not st.session_state.quiz_active and not st.session_state.quiz_done:
+            if st.button("✍️ סיימתי לקרוא, עבור לתרגול"):
+                st.session_state.quiz_questions = [{"q": f"שאלה {i+1} על {topic}:", "options": ["תשובה 1", "תשובה 2", "תשובה 3", "תשובה 4"], "correct": "תשובה 1"} for i in range(10)]
+                st.session_state.quiz_active = True
+                st.rerun()
 
+    # 3. השאלון (מופיע רק אחרי לחיצה על הכפתור)
     if st.session_state.quiz_active:
         idx = st.session_state.quiz_idx
         q = st.session_state.quiz_questions[idx]
@@ -96,11 +103,12 @@ elif st.session_state.step == "study":
                 st.session_state.quiz_idx += 1
                 st.rerun()
         else:
-            if c2.button("🏁 סיום"):
+            if c2.button("🏁 סיום ובדיקה"):
                 st.session_state.quiz_active = False
                 st.session_state.quiz_done = True
                 st.rerun()
 
+    # 4. תוצאות
     if st.session_state.quiz_done:
         score = sum(1 for i, q in enumerate(st.session_state.quiz_questions) if st.session_state.quiz_answers.get(i) == q['correct'])
         st.markdown(f"<div class='score-box'><h3>ציון: {score*10}</h3><p>{score}/10 נכונות</p></div>", unsafe_allow_html=True)
@@ -112,18 +120,4 @@ elif st.session_state.step == "study":
 elif st.session_state.step == "full_exam":
     idx = st.session_state.exam_idx
     q = st.session_state.exam_questions[idx]
-    st.markdown(f"### שאלה {idx+1} / 25")
-    ans = st.radio(q['q'], q['options'], key=f"ex_{idx}", index=None)
-    if ans:
-        st.session_state.exam_answers[idx] = ans
-    c1, c2 = st.columns(2)
-    if c1.button("⬅️ הקודם") and idx > 0:
-        st.session_state.exam_idx -= 1
-        st.rerun()
-    if idx < 24:
-        if c2.button("הבא ➡️"):
-            st.session_state.exam_idx += 1
-            st.rerun()
-    elif c2.button("🏁 סיום בחינה"):
-        st.session_state.step = "menu"
-        st.rerun()
+    st.markdown
