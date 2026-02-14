@@ -28,7 +28,7 @@ if "step" not in st.session_state:
     st.session_state.update({
         "step": "login", "user": "", "lesson_text": "",
         "quiz_active": False, "quiz_idx": 0, "quiz_answers": {}, "quiz_questions": [], "quiz_done": False,
-        "checked_questions": set() # מעקב אחרי שאלות שנבדקו
+        "checked_questions": set()
     })
 
 # --- 3. לוגיקה ---
@@ -51,7 +51,7 @@ elif st.session_state.step == "menu":
             st.rerun()
     with col2:
         if st.button("📝 סימולציית בחינה (25 שאלות)"):
-             st.info("סימולציה מלאה עם הסברים מופעלת כאן")
+             st.info("סימולציה מלאה")
 
 elif st.session_state.step == "study":
     topic = st.selectbox("בחר נושא:", ["חוק המתווכים", "חוק המקרקעין", "חוק החוזים"])
@@ -61,16 +61,18 @@ elif st.session_state.step == "study":
             try:
                 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
                 model = genai.GenerativeModel('gemini-2.0-flash')
-                response = model.generate_content(f"כתוב שיעור מפורט על {topic} למבחן המתווכים", stream=True)
+                response = model.generate_content(f"כתוב שיעור מפורט על {topic} למבחן המתווכים בישראל.", stream=True)
+                
                 placeholder = st.empty()
                 full_text = ""
                 for chunk in response:
                     full_text += chunk.text
                     placeholder.markdown(f"<div class='lesson-box'>{full_text}</div>", unsafe_allow_html=True)
+                
                 st.session_state.lesson_text = full_text
                 st.rerun()
             except Exception as e:
-                st.error(f"שגיאה בחיבור ל-AI: {str(e)}")
+                st.error(f"שגיאה: {str(e)}")
 
     if st.session_state.lesson_text:
         st.markdown(f"<div class='lesson-box'>{st.session_state.lesson_text}</div>", unsafe_allow_html=True)
@@ -82,61 +84,8 @@ elif st.session_state.step == "study":
                         "q": f"שאלה {i+1} על {topic}:", 
                         "options": ["אופציה א'", "אופציה ב'", "אופציה ג'", "אופציה ד'"], 
                         "correct": "אופציה א'", 
-                        "reason": "זהו ההסבר המפורט מדוע התשובה נכונה.",
-                        "source": "ניתן למצוא זאת בחומר תחת הכותרת הרלוונטית או בסעיף חוק מתאים."
+                        "reason": "הסבר מפורט על התשובה.",
+                        "source": "סעיף רלוונטי בשיעור לעיל."
                     } for i in range(10)
                 ]
-                st.session_state.quiz_active = True
-                st.rerun()
-
-    if st.session_state.quiz_active:
-        idx = st.session_state.quiz_idx
-        q = st.session_state.quiz_questions[idx]
-        st.markdown(f"#### שאלון תרגול: {idx+1}/10")
-        
-        ans = st.radio(q['q'], q['options'], key=f"sq_{idx}", index=None)
-        
-        # כפתור בדיקה
-        if ans and idx not in st.session_state.checked_questions:
-            if st.button("🔍 בדוק תשובה"):
-                st.session_state.quiz_answers[idx] = ans
-                st.session_state.checked_questions.add(idx)
-                st.rerun()
-
-        # הצגת הסבר רק אם נבדק
-        if idx in st.session_state.checked_questions:
-            user_ans = st.session_state.quiz_answers.get(idx)
-            is_correct = (user_ans == q['correct'])
-            style = "success" if is_correct else "error"
-            icon = "✅ נכון!" if is_correct else f"❌ טעות. התשובה הנכונה: {q['correct']}"
-            
-            st.markdown(f"""
-                <div class='explanation-box {style}'>
-                    <b>{icon}</b><br>
-                    {q['reason']}<br><br>
-                    <span class='source-tag'>📍 היכן זה מופיע?</span> {q['source']}
-                </div>
-            """, unsafe_allow_html=True)
-        
-        # ניווט
-        c1, c2 = st.columns(2)
-        if c1.button("⬅️ הקודם") and idx > 0:
-            st.session_state.quiz_idx -= 1
-            st.rerun()
-        if idx < 9:
-            if c2.button("הבא ➡️"):
-                st.session_state.quiz_idx += 1
-                st.rerun()
-        else:
-            if st.button("🏁 סיום כל השאלון"):
-                st.session_state.quiz_active = False
-                st.session_state.quiz_done = True
-                st.rerun()
-
-    if st.session_state.quiz_done:
-        score = sum(1 for i, q in enumerate(st.session_state.quiz_questions) if st.session_state.quiz_answers.get(i) == q['correct'])
-        st.markdown(f"<div class='score-box'><h3>ציון סופי: {score*10}</h3><p>{score}/10 נכונות</p></div>", unsafe_allow_html=True)
-        if st.button("חזרה לתפריט"):
-            st.session_state.update({"lesson_text":"", "quiz_active":False, "quiz_done":False, "quiz_idx":0, "quiz_answers":{}, "checked_questions": set()})
-            st.session_state.step = "menu"
-            st.rerun()
+                st.session_state.
