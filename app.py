@@ -2,32 +2,63 @@ import streamlit as st
 import google.generativeai as genai
 import re
 import time
-import os
 
-# 1. עיצוב ו-CSS
+# 1. הגדרות דף ועיצוב CSS - תיקון הצמדה לימין
 st.set_page_config(page_title="מתווך בקליק", layout="wide")
+
 st.markdown("""
     <style>
-    html, body, [data-testid="stAppViewContainer"] { direction: rtl; text-align: right; }
-    [data-testid="stMainBlockContainer"] { margin-right: auto; margin-left: 0; padding-right: 5rem; padding-left: 2rem; }
+    /* כפייה של ימין לשמאל על כל האפליקציה */
+    .main .block-container { direction: rtl; text-align: right; }
+    [data-testid="stSidebar"] { direction: rtl; text-align: right; }
+    h1, h2, h3, p, li, span, label, div { direction: rtl; text-align: right; }
+    
+    /* תיקון ספציפי לתיבות קוד - שיישארו בשמאל */
     [data-testid="stCodeBlock"], code, pre { direction: ltr !important; text-align: left !important; }
-    .quiz-card { background-color: #ffffff; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-    div.stButton > button { width: 100%; border-radius: 8px; font-weight: bold; background-color: #1E88E5; color: white; }
+    
+    .quiz-card { 
+        background-color: #ffffff; 
+        padding: 20px; 
+        border: 1px solid #e0e0e0; 
+        border-radius: 10px; 
+        margin-bottom: 20px; 
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+    
+    div.stButton > button { 
+        width: 100%; 
+        border-radius: 8px; 
+        font-weight: bold; 
+        background-color: #1E88E5; 
+        color: white; 
+    }
     </style>
     """, unsafe_allow_html=True)
 
 # 2. ניהול מצב (Session State)
-for key in ["user_name", "history", "lesson_data", "quiz_data", "current_title"]:
-    if key not in st.session_state: st.session_state[key] = "" if "data" in key or "name" in key or "title" in key else []
-if "view_mode" not in st.session_state: st.session_state.view_mode = "setup"
+if "user_name" not in st.session_state: st.session_state.user_name = ""
+if "view_mode" not in st.session_state: st.session_state.view_mode = "login" # login, setup, lesson, quiz
+if "lesson_data" not in st.session_state: st.session_state.lesson_data = ""
+if "quiz_data" not in st.session_state: st.session_state.quiz_data = []
+if "history" not in st.session_state: st.session_state.history = []
 
-# 3. אתחול AI - תיקון ה-404 על ידי הגדרת גרסה יציבה
-if "GEMINI_API_KEY" in st.secrets:
+# 3. פונקציית חיבור ל-AI עם מנגנון עקיפת 404
+def get_ai_model():
+    if "GEMINI_API_KEY" not in st.secrets:
+        return None
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-    # יצירת המודל עם הגדרה מפורשת שמונעת שימוש ב-v1beta הישנה
-    model = genai.GenerativeModel(
-        model_name='gemini-1.5-flash'
-    )
+    
+    # ניסיון להתחבר למודל בשמות שונים כדי לעקוף את שגיאת ה-404
+    for model_name in ['gemini-1.5-flash', 'models/gemini-1.5-flash', 'gemini-pro']:
+        try:
+            model = genai.GenerativeModel(model_name)
+            # בדיקה אם המודל באמת זמין
+            return model
+        except:
+            continue
+    return None
+
+model = get_ai_model()
 
 def parse_quiz(quiz_text):
     questions = []
@@ -43,54 +74,73 @@ def parse_quiz(quiz_text):
                 questions.append({"q": q_text, "options": options, "correct": correct_idx})
     return questions
 
-# --- ממשק המשתמש ---
-if not st.session_state.user_name:
+# --- ניהול דפים ---
+
+# דף כניסה
+if st.session_state.view_mode == "login":
     st.title("🎓 מתווך בקליק")
     name = st.text_input("הזן שם כדי להתחיל:")
     if st.button("כניסה"):
-        if name: st.session_state.user_name = name; st.rerun()
-
-elif st.session_state.view_mode == "setup":
-    st.title("מה נלמד היום?")
-    topic = st.selectbox("בחר נושא:", ["חוק המתווכים", "חוק המקרקעין", "דיני חוזים", "דיני תכנון ובנייה", "חוק הגנת הצרכן"])
-    if st.button("כניסה לשיעור"):
-        st.session_state.current_title = f"שיעור: {topic}"
-        placeholder = st.empty()
-        full_text = ""
-        try:
-            # ייצור שיעור
-            res = model.generate_content(f"כתוב שיעור מפורט על {topic} למבחן המתווכים.")
-            st.session_state.lesson_data = res.text
-            # ייצור מבחן
-            quiz_res = model.generate_content(f"צור 3 שאלות אמריקאיות על {topic}. פורמט: שאלה X: [טקסט] 1) [א] 2) [ב] 3) [ג] 4) [ד] תשובה נכונה: [מספר]")
-            st.session_state.quiz_data = parse_quiz(quiz_res.text)
-            
-            if topic not in st.session_state.history: st.session_state.history.append(topic)
-            st.session_state.view_mode = "lesson"
+        if name:
+            st.session_state.user_name = name
+            st.session_state.view_mode = "setup"
             st.rerun()
-        except Exception as e:
-            st.error(f"שגיאה בחיבור ל-AI: {e}")
 
+# דף בחירת נושא
+elif st.session_state.view_mode == "setup":
+    st.title(f"שלום {st.session_state.user_name}, מה נלמד היום?")
+    topic = st.selectbox("בחר נושא:", ["חוק המתווכים", "חוק המקרקעין", "דיני חוזים", "דיני תכנון ובנייה", "חוק הגנת הצרכן"])
+    if st.button("התחל ללמוד"):
+        if not model:
+            st.error("שגיאה: לא ניתן להתחבר ל-AI. וודא שה-API Key תקין.")
+        else:
+            with st.spinner("מכין את חומר הלימוד..."):
+                try:
+                    # ייצור שיעור
+                    res = model.generate_content(f"כתוב שיעור מפורט בעברית על {topic} למבחן המתווכים.")
+                    st.session_state.lesson_data = res.text
+                    
+                    # ייצור שאלון
+                    quiz_prompt = f"צור 3 שאלות אמריקאיות על {topic}. פורמט: שאלה X: [טקסט] 1) [א] 2) [ב] 3) [ג] 4) [ד] תשובה נכונה: [מספר]"
+                    quiz_res = model.generate_content(quiz_prompt)
+                    st.session_state.quiz_data = parse_quiz(quiz_res.text)
+                    
+                    st.session_state.history.append(topic)
+                    st.session_state.view_mode = "lesson"
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"שגיאה בחיבור ל-AI: {e}")
+
+# דף שיעור
 elif st.session_state.view_mode == "lesson":
-    st.title(st.session_state.current_title)
+    st.title("חומר הלימוד")
     st.markdown(st.session_state.lesson_data)
+    st.markdown("---")
     if st.button("🔥 סיימתי ללמוד, אני רוצה להיבחן!"):
         st.session_state.view_mode = "quiz"
         st.rerun()
 
+# דף שאלון
 elif st.session_state.view_mode == "quiz":
-    st.title(f"📝 מבחן: {st.session_state.current_title}")
-    for i, q in enumerate(st.session_state.quiz_data):
-        with st.container():
-            st.markdown(f'<div class="quiz-card">', unsafe_allow_html=True)
+    st.title("📝 שאלון תרגול")
+    if not st.session_state.quiz_data:
+        st.warning("לא נוצרו שאלות. נסה לחזור ולייצר שוב.")
+    else:
+        for i, q in enumerate(st.session_state.quiz_data):
+            st.markdown('<div class="quiz-card">', unsafe_allow_html=True)
             st.write(f"**{i+1}. {q['q']}**")
-            choice = st.radio("בחר תשובה:", q['options'], key=f"q_{i}", index=None)
-            if st.button("בדוק", key=f"b_{i}"):
+            choice = st.radio(f"בחר תשובה לשאלה {i+1}:", q['options'], key=f"q_{i}", index=None)
+            if st.button(f"בדוק שאלה {i+1}", key=f"b_{i}"):
                 if choice:
                     idx = q['options'].index(choice)
-                    if idx == q['correct']: st.success("נכון!")
-                    else: st.error(f"טעות. התשובה הנכונה היא אופציה {q['correct']+1}")
-                else: st.warning("בחר תשובה")
+                    if idx == q['correct']: st.success("נכון מאוד!")
+                    else: st.error(f"לא מדויק. התשובה הנכונה היא אופציה {q['correct']+1}")
+                else: st.warning("נא לבחור תשובה")
             st.markdown('</div>', unsafe_allow_html=True)
+    
     if st.button("חזרה לשיעור"):
-        st.session_state.view_mode = "lesson"; st.rerun()
+        st.session_state.view_mode = "lesson"
+        st.rerun()
+    if st.button("נושא חדש"):
+        st.session_state.view_mode = "setup"
+        st.rerun()
