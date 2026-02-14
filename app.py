@@ -23,6 +23,10 @@ div[data-testid="stMarkdownContainer"], h1, h2, h3, p, li, span, label {
     background-color: #f9f9f9; padding: 20px; border-radius: 12px; 
     border-right: 6px solid #1E88E5; margin-bottom: 20px;
 }
+.score-box {
+    background-color: #E3F2FD; padding: 20px; border-radius: 12px;
+    text-align: center; border: 2px solid #1E88E5; margin-bottom: 25px;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -35,11 +39,11 @@ TOPICS = [
 
 for k, v in {
     "user_name": "", "view_mode": "login", "lesson_data": "", 
-    "quiz_data": [], "history": [], "current_topic": "", "quiz_ready": False
+    "quiz_data": [], "history": [], "current_topic": "", 
+    "quiz_ready": False, "user_answers": {}
 }.items():
     if k not in st.session_state: st.session_state[k] = v
 
-# חיבור ל-API עם מודל 2.0-flash (הכי עדכני וזמין)
 if "GEMINI_API_KEY" in st.secrets:
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
     model = genai.GenerativeModel('gemini-2.0-flash')
@@ -73,6 +77,7 @@ if st.session_state.user_name:
             st.session_state.view_mode = "setup"
             st.session_state.current_topic = ""
             st.session_state.quiz_ready = False
+            st.session_state.user_answers = {}
             st.rerun()
         if st.session_state.current_topic:
             if st.session_state.view_mode == "quiz":
@@ -101,6 +106,7 @@ elif m == "setup":
     if t != "בחר נושא...":
         st.session_state.current_topic = t
         st.session_state.quiz_ready = False
+        st.session_state.user_answers = {}
         st.session_state.view_mode = "streaming_lesson"; st.rerun()
 
 elif m == "streaming_lesson":
@@ -108,43 +114,56 @@ elif m == "streaming_lesson":
     placeholder = st.empty()
     full_txt = ""
     try:
-        # הזרמת השיעור
         res = model.generate_content(f"כתוב שיעור מפורט על {st.session_state.current_topic} למבחן המתווכים.", stream=True)
         for chunk in res:
             full_txt += chunk.text
             placeholder.markdown(full_txt)
         st.session_state.lesson_data = full_txt
-        
-        # יצירת שאלות
-        with st.status("מכין שאלות תרגול בתפריט הצד..."):
-            q_p = f"צור 3 שאלות אמריקאיות על {st.session_state.current_topic}. פורמט: [START_Q] [QUESTION] שאלה [OPTIONS] 1) א 2) ב 3) ג 4) ד [ANSWER] מספר [LAW] סעיף חוק [END_Q]"
+        with st.status("מכין שאלות תרגול..."):
+            q_p = f"צור 3 שאלות על {st.session_state.current_topic}. פורמט: [START_Q] [QUESTION] שאלה [OPTIONS] 1) א 2) ב 3) ג 4) ד [ANSWER] מספר [LAW] סעיף חוק [END_Q]"
             q_res = model.generate_content(q_p)
-            st.session_state.quiz_data = parse_robust_quiz(q_res.text) if 'parse_robust_quiz' in globals() else parse_quiz_robust(q_res.text)
+            st.session_state.quiz_data = parse_quiz_robust(q_res.text)
             st.session_state.quiz_ready = len(st.session_state.quiz_data) > 0
-        
         if st.session_state.current_topic not in st.session_state.history:
             st.session_state.history.append(st.session_state.current_topic)
         st.session_state.view_mode = "lesson"; st.rerun()
     except Exception as e:
-        st.error(f"לא הצלחתי להתחבר ל-AI. וודא שה-API Key תקין. שגיאה: {e}")
+        st.error(f"שגיאה: {e}")
 
 elif m == "lesson":
     st.title(st.session_state.current_topic)
     st.markdown(st.session_state.lesson_data)
-    if st.session_state.quiz_ready:
-        st.info("✅ המבחן מוכן! לחץ על 'מעבר למבחן' בתפריט הצד מימין.")
-    else:
-        st.warning("⚠️ השאלות לא נוצרו. נסה לבחור נושא חדש.")
+    st.info("השיעור מוכן. כפתור המבחן זמין כעת בתפריט הצד.")
 
 elif m == "quiz":
+    st.markdown('<div id="top"></div>', unsafe_allow_html=True)
     st.title(f"תרגול: {st.session_state.current_topic}")
+    
+    # הצגת ציון סופי אם ענו על הכל
+    if len(st.session_state.user_answers) == len(st.session_state.quiz_data) and len(st.session_state.quiz_data) > 0:
+        correct_count = sum(1 for i, val in st.session_state.user_answers.items() if val == True)
+        score = int((correct_count / len(st.session_state.quiz_data)) * 100)
+        st.markdown(f"""
+        <div class="score-box">
+            <h3>סיכום תוצאות</h3>
+            <p style="font-size: 24px;">הציון שלך: <b>{score}</b></p>
+            <p>ענית נכון על {correct_count} מתוך {len(st.session_state.quiz_data)} שאלות</p>
+        </div>
+        """, unsafe_allow_html=True)
+
     for i, q in enumerate(st.session_state.quiz_data):
         st.markdown('<div class="quiz-card">', unsafe_allow_html=True)
         st.write(f"**{i+1}. {q['q']}**")
-        ans = st.radio(f"בחר תשובה ל-{i+1}:", q['options'], key=f"q{i}", index=None)
+        ans = st.radio(f"בחר תשובה:", q['options'], key=f"q{i}", index=None)
+        
         if st.button(f"בדוק תשובה {i+1}", key=f"b{i}"):
             if ans:
-                if q['options'].index(ans) == q['correct']: st.success("נכון מאוד!")
-                else: st.error(f"טעות. הנכונה: {q['options'][q['correct']]}")
+                is_correct = q['options'].index(ans) == q['correct']
+                st.session_state.user_answers[i] = is_correct
+                if is_correct:
+                    st.success("נכון! כל הכבוד.")
+                else:
+                    st.error(f"טעות. התשובה הנכונה: {q['options'][q['correct']]}")
                 st.info(f"⚖️ {q['ref']}")
+                st.rerun() # מרענן כדי לעדכן את הציון למעלה
         st.markdown('</div>', unsafe_allow_html=True)
