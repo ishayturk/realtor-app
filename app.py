@@ -80,10 +80,11 @@ if st.session_state.user_name:
             st.session_state.user_answers = {}
             st.rerun()
         if st.session_state.current_topic:
+            st.info(f"לומד כעת: {st.session_state.current_topic}")
             if st.session_state.view_mode == "quiz":
                 if st.button("📖 חזרה לשיעור"):
                     st.session_state.view_mode = "lesson"; st.rerun()
-            if st.session_state.quiz_ready and st.session_state.view_mode != "quiz":
+            if st.session_state.quiz_ready:
                 if st.button("📝 מעבר למבחן"):
                     st.session_state.view_mode = "quiz"; st.rerun()
         st.markdown("---")
@@ -119,51 +120,51 @@ elif m == "streaming_lesson":
             full_txt += chunk.text
             placeholder.markdown(full_txt)
         st.session_state.lesson_data = full_txt
-        with st.status("מכין שאלות תרגול..."):
+        
+        with st.status("מכין שאלות..."):
             q_p = f"צור 3 שאלות על {st.session_state.current_topic}. פורמט: [START_Q] [QUESTION] שאלה [OPTIONS] 1) א 2) ב 3) ג 4) ד [ANSWER] מספר [LAW] סעיף חוק [END_Q]"
             q_res = model.generate_content(q_p)
-            st.session_state.quiz_data = parse_quiz_robust(q_res.text)
+            st.session_state.quiz_data = parse_robust_quiz(q_res.text) if 'parse_robust_quiz' in globals() else parse_quiz_robust(q_res.text)
             st.session_state.quiz_ready = len(st.session_state.quiz_data) > 0
+            
         if st.session_state.current_topic not in st.session_state.history:
             st.session_state.history.append(st.session_state.current_topic)
-        st.session_state.view_mode = "lesson"; st.rerun()
+        
+        st.session_state.view_mode = "lesson"
+        st.rerun() # מעבר מיידי למצב תצוגה
     except Exception as e:
         st.error(f"שגיאה: {e}")
 
 elif m == "lesson":
     st.title(st.session_state.current_topic)
     st.markdown(st.session_state.lesson_data)
-    st.info("השיעור מוכן. כפתור המבחן זמין כעת בתפריט הצד.")
+    st.markdown("---")
+    if st.session_state.quiz_ready:
+        st.success("השיעור והמבחן מוכנים!")
+        if st.button("📝 לחץ כאן למעבר למבחן"):
+            st.session_state.view_mode = "quiz"; st.rerun()
+    else:
+        st.warning("המבחן עדיין לא מוכן, נסה לבחור נושא שוב.")
 
 elif m == "quiz":
     st.markdown('<div id="top"></div>', unsafe_allow_html=True)
     st.title(f"תרגול: {st.session_state.current_topic}")
     
-    # הצגת ציון סופי אם ענו על הכל
     if len(st.session_state.user_answers) == len(st.session_state.quiz_data) and len(st.session_state.quiz_data) > 0:
         correct_count = sum(1 for i, val in st.session_state.user_answers.items() if val == True)
         score = int((correct_count / len(st.session_state.quiz_data)) * 100)
-        st.markdown(f"""
-        <div class="score-box">
-            <h3>סיכום תוצאות</h3>
-            <p style="font-size: 24px;">הציון שלך: <b>{score}</b></p>
-            <p>ענית נכון על {correct_count} מתוך {len(st.session_state.quiz_data)} שאלות</p>
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown(f'<div class="score-box"><h3>הציון שלך: {score}</h3><p>ענית נכון על {correct_count} מתוך {len(st.session_state.quiz_data)}</p></div>', unsafe_allow_html=True)
 
     for i, q in enumerate(st.session_state.quiz_data):
         st.markdown('<div class="quiz-card">', unsafe_allow_html=True)
         st.write(f"**{i+1}. {q['q']}**")
-        ans = st.radio(f"בחר תשובה:", q['options'], key=f"q{i}", index=None)
-        
-        if st.button(f"בדוק תשובה {i+1}", key=f"b{i}"):
+        ans = st.radio(f"בחר תשובה {i+1}:", q['options'], key=f"q{i}", index=None)
+        if st.button(f"בדוק {i+1}", key=f"b{i}"):
             if ans:
                 is_correct = q['options'].index(ans) == q['correct']
                 st.session_state.user_answers[i] = is_correct
-                if is_correct:
-                    st.success("נכון! כל הכבוד.")
-                else:
-                    st.error(f"טעות. התשובה הנכונה: {q['options'][q['correct']]}")
+                if is_correct: st.success("נכון!")
+                else: st.error(f"טעות. הנכונה: {q['options'][q['correct']]}")
                 st.info(f"⚖️ {q['ref']}")
-                st.rerun() # מרענן כדי לעדכן את הציון למעלה
+                st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
