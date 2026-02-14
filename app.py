@@ -1,42 +1,36 @@
 import streamlit as st
 import google.generativeai as genai
 
-# הגדרות דף בסיסיות
+# הגדרות עיצוב RTL (מימין לשמאל)
 st.set_page_config(page_title="מתווך בקליק", layout="centered")
-
-# עיצוב מימין לשמאל
-st.markdown("""
-    <style>
-    .stApp { text-align: right; direction: rtl; }
-    button { width: 100%; border-radius: 10px; height: 3em; }
-    </style>
-    """, unsafe_allow_html=True)
+st.markdown("<style>.stApp {text-align: right; direction: rtl;}</style>", unsafe_allow_html=True)
 
 st.title("🎓 מתווך בקליק")
 
-# בחירת נושא
-topic = st.selectbox("בחר נושא לשיעור:", ["חוק המתווכים", "חוק המקרקעין", "דיני חוזים"])
+# שלד האפליקציה
+topic = st.selectbox("בחר נושא ללימוד:", ["חוק המתווכים", "חוק המקרקעין", "דיני חוזים"])
 
-if st.button("הפעל"):
+if st.button("ייצר שיעור"):
     if "GEMINI_API_KEY" not in st.secrets:
         st.error("חסר מפתח API ב-Secrets!")
     else:
         try:
-            # הגדרה
+            # 1. הגדרת המפתח
             genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
             
-            # ניסיון חיבור למודל הכי נפוץ
-            # אם gemini-1.5-flash עושה בעיות, נסה להחליף ל-gemini-pro
+            # 2. שימוש במודל היציב ביותר (הגרסה שלא מקפיצה לעמודים אחרים)
             model = genai.GenerativeModel('gemini-1.5-flash')
             
-            with st.spinner("מייצר תוכן..."):
-                response = model.generate_content(f"כתוב שיעור קצר בעברית על {topic}")
+            with st.spinner("מייצר שיעור..."):
+                # 3. בקשת תוכן פשוטה
+                response = model.generate_content(f"כתוב שיעור קצר בעברית על {topic} למבחן המתווכים בישראל.")
                 
-                if response:
+                if response.text:
                     st.success("החיבור הצליח!")
-                    st.markdown("---")
-                    st.write(response.text)
+                    st.divider()
+                    st.markdown(response.text)
                 
         except Exception as e:
-            st.error(f"שגיאה בחיבור: {e}")
-            st.info("אם מופיע 404, וודא שביצעת Reboot לאפליקציה בלוח הבקרה של Streamlit.")
+            # אם יש שגיאה, ננסה להציג אותה בצורה ברורה
+            st.error(f"שגיאה: {str(e)}")
+            st.info("אם מופיע 404, וודא שביצעת Reboot לאפליקציה ב-Streamlit Cloud.")
