@@ -12,6 +12,9 @@ st.markdown("""
     .stButton > button { width: 100%; font-weight: bold; height: 3.5em; border-radius: 10px; }
     .lesson-box { background: white; padding: 20px; border-radius: 12px; border-right: 5px solid #1E88E5; box-shadow: 0 2px 5px rgba(0,0,0,0.1); line-height: 1.8; color: #333; }
     .timer-box { text-align: center; background: #fff3e0; padding: 10px; border-radius: 10px; font-weight: bold; border: 1px solid #ff9800; }
+    div[data-testid="stExpander"] { direction: rtl !important; }
+    /* יישור טקסט בתוך הטאבים */
+    [data-testid="stMarkdownContainer"] p { text-align: right !important; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -29,7 +32,7 @@ def get_questions():
     ]
     return (q_list * 13)[:25]
 
-# --- 4. לוגיקה ---
+# --- 4. לוגיקה מרכזית ---
 st.markdown("<h1>🏠 מתווך בקליק</h1>", unsafe_allow_html=True)
 
 if st.session_state.step == "login":
@@ -41,29 +44,33 @@ if st.session_state.step == "login":
             st.rerun()
 
 elif st.session_state.step == "menu":
-    st.markdown(f"<h3 style='text-align: right;'>שלום, {st.session_state.user} 👋</h3>", unsafe_allow_html=True)
+    st.markdown(f"<div style='direction: rtl; text-align: right;'><h3>שלום, {st.session_state.user} 👋</h3></div>", unsafe_allow_html=True)
     
-    tab1, tab2 = st.tabs(["📚 לימוד עיוני", "📝 מבחן תרגול"])
+    # שימוש בטאבים למניעת בלאגן
+    tab_lesson, tab_exam = st.tabs(["📚 לימוד עיוני", "📝 סימולציית מבחן"])
     
-    with tab1:
-        topic = st.selectbox("בחר נושא:", ["חוק המתווכים", "חוק המקרקעין", "חוק החוזים", "דיני מקרקעין"])
-        if st.button("התחל שיעור"):
+    with tab_lesson:
+        st.markdown("### בחר נושא ללימוד")
+        topic_choice = st.selectbox("רשימת נושאים:", ["חוק המתווכים", "חוק המקרקעין", "חוק החוזים", "דיני מקרקעין"])
+        
+        if st.button("התחל שיעור בסטרימינג"):
             try:
                 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
                 model = genai.GenerativeModel('gemini-2.0-flash')
-                response = model.generate_content(f"כתוב שיעור מפורט למבחן המתווכים על {topic} בעברית.", stream=True)
+                response = model.generate_content(f"כתוב שיעור מפורט למבחן המתווכים על {topic_choice} בעברית.", stream=True)
                 
-                st.write(f"### שיעור: {topic}")
+                st.write(f"---")
+                st.write(f"**מלמדים עכשיו:** {topic_choice}")
                 placeholder = st.empty()
                 full_text = ""
                 for chunk in response:
                     full_text += chunk.text
                     placeholder.markdown(f"<div class='lesson-box'>{full_text}</div>", unsafe_allow_html=True)
             except Exception as e:
-                st.error(f"שגיאה: {str(e)}")
-                
-    with tab2:
-        if st.button("🚀 התחל סימולציית מבחן"):
+                st.error(f"שגיאה בחיבור ל-AI: {str(e)}")
+
+    with tab_exam:
+        if st.button("🚀 התחל מבחן חדש (25 שאלות)"):
             st.session_state.questions = get_questions()
             st.session_state.idx = 0
             st.session_state.user_answers = {}
@@ -79,7 +86,7 @@ elif st.session_state.step == "exam":
     idx = st.session_state.idx
     q = st.session_state.questions[idx]
     
-    st.markdown(f"### שאלה {idx + 1} מתוך 25")
+    st.markdown(f"### שאלה {idx + 1} / 25")
     st.info(q['q'])
     
     current_ans = st.session_state.user_answers.get(idx)
@@ -100,6 +107,6 @@ elif st.session_state.step == "exam":
                 st.session_state.idx += 1
                 st.rerun()
         else:
-            if st.button("🏁 סיום"):
+            if st.button("🏁 סיום מבחן"):
                 st.session_state.step = "menu"
                 st.rerun()
