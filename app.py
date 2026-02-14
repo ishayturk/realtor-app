@@ -43,19 +43,83 @@ def extract_json(text):
         return json.loads(text)
     except: return None
 
-# --- 3. לוגיקה ---
+# --- 3. לוגיקה מרכזית ---
 st.markdown("<h1>🏠 מתווך בקליק</h1>", unsafe_allow_html=True)
 
-if not st.session_state.user or st.session_state.step == "login":
+# מסך כניסה
+if st.session_state.user == "" or st.session_state.step == "login":
     name_input = st.text_input("הכנס שם מלא:")
-    if st.button("כניסה"):
+    if st.button("כניסה למערכת"):
         if name_input:
             st.session_state.user = name_input
             st.session_state.step = "menu"
             st.rerun()
 
+# תפריט ראשי
 elif st.session_state.step == "menu":
     st.markdown(f"### שלום, {st.session_state.user} 👋")
     col1, col2 = st.columns(2)
     with col1:
-        if st.
+        if st.button("📚 שיעור עיוני + שאלון"):
+            st.session_state.step = "study"
+            st.session_state.lesson_text = ""
+            st.session_state.quiz_active = False
+            st.rerun()
+    with col2:
+        if st.button("📝 סימולציית בחינה (25 שאלות)"):
+            st.session_state.exam_questions = [{"q": f"שאלה {i+1} לסימולציה:", "options": ["אופציה 1", "אופציה 2", "אופציה 3", "אופציה 4"], "correct": "אופציה 1", "reason": "הסבר סימולציה כללי.", "source": "חוק המתווכים"} for i in range(25)]
+            st.session_state.exam_idx = 0
+            st.session_state.checked_questions = set()
+            st.session_state.step = "full_exam"
+            st.rerun()
+
+# שלב לימוד
+elif st.session_state.step == "study":
+    st.markdown(f"**משתמש:** {st.session_state.user}")
+    topics = ["חוק המתווכים", "חוק המקרקעין", "חוק החוזים", "חוק הגנת הצרכן", "חוק המכר (דירות)", "מיסוי מקרקעין"]
+    selected_topic = st.selectbox("בחר נושא:", topics)
+    
+    if not st.session_state.lesson_text:
+        if st.button("📖 התחל שיעור"):
+            genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+            model = genai.GenerativeModel('gemini-2.0-flash')
+            response = model.generate_content(f"כתוב שיעור מפורט על {selected_topic} למבחן המתווכים.", stream=True)
+            placeholder = st.empty()
+            full_text = ""
+            for chunk in response:
+                full_text += chunk.text
+                placeholder.markdown(f"<div class='lesson-box'>{full_text}</div>", unsafe_allow_html=True)
+            st.session_state.lesson_text = full_text
+            st.rerun()
+
+    if st.session_state.lesson_text:
+        st.markdown(f"<div class='lesson-box'>{st.session_state.lesson_text}</div>", unsafe_allow_html=True)
+        if not st.session_state.quiz_active:
+            if st.button("✍️ בנה שאלון על בסיס השיעור"):
+                with st.spinner("מייצר שאלות..."):
+                    model = genai.GenerativeModel('gemini-2.0-flash')
+                    prompt = f"על בסיס הטקסט: {st.session_state.lesson_text}. צור 10 שאלות בפורמט JSON בלבד: [{{'q': 'שאלה', 'options': ['א','ב','ג','ד'], 'correct': 'תשובה', 'reason': 'הסבר', 'source': 'סעיף'}}]"
+                    quiz_res = model.generate_content(prompt)
+                    data = extract_json(quiz_res.text)
+                    if data:
+                        st.session_state.quiz_questions = data
+                        st.session_state.quiz_active = True
+                        st.session_state.checked_questions = set()
+                        st.session_state.quiz_idx = 0
+                        st.rerun()
+
+    if st.session_state.quiz_active:
+        idx = st.session_state.quiz_idx
+        q = st.session_state.quiz_questions[idx]
+        st.markdown(f"#### שאלה {idx+1}/10")
+        ans = st.radio(q['q'], q['options'], key=f"q_{idx}", index=None)
+        
+        if ans and idx not in st.session_state.checked_questions:
+            if st.button("🔍 בדוק תשובה"):
+                st.session_state.quiz_answers[idx] = ans
+                st.session_state.checked_questions.add(idx)
+                st.rerun()
+
+        if idx in st.session_state.checked_questions:
+            is_correct = st.session_state.quiz_answers.get(idx) == q['correct']
+            st.markdown(f"<div class='explanation-box {'success' if is_correct else '
