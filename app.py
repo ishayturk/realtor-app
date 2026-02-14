@@ -1,13 +1,13 @@
 import streamlit as st
 import google.generativeai as genai
 
-# הגדרות עיצוב מהירות
+# הגדרות שלד מהירות
 st.set_page_config(page_title="מתווך בקליק", layout="centered")
 st.markdown("<style>.stApp {text-align: right; direction: rtl;}</style>", unsafe_allow_html=True)
 
 st.title("🎓 מתווך בקליק")
 
-# טאבים בשלד
+# טאבים
 tab1, tab2 = st.tabs(["📚 שיעור לימוד", "📝 מבחן תרגול"])
 
 with tab1:
@@ -17,36 +17,34 @@ with tab1:
 with tab2:
     btn_exam = st.button("ייצר 5 שאלות")
 
-# לוגיקת AI משופרת
 if btn_learn or btn_exam:
-    with st.spinner("מייצר תוכן... זה עשוי לקחת כמה שניות"):
+    with st.spinner("מייצר תוכן..."):
         try:
+            # הגדרת המפתח
             genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
             
-            # בחירה ידנית של המודל המהיר ביותר כדי לחסוך זמן
-            model = genai.GenerativeModel('gemini-1.5-flash')
+            # --- התיקון הקריטי ---
+            # אנחנו משתמשים בשם המלא והגרסה היציבה ביותר (1.0 pro) 
+            # כדי לעקוף את בעיית ה-v1beta של השרת שלך
+            model = genai.GenerativeModel(model_name='models/gemini-1.0-pro')
             
-            prompt = f"כתוב שיעור קצר וממוקד בעברית על {topic} למבחן המתווכים" if btn_learn else "ייצר 5 שאלות אמריקאיות למבחן המתווכים עם תשובות"
+            prompt = f"כתוב שיעור קצר בעברית על {topic}" if btn_learn else "ייצר 5 שאלות אמריקאיות למבחן המתווכים"
             
-            # בקשה מהירה (Streaming)
+            # יצירת תוכן
             response = model.generate_content(prompt)
             
-            # בדיקה אם התוכן קיים
-            if response and response.text:
-                st.success("התוכן מוכן!")
-                st.markdown("---")
-                st.markdown(response.text)
+            if response.text:
+                st.markdown("### תוצאה:")
+                st.write(response.text)
             else:
-                st.warning("ה-AI החזיר תשובה ריקה. נסה ללחוץ שוב.")
+                st.error("התקבלה תשובה ריקה מהשרת.")
                 
         except Exception as e:
-            # אם ה-Flash המהיר נכשל, ננסה את ה-Pro היציב
+            # ניסיון אחרון ודי עם שם המודל הכי בסיסי בעולם
             try:
-                model_alt = genai.GenerativeModel('gemini-pro')
-                res = model_alt.generate_content(prompt)
-                st.markdown(res.text)
-            except:
-                st.error(f"שגיאה בהפקת התוכן: {e}")
-
-st.divider()
-st.caption("מערכת למידה מבוססת AI")
+                model_fallback = genai.GenerativeModel('gemini-pro')
+                res = model_fallback.generate_content(prompt)
+                st.write(res.text)
+            except Exception as e2:
+                st.error(f"שגיאה סופית: {e2}")
+                st.info("משהו בהגדרות השרת של Streamlit חוסם את המודלים החדשים. נסה לבצע Reboot לאפליקציה.")
