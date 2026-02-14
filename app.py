@@ -2,25 +2,49 @@ import streamlit as st
 import google.generativeai as genai
 import re
 
-# 1. הגדרות RTL נקיות ויישור בנייד
+# 1. הגדרות RTL אגרסיביות - כולל הפריים הצידי (Sidebar)
 st.set_page_config(page_title="מתווך בקליק", layout="wide")
 
 st.markdown("""
 <style>
-    /* יישור גלובלי לכל האפליקציה */
+    /* יישור גלובלי של כל האפליקציה */
     .stApp, [data-testid="stAppViewContainer"], [data-testid="stMarkdownContainer"] {
         direction: rtl !important;
         text-align: right !important;
     }
-    
-    /* תיקון סיידבר והמבורגר */
-    [data-testid="stSidebar"] { direction: rtl !important; text-align: right !important; }
-    [data-testid="stSidebarCollapsedControl"] { right: 10px !important; left: auto !important; }
 
-    /* יישור כפתורים */
-    .stButton button { width: 100%; text-align: right !important; }
+    /* יישור הרמטי של הסיידבר (הפריים הצידי) */
+    [data-testid="stSidebar"] {
+        direction: rtl !important;
+        text-align: right !important;
+        border-left: 1px solid #e0e0e0; /* קו הפרדה בצד שמאל של התפריט */
+        border-right: none !important;
+    }
+
+    /* יישור אלמנטים בתוך הסיידבר */
+    [data-testid="stSidebar"] [data-testid="stVerticalBlock"] {
+        direction: rtl !important;
+        text-align: right !important;
+    }
+
+    /* העברת כפתור שלושת הקווים (המבורגר) לימין בנייד */
+    [data-testid="stSidebarCollapsedControl"] {
+        right: 10px !important;
+        left: auto !important;
+    }
+
+    /* תיקון בולטים (נקודות) */
+    ul, ol {
+        direction: rtl !important;
+        text-align: right !important;
+        padding-right: 1.5rem !important;
+        list-style-position: inside !important;
+    }
     
-    /* יישור רדיו (עיגול בצד ימין) */
+    li { text-align: right !important; }
+
+    /* יישור כפתורים ורדיו */
+    .stButton button { width: 100%; text-align: right !important; direction: rtl !important; }
     div[role="radiogroup"] { direction: rtl !important; }
     
     .main-header {
@@ -31,7 +55,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# 2. Session State
+# 2. ניהול Session State
 for k, v in {
     "view_mode": "login", "user_name": "", "current_topic": "",
     "lesson_data": "", "lesson_quiz_data": [], "history": []
@@ -54,16 +78,16 @@ def parse_quiz(text):
         except: continue
     return qs[:5]
 
-# 3. תפריט צד
+# 3. תפריט צד (Sidebar)
 if st.session_state.user_name:
     with st.sidebar:
-        st.write(f"### שלום, {st.session_state.user_name}")
+        st.markdown(f"### שלום, {st.session_state.user_name}")
         if st.button("📚 בחירת נושא"):
-            st.session_state.current_topic = ""
             st.session_state.view_mode = "setup"; st.rerun()
         
         if st.session_state.current_topic:
             st.markdown("---")
+            st.write(f"📖 **נושא:** {st.session_state.current_topic}")
             if st.button("📖 קרא שיעור"):
                 st.session_state.view_mode = "lesson_view"; st.rerun()
             if st.button("✍️ שאלון תרגול"):
@@ -71,7 +95,7 @@ if st.session_state.user_name:
         
         if st.session_state.history:
             st.markdown("---")
-            st.write("📊 **היסטוריה:**")
+            st.write("📊 **היסטוריית ציונים:**")
             for h in st.session_state.history:
                 st.write(f"• {h['topic']}: {h['score']}/5")
 
@@ -89,53 +113,25 @@ elif st.session_state.view_mode == "setup":
     t = st.selectbox("בחר נושא:", ["חוק המתווכים", "חוק המקרקעין", "דיני חוזים", "מיסוי מקרקעין"])
     if st.button("התחל ללמוד"):
         st.session_state.current_topic = t
-        st.session_state.lesson_data = ""
-        st.session_state.lesson_quiz_data = []
+        st.session_state.lesson_data = ""; st.session_state.lesson_quiz_data = []
         st.session_state.view_mode = "lesson_view"; st.rerun()
 
 elif st.session_state.view_mode == "lesson_view":
     st.markdown(f'<div class="main-header">{st.session_state.current_topic}</div>', unsafe_allow_html=True)
-    
     if not st.session_state.lesson_data:
         full_text = ""
-        # יצירת אלמנט ריק ומילוי שלו בהזרמה
         placeholder = st.empty()
-        try:
-            resp = model.generate_content(f"כתוב שיעור מפורט למבחן המתווכים על {st.session_state.current_topic}. כתוב בעברית בלבד.", stream=True)
-            for chunk in resp:
-                full_text += chunk.text
-                placeholder.markdown(full_text)
-            st.session_state.lesson_data = full_text
-        except Exception as e:
-            st.error("שגיאה בטעינת השיעור. נסה שוב.")
+        resp = model.generate_content(f"כתוב שיעור מפורט למבחן המתווכים על {st.session_state.current_topic}.", stream=True)
+        for chunk in resp:
+            full_text += chunk.text
+            placeholder.markdown(full_text)
+        st.session_state.lesson_data = full_text
     else:
         st.markdown(st.session_state.lesson_data)
     
     st.markdown("---")
-    if st.button("🎯 סיימתי לקרוא, עבור לשאלון", type="primary"):
+    if st.button("🎯 עבור לשאלון תרגול", type="primary"):
         st.session_state.view_mode = "lesson_quiz"; st.rerun()
 
 elif st.session_state.view_mode == "lesson_quiz":
-    st.markdown(f'<div class="main-header">תרגול: {st.session_state.current_topic}</div>', unsafe_allow_html=True)
-    if not st.session_state.lesson_quiz_data:
-        with st.spinner("מייצר שאלות..."):
-            res = model.generate_content(f"צור 5 שאלות על {st.session_state.current_topic} בפורמט [START_Q] [QUESTION] [OPTIONS] [ANSWER]")
-            st.session_state.lesson_quiz_data = parse_quiz(res.text)
-            st.rerun()
-    
-    with st.form("quiz_form"):
-        choices = []
-        for i, q in enumerate(st.session_state.lesson_quiz_data):
-            st.write(f"**{i+1}. {q['q']}**")
-            c = st.radio(f"בחר תשובה {i+1}:", q['options'], key=f"q_{i}", index=None)
-            choices.append(c)
-            st.markdown("---")
-        
-        if st.form_submit_button("בדוק ציון"):
-            score = 0
-            for i, q in enumerate(st.session_state.lesson_quiz_data):
-                if choices[i] and q['options'].index(choices[i]) == q['correct']:
-                    score += 1
-            st.success(f"הציון שלך: {score} מתוך 5")
-            # הוספה להיסטוריה
-            st.session_state.history.append({"topic": st.session_state.current_topic, "score": score})
+    st.markdown(f'<div class="main-header">תרגול: {st.session_state.
