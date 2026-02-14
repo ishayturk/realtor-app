@@ -1,86 +1,94 @@
 import streamlit as st
 import google.generativeai as genai
-import json
-import re
+import json, re
 
-# --- 1. הגדרות תצוגה RTL ---
 st.set_page_config(page_title="מתווך בקליק", layout="centered")
+st.markdown("""<style>
+[data-testid="stAppViewContainer"],.main {direction:rtl!important; text-align:right!important;}
+h1,h2,h3 {text-align:center!important; color:#1E88E5;}
+.stButton>button {width:100%; font-weight:bold; border-radius:10px;}
+.lesson-box {background:#fff; padding:20px; border-radius:15px; border-right:6px solid #1E88E5; line-height:1.6; margin-bottom:20px;}
+.explanation-box {padding:15px; border-radius:10px; margin-top:10px; border-right:5px solid;}
+.success {background:#e8f5e9; border-color:#4caf50;}
+.error {background:#ffebee; border-color:#f44336;}
+div[role="radiogroup"] {direction:rtl!important; text-align:right!important;}
+</style>""", unsafe_allow_html=True)
 
-st.markdown("""
-    <style>
-    [data-testid="stAppViewContainer"], .main, .block-container { direction: rtl !important; text-align: right !important; }
-    h1, h2, h3, h4 { text-align: center !important; color: #1E88E5; width: 100%; }
-    .stButton > button { width: 100%; font-weight: bold; height: 3.5em; border-radius: 10px; }
-    .lesson-box { 
-        background: #ffffff; padding: 25px; border-radius: 15px; 
-        border-right: 6px solid #1E88E5; box-shadow: 0 4px 12px rgba(0,0,0,0.1); 
-        line-height: 1.8; color: #333; text-align: right; direction: rtl; margin-bottom: 25px;
-    }
-    .explanation-box { padding: 15px; border-radius: 10px; margin-top: 10px; border-right: 5px solid; font-size: 0.95em; text-align: right; }
-    .success { background-color: #e8f5e9; border-color: #4caf50; color: #2e7d32; }
-    .error { background-color: #ffebee; border-color: #f44336; color: #c62828; }
-    div[role="radiogroup"] { direction: rtl !important; text-align: right !important; }
-    </style>
-    """, unsafe_allow_html=True)
+S = st.session_state
+keys = ['user','step','lt','qa','qi','qans','qq','cq','ei','eans','eq']
+for k in keys:
+    if k not in S: S[k] = "" if k in ['user','step','lt'] else (False if k=='qa' else (0 if 'i' in k else ([] if 'q' in k[0] else ({} if 'ans' in k else set()))))
 
-# --- 2. אתחול משתנים ---
-for key in ['user', 'step', 'lesson_text', 'quiz_active', 'quiz_idx', 'quiz_answers', 'quiz_questions', 'checked_questions', 'exam_idx', 'exam_answers', 'exam_questions']:
-    if key not in st.session_state:
-        st.session_state[key] = "" if key in ['user', 'step', 'lesson_text'] else (False if key == 'quiz_active' else (0 if 'idx' in key else ([] if 'questions' in key else ({} if 'answers' in key else set()))))
-
-def extract_json(text):
+def parse_j(t):
     try:
-        match = re.search(r'\[\s*{.*}\s*\]', text, re.DOTALL)
-        if match: return json.loads(match.group())
-        return json.loads(text)
+        m = re.search(r'\[\s*{.*}\s*\]', t, re.DOTALL)
+        return json.loads(m.group()) if m else None
     except: return None
 
-# --- 3. לוגיקה ---
 st.markdown("<h1>🏠 מתווך בקליק</h1>", unsafe_allow_html=True)
 
-if st.session_state.user == "" or st.session_state.step == "login":
-    name_in = st.text_input("הכנס שם מלא:")
-    if st.button("כניסה למערכת"):
-        if name_in:
-            st.session_state.user = name_in
-            st.session_state.step = "menu"
-            st.rerun()
+if S.user == "" or S.step == "login":
+    name = st.text_input("הכנס שם מלא:")
+    if st.button("כניסה"):
+        if name: S.user, S.step = name, "menu"; st.rerun()
 
-elif st.session_state.step == "menu":
-    st.markdown(f"### שלום, {st.session_state.user} 👋")
+elif S.step == "menu":
+    st.markdown(f"### שלום, {S.user} 👋")
     c1, c2 = st.columns(2)
-    with c1:
-        if st.button("📚 שיעור עיוני + שאלון"):
-            st.session_state.step = "study"
-            st.session_state.lesson_text = ""
-            st.session_state.quiz_active = False
-            st.rerun()
-    with c2:
-        if st.button("📝 סימולציית 25 שאלות"):
-            st.session_state.exam_questions = [{"q": f"שאלה {i+1}:", "options": ["א","ב","ג","ד"], "correct": "א", "reason": "הסבר", "source": "חוק"} for i in range(25)]
-            st.session_state.step = "full_exam"
-            st.session_state.exam_idx = 0
-            st.session_state.checked_questions = set()
-            st.rerun()
+    if c1.button("📚 שיעור + שאלון"): S.step, S.lt, S.qa = "study", "", False; st.rerun()
+    if c2.button("📝 סימולציית 25"):
+        S.eq = [{"q":f"שאלה {i+1}:","options":["א","ב","ג","ד"],"correct":"א","reason":"הסבר"} for i in range(25)]
+        S.step, S.ei, S.cq = "full_exam", 0, set(); st.rerun()
 
-elif st.session_state.step == "study":
-    # רשימת 16 הנושאים המלאה
-    all_topics = [
-        "חוק המתווכים במקרקעין", "תקנות המתווכים (פרטי הזמנה)", "חוק המקרקעין", 
-        "חוק החוזים (כללי ותרופות)", "חוק הגנת הצרכן", "חוק המכר (דירות)", 
-        "חוק התכנון והבנייה", "מיסוי מקרקעין", "חוק הגנת הדייר", 
-        "חוק הירושה", "חוק המקרקעין (בתים משותפים)", "חוק השמאות",
-        "חוק העונשין (מרמה וזיוף)", "דיני קניין", "אתיקה מקצועית", "חוק מקרקעי ישראל"
-    ]
-    sel_topic = st.selectbox("בחר נושא לימוד:", all_topics)
-    
-    if not st.session_state.lesson_text:
+elif S.step == "study":
+    all_t = ["חוק המתווכים","תקנות המתווכים","חוק המקרקעין","חוק החוזים","חוק הגנת הצרכן","חוק המכר (דירות)","חוק התכנון והבנייה","מיסוי מקרקעין","חוק הגנת הדייר","חוק הירושה","בתים משותפים","חוק השמאות","חוק העונשין","דיני קניין","אתיקה מקצועית","חוק מקרקעי ישראל"]
+    sel = st.selectbox("נושא:", all_t)
+    if not S.lt:
         if st.button("📖 התחל שיעור"):
             genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-            model = genai.GenerativeModel('gemini-2.0-flash')
-            resp = model.generate_content(f"כתוב שיעור מקיף על {sel_topic} למבחן המתווכים.", stream=True)
-            ph = st.empty()
-            full_t = ""
-            for chunk in resp:
-                full_t += chunk.text
-                ph.markdown(f"<div class='lesson-box'>{full_t
+            m = genai.GenerativeModel('gemini-2.0-flash')
+            res = m.generate_content(f"כתוב שיעור על {sel} למבחן המתווכים.", stream=True)
+            ph, full = st.empty(), ""
+            for ch in res:
+                full += ch.text
+                ph.markdown(f"<div class='lesson-box'>{full}</div>", unsafe_allow_html=True)
+            S.lt = full; st.rerun()
+    if S.lt:
+        st.markdown(f"<div class='lesson-box'>{S.lt}</div>", unsafe_allow_html=True)
+        if not S.qa:
+            if st.button("✍️ בנה שאלון"):
+                m = genai.GenerativeModel('gemini-2.0-flash')
+                p = f"על בסיס: {S.lt}. צור 10 שאלות JSON: [{{'q':'','options':['א','ב','ג','ד'],'correct':'','reason':''}}]"
+                r = m.generate_content(p)
+                d = parse_j(r.text)
+                if d: S.qq, S.qa, S.cq, S.qi = d, True, set(), 0; st.rerun()
+    if S.qa:
+        it = S.qq[S.qi]
+        st.markdown(f"#### שאלה {S.qi+1}/10")
+        p = st.radio(it['q'], it['options'], key=f"q{S.qi}", index=None)
+        if p and S.qi not in S.cq:
+            if st.button("🔍 בדוק"): S.qans[S.qi], S.cq.add(S.qi); st.rerun()
+        if S.qi in S.cq:
+            ok = S.qans.get(S.qi) == it['correct']
+            st.markdown(f"<div class='explanation-box {'success' if ok else 'error'}'><b>{'נכון' if ok else 'טעות'}</b><br>{it['reason']}</div>", unsafe_allow_html=True)
+        c_p, c_n = st.columns(2)
+        if c_p.button("⬅️") and S.qi > 0: S.qi -= 1; st.rerun()
+        if c_n.button("➡️") and S.qi < 9: S.qi += 1; st.rerun()
+        elif S.qi == 9: 
+            if st.button("🏁 סיום"): S.step = "menu"; st.rerun()
+
+elif S.step == "full_exam":
+    ei = S.ei
+    it = S.eq[ei]
+    st.markdown(f"### שאלה {ei+1}/25")
+    p = st.radio(it['q'], it['options'], key=f"e{ei}", index=None)
+    if p and ei not in S.cq:
+        if st.button("🔍 בדוק"): S.eans[ei], S.cq.add(ei); st.rerun()
+    if ei in S.cq:
+        ok = S.eans.get(ei) == it['correct']
+        st.markdown(f"<div class='explanation-box {'success' if ok else 'error'}'>{it['reason']}</div>", unsafe_allow_html=True)
+    b1, b2 = st.columns(2)
+    if b1.button("⬅️") and ei > 0: S.ei -= 1; st.rerun()
+    if b2.button("➡️") and ei < 24: S.ei += 1; st.rerun()
+    else:
+        if st.button("חזרה"): S.step = "menu"; st.rerun()
