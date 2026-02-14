@@ -20,58 +20,73 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # 2. ניהול Session State
-for k, v in {"view_mode": "login", "user_name": "", "current_topic": "", "lesson_data": "", "lesson_quiz_data": [], "history": []}.items():
-    if k not in st.session_state: st.session_state[k] = v
+state_keys = {
+    "view_mode": "login", "user_name": "", "current_topic": "", 
+    "lesson_data": "", "lesson_quiz_data": [], "history": []
+}
+for k, v in state_keys.items():
+    if k not in st.session_state:
+        st.session_state[k] = v
 
+# חיבור ל-Gemini 2.0 Flash
 if "GEMINI_API_KEY" in st.secrets:
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    # שימוש במודל 2.0 כפי שסיכמנו
+    model = genai.GenerativeModel('gemini-2.0-flash')
 
-TOPICS_LIST = ["חוק המתווכים במקרקעין", "חוק המקרקעין", "חוק המכר (דירות)", "חוק הגנת הצרכן", "חוק החוזים", "מיסוי מקרקעין"]
+TOPICS_LIST = [
+    "חוק המתווכים במקרקעין", "חוק המקרקעין", "חוק המכר (דירות)", 
+    "חוק הגנת הצרכן", "חוק החוזים", "מיסוי מקרקעין"
+]
 
 def parse_quiz(text):
-    """מפענח שאלות בצורה גמישה מאוד"""
+    """מפענח שאלות בצורה חכמה עבור Gemini 2.0"""
     qs = []
-    # פיצול לפי סממני שאלות נפוצים
-    blocks = re.split(r"\[START_Q\]|\d\s*\.|\nשאלה", text)[1:]
+    # פיצול השאלות לפי תבנית מספרית או תגית
+    blocks = re.split(r"\[START_Q\]|\n\d\.", text)[1:]
     for b in blocks:
         try:
-            lines = [l.strip() for l in b.split('\n') if l.strip() and not l.startswith('[')]
+            lines = [l.strip() for l in b.split('\n') if l.strip()]
             if len(lines) >= 5:
-                q_text = lines[0]
-                options = lines[1:5]
-                # חיפוש ספרה בודדת עבור התשובה הנכונה
-                ans_match = re.search(r"(\d)", b.split("ANSWER")[-1])
+                q_text = lines[0].replace('QUESTION:', '').strip()
+                opts = lines[1:5]
+                # חילוץ התשובה הנכונה מהסוף
+                ans_match = re.search(r"(\d)", b.split('ANSWER')[-1])
                 ans_idx = int(ans_match.group(1)) - 1 if ans_match else 0
                 if 0 <= ans_idx <= 3:
-                    qs.append({"q": q_text, "options": options, "correct": ans_idx})
+                    qs.append({"q": q_text, "options": opts, "correct": ans_idx})
         except: continue
     return qs[:5]
 
 # --- Sidebar ---
 if st.session_state.user_name:
     with st.sidebar:
-        st.markdown(f"### שלום, {st.session_state.user_name}")
+        st.write(f"### שלום, {st.session_state.user_name}")
         if st.button("📚 בחירת נושא חדש"):
             st.session_state.view_mode = "setup"; st.rerun()
         if st.session_state.current_topic:
             st.markdown("---")
             if st.button("📖 קרא שיעור"):
                 st.session_state.view_mode = "lesson_view"; st.rerun()
-            if st.button("✍️ שאלון תרגול"):
-                st.session_state.lesson_quiz_data = [] # איפוס ליצירה מחדש
+            if st.button("✍️ שאלון תרגול (Gemini 2.0)"):
+                st.session_state.lesson_quiz_data = [] 
                 st.session_state.view_mode = "lesson_quiz"; st.rerun()
+        if st.session_state.history:
+            st.markdown("---")
+            st.write("📊 **היסטוריה:**")
+            for h in st.session_state.history:
+                st.write(f"• {h['topic']}: {h['score']}/5")
 
-# --- ניווט דפים ---
+# --- לוגיקת דפים ---
 if st.session_state.view_mode == "login":
-    st.markdown('<div class="main-header">🎓 הכנה למבחן המתווכים</div>', unsafe_allow_html=True)
+    st.markdown('<div class="main-header">🎓 מתווך בקליק - Gemini 2.0</div>', unsafe_allow_html=True)
     name = st.text_input("שם משתמש:")
     if st.button("התחבר"):
         if name: st.session_state.user_name = name; st.session_state.view_mode = "setup"; st.rerun()
 
 elif st.session_state.view_mode == "setup":
-    st.markdown('<div class="main-header">בחר נושא לימוד</div>', unsafe_allow_html=True)
-    t = st.selectbox("רשימת נושאים:", TOPICS_LIST)
+    st.markdown('<div class="main-header">מה נלמד היום?</div>', unsafe_allow_html=True)
+    t = st.selectbox("בחר נושא:", TOPICS_LIST)
     if st.button("התחל ללמוד"):
         st.session_state.current_topic = t
         st.session_state.lesson_data = ""; st.session_state.lesson_quiz_data = []
@@ -87,43 +102,27 @@ elif st.session_state.view_mode == "lesson_view":
         st.session_state.lesson_data = full_text
     else: st.markdown(st.session_state.lesson_data)
     if st.button("🎯 עבור לשאלון תרגול", type="primary"):
-        st.session_state.lesson_quiz_data = []
         st.session_state.view_mode = "lesson_quiz"; st.rerun()
 
 elif st.session_state.view_mode == "lesson_quiz":
     st.markdown(f'<div class="main-header">תרגול: {st.session_state.current_topic}</div>', unsafe_allow_html=True)
     
     if not st.session_state.lesson_quiz_data:
-        with st.spinner("מייצר שאלות תרגול..."):
-            prompt = f"""צור 5 שאלות אמריקאיות על {st.session_state.current_topic}.
-            עבור כל שאלה רשום:
-            [START_Q]
-            השאלה
-            אופציה 1
-            אופציה 2
-            אופציה 3
-            אופציה 4
-            [ANSWER] מספר התשובה הנכונה (1-4)"""
+        with st.spinner("Gemini 2.0 מייצר עבורך 5 שאלות..."):
+            prompt = f"צור 5 שאלות אמריקאיות על {st.session_state.current_topic}. פורמט: [START_Q] שאלה, 4 תשובות, [ANSWER] מספר."
             res = model.generate_content(prompt)
             st.session_state.lesson_quiz_data = parse_quiz(res.text)
             if not st.session_state.lesson_quiz_data:
-                st.error("הייתה בעיה ביצירת השאלות. נסה ללחוץ שוב על הכפתור בתפריט הצד.")
-            else:
-                st.rerun()
+                st.error("ה-AI לא הצליח לייצר שאלות. נסה שוב.")
+            else: st.rerun()
 
     if st.session_state.lesson_quiz_data:
         with st.form("quiz_form"):
-            user_choices = []
+            choices = []
             for i, q in enumerate(st.session_state.lesson_quiz_data):
                 st.write(f"**{i+1}. {q['q']}**")
-                choice = st.radio(f"בחר תשובה לשאלה {i+1}:", q['options'], key=f"q_{i}", index=None)
-                user_choices.append(choice)
-                st.markdown("---")
-            
-            if st.form_submit_button("בדוק תשובות וקבל ציון"):
-                score = 0
-                for i, q in enumerate(st.session_state.lesson_quiz_data):
-                    if user_choices[i] and user_choices[i] == q['options'][q['correct']]:
-                        score += 1
+                choices.append(st.radio(f"בחירה {i+1}:", q['options'], key=f"q_{i}", index=None))
+            if st.form_submit_button("בדוק ציון"):
+                score = sum(1 for i, q in enumerate(st.session_state.lesson_quiz_data) if choices[i] and choices[i] == q['options'][q['correct']])
                 st.success(f"הציון שלך: {score} מתוך 5")
                 st.session_state.history.append({"topic": st.session_state.current_topic, "score": score})
