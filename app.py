@@ -32,14 +32,19 @@ elif S.step == "menu":
     st.subheader(f"שלום, {S.user} 👋")
     if st.button("📚 שיעור עיוני + שאלון"):
         S.step, S.lt, S.qa = "study", "", False; st.rerun()
-    if st.button("📝 סימולציה 25 שאלות"):
-        S.eq = [{"q":f"שאלה {i+1}:","options":["א","ב","ג","ד"],"correct":"א","reason":"הסבר"} for i in range(25)]
-        S.step, S.ei, S.cq = "full_exam", 0, set(); st.rerun()
+    if st.button("📝 סימולציה (25 שאלות אמיתיות)"):
+        with st.spinner("מייצר סימולציית מבחן מלאה..."):
+            genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+            m = genai.GenerativeModel('gemini-2.0-flash')
+            p = "צור 25 שאלות אמריקאיות למבחן רשם המתווכים בישראל ממגוון נושאים (חוק המתווכים, מקרקעין, חוזים). החזר אך ורק JSON: [{'q':'','options':['א','ב','ג','ד'],'correct':'','reason':''}]"
+            r = m.generate_content(p)
+            d = parse_j(r.text)
+            if d: S.eq, S.step, S.ei, S.cq = d, "full_exam", 0, set(); st.rerun()
+            else: st.error("שגיאה ביצירת המבחן. נסה שוב.")
 
 elif S.step == "study":
     all_t = ["חוק המתווכים", "תקנות המתווכים", "חוק המקרקעין", "חוק החוזים", "הגנת הצרכן", "חוק המכר", "תכנון ובנייה", "מיסוי מקרקעין", "הגנת הדייר", "חוק הירושה", "בתים משותפים", "חוק השמאות", "חוק העונשין", "דיני קניין", "אתיקה", "מקרקעי ישראל"]
     sel = st.selectbox("בחר נושא:", all_t)
-    
     if not S.lt:
         if st.button("📖 התחל שיעור"):
             genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
@@ -54,37 +59,34 @@ elif S.step == "study":
         st.markdown(f"<div class='lesson-box'>{S.lt}</div>", unsafe_allow_html=True)
         if not S.qa:
             if st.button("✍️ בנה שאלון"):
-                with st.spinner("מנתח את השיעור ומייצר שאלות..."):
+                with st.spinner("מייצר שאלות מהשיעור..."):
                     m = genai.GenerativeModel('gemini-2.0-flash')
-                    p = f"על בסיס הטקסט הבא בלבד: {S.lt}\nצור 10 שאלות אמריקאיות. החזר אך ורק פורמט JSON תקין כרשימה: [{{'q': 'שאלה', 'options': ['א','ב','ג','ד'], 'correct': 'התשובה המדויקת מהרשימה', 'reason': 'הסבר'}}] "
+                    p = f"על בסיס: {S.lt}. צור 10 שאלות JSON: [{'q':'','options':['א','ב','ג','ד'],'correct':'','reason':''}]"
                     r = m.generate_content(p)
                     d = parse_j(r.text)
                     if d: S.qq, S.qa, S.cq, S.qi = d, True, set(), 0; st.rerun()
-                    else: st.error("ה-AI לא הצליח לייצר שאלות בפורמט תקין. נסה שוב.")
         else:
             it = S.qq[S.qi]
-            st.markdown(f"### שאלה {S.qi+1} מתוך 10")
+            st.markdown(f"### שאלה {S.qi+1}/10")
             p = st.radio(it['q'], it['options'], key=f"q{S.qi}", index=None)
             if p and S.qi not in S.cq:
                 if st.button("🔍 בדוק תשובה"): S.qans[S.qi], _ = p, S.cq.add(S.qi); st.rerun()
             if S.qi in S.cq:
                 ok = S.qans.get(S.qi) == it['correct']
                 c = "success" if ok else "error"
-                st.markdown(f"<div class='explanation-box {c}'><b>{'נכון!' if ok else 'טעות.'}</b><br>{it['reason']}</div>", unsafe_allow_html=True)
-            
-            c1, c2 = st.columns(2)
-            if c1.button("➡️ הבא") and S.qi < 9: S.qi += 1; st.rerun()
-            if c2.button("🏁 חזרה לתפריט"): S.step = "menu"; st.rerun()
+                st.markdown(f"<div class='explanation-box {c}'>{it['reason']}</div>", unsafe_allow_html=True)
+            if st.button("➡️ הבא") and S.qi < 9: S.qi += 1; st.rerun()
+            if st.button("🏁 חזרה"): S.step = "menu"; st.rerun()
 
 elif S.step == "full_exam":
     it = S.eq[S.ei]
-    st.write(f"### סימולציה: {S.ei+1}/25")
+    st.markdown(f"### שאלה {S.ei+1} מתוך 25")
     p = st.radio(it['q'], it['options'], key=f"e{S.ei}", index=None)
     if p and S.ei not in S.cq:
         if st.button("🔍 בדוק"): S.eans[S.ei], _ = p, S.cq.add(S.ei); st.rerun()
     if S.ei in S.cq:
         ok = S.eans.get(S.ei) == it['correct']
         c = "success" if ok else "error"
-        st.markdown(f"<div class='explanation-box {c}'>{it['reason']}</div>", unsafe_allow_html=True)
-    if st.button("➡️ הבא") and S.ei < 24: S.ei += 1; st.rerun()
-    if st.button("🏁 חזרה"): S.step = "menu"; st.rerun()
+        st.markdown(f"<div class='explanation-box {c}'><b>{'נכון' if ok else 'טעות'}</b><br>{it['reason']}</div>", unsafe_allow_html=True)
+    if st.button("➡️ השאלה הבאה") and S.ei < 24: S.ei += 1; st.rerun()
+    if st.button("🏁 סיום וחזרה לתפריט"): S.step = "menu"; st.rerun()
