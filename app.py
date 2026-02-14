@@ -2,7 +2,7 @@ import streamlit as st
 import google.generativeai as genai
 import re
 
-# 1. הגדרות עיצוב ויישור RTL
+# 1. עיצוב ויישור RTL
 st.set_page_config(page_title="מתווך בקליק", layout="wide")
 
 st.markdown("""
@@ -26,21 +26,14 @@ div[data-testid="stMarkdownContainer"], h1, h2, h3, p, li, span, label {
 </style>
 """, unsafe_allow_html=True)
 
-# 2. רשימת נושאים
+# 2. נושאים
 TOPICS = [
-    "בחר נושא...",
-    "חוק המתווכים במקרקעין",
-    "חוק המקרקעין",
-    "חוק המכר (דירות)",
-    "חוק הגנת הצרכן",
-    "חוק החוזים",
-    "דיני תכנון ובנייה",
-    "מיסוי מקרקעין",
-    "חוק העונשין",
-    "חוק שמאי מקרקעין"
+    "בחר נושא...", "חוק המתווכים במקרקעין", "חוק המקרקעין", "חוק המכר (דירות)",
+    "חוק הגנת הצרכן", "חוק החוזים", "דיני תכנון ובנייה",
+    "מיסוי מקרקעין", "חוק העונשין", "חוק שמאי מקרקעין"
 ]
 
-# 3. ניהול משתני Session State - אתחול מלא
+# 3. ניהול Session State
 if "user_name" not in st.session_state: st.session_state.user_name = ""
 if "view_mode" not in st.session_state: st.session_state.view_mode = "login"
 if "lesson_data" not in st.session_state: st.session_state.lesson_data = ""
@@ -49,27 +42,47 @@ if "history" not in st.session_state: st.session_state.history = []
 if "current_topic" not in st.session_state: st.session_state.current_topic = ""
 if "quiz_ready" not in st.session_state: st.session_state.quiz_ready = False
 
-# הגדרת ה-AI
 if "GEMINI_API_KEY" in st.secrets:
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-    model = genai.GenerativeModel('gemini-2.0-flash')
+    model = genai.GenerativeModel('gemini-1.5-flash') # שימוש במודל יציב יותר לניתוח טקסט
 
-def parse_quiz(text):
+def parse_quiz_robust(text):
+    """מנגנון חילוץ שאלות משופר וחסין תקלות"""
     qs = []
-    blocks = re.findall(r"\[START_Q\](.*?)\[END_Q\]", text, re.DOTALL)
+    # פיצול לפי START_Q או פשוט לפי מספרי שאלות אם התגיות חסרות
+    blocks = re.split(r"\[START_Q\]|שאלה \d+:?", text)[1:]
+    
     for b in blocks:
         try:
-            q = re.search(r"\[QUESTION\](.*?)\[OPTIONS\]", b, re.DOTALL).group(1).strip()
-            opts_raw = re.search(r"\[OPTIONS\](.*?)\[ANSWER\]", b, re.DOTALL).group(1).strip()
-            ans_val = re.search(r"\[ANSWER\](.*?)(?:\[LAW\]|$)", b, re.DOTALL).group(1).strip()
-            law_val = re.search(r"\[LAW\](.*?)$", b, re.DOTALL).group(1).strip()
-            opts = [re.sub(r"^\d+[\s\).\-]+", "", o.strip()) for o in opts_raw.split('\n') if o.strip()]
-            idx = int(re.search(r'\d', ans_val).group()) - 1
-            qs.append({"q": q, "options": opts[:4], "correct": idx, "ref": law_val})
+            # ניקוי הטקסט מתגיות סגירה
+            b = b.replace("[END_Q]", "").strip()
+            
+            # חילוץ השאלה - מחפש טקסט לפני האופציות
+            q_part = re.split(r"\[OPTIONS\]|\d\)", b)[0].replace("[QUESTION]", "").strip()
+            
+            # חילוץ אופציות - מחפש את כל מה שבין OPTIONS ל-ANSWER
+            opt_block = ""
+            if "[OPTIONS]" in b:
+                opt_block = re.split(r"\[OPTIONS\]", b)[1]
+                opt_block = re.split(r"\[ANSWER\]", opt_block)[0]
+            
+            options = [re.sub(r"^\d+[\s\).\-]+", "", o.strip()) for o in opt_block.split('\n') if len(o.strip()) > 1]
+            
+            # חילוץ תשובה
+            ans_match = re.search(r"\[ANSWER\]\s*(\d)", b)
+            idx = int(ans_match.group(1)) - 1 if ans_match else 0
+            
+            # חילוץ הסבר חוקי
+            law_part = "לא צוין מקור חוקי"
+            if "[LAW]" in b:
+                law_part = b.split("[LAW]")[1].strip()
+            
+            if q_part and len(options) >= 2:
+                qs.append({"q": q_part, "options": options[:4], "correct": idx, "ref": law_part})
         except: continue
     return qs
 
-# 4. סרגל צידי - ניווט
+# 4. סרגל צידי
 if st.session_state.user_name:
     with st.sidebar:
         st.markdown('<div class="sidebar-logo">🎓 מתווך בקליק</div>', unsafe_allow_html=True)
@@ -80,7 +93,6 @@ if st.session_state.user_name:
             st.session_state.quiz_ready = False
             st.rerun()
         if st.session_state.current_topic:
-            st.markdown(f"**נושא: {st.session_state.current_topic}**")
             if st.session_state.view_mode == "quiz":
                 if st.button("📖 חזרה לשיעור"):
                     st.session_state.view_mode = "lesson"; st.rerun()
@@ -90,60 +102,70 @@ if st.session_state.user_name:
         st.markdown("---")
         for h in st.session_state.history: st.caption(f"• {h}")
 
-# 5. ניהול דפים לפי view_mode
-current_mode = st.session_state.view_mode
+# 5. ניהול דפים
+m = st.session_state.view_mode
 
-if current_mode == "login":
+if m == "login":
     st.title("🎓 מתווך בקליק")
-    name = st.text_input("הזן שם כדי להתחיל:")
+    name = st.text_input("הזן שם:")
     if st.button("כניסה"):
         if name:
             st.session_state.user_name = name
             st.session_state.view_mode = "setup"; st.rerun()
 
-elif current_mode == "setup":
-    st.title(f"מה נלמד היום, {st.session_state.user_name}?")
+elif m == "setup":
+    st.title(f"מה נלמד, {st.session_state.user_name}?")
     t = st.selectbox("בחר נושא להתחלת למידה מיידית:", TOPICS)
     if t != "בחר נושא...":
         st.session_state.current_topic = t
         st.session_state.quiz_ready = False
         st.session_state.view_mode = "streaming_lesson"; st.rerun()
 
-elif current_mode == "streaming_lesson":
+elif m == "streaming_lesson":
     st.title(f"שיעור: {st.session_state.current_topic}")
     placeholder = st.empty()
     full_txt = ""
-    try:
-        res = model.generate_content(f"כתוב שיעור מפורט על {st.session_state.current_topic} למבחן המתווכים.", stream=True)
-        for chunk in res:
-            full_txt += chunk.text
-            placeholder.markdown(full_txt)
-        st.session_state.lesson_data = full_txt
-        with st.status("מכין שאלות תרגול בתפריט הצד..."):
-            q_p = f"צור 3 שאלות על {st.session_state.current_topic}. פורמט: [START_Q] [QUESTION] שאלה [OPTIONS] 1) א 2) ב 3) ג 4) ד [ANSWER] מספר [LAW] סעיף [END_Q]"
-            q_res = model.generate_content(q_p)
-            st.session_state.quiz_data = parse_quiz(q_res.text)
-            st.session_state.quiz_ready = True
-        if st.session_state.current_topic not in st.session_state.history:
-            st.session_state.history.append(st.session_state.current_topic)
-        st.session_state.view_mode = "lesson"; st.rerun()
-    except Exception as e:
-        st.error(f"שגיאה בייצור תוכן: {e}")
+    res = model.generate_content(f"כתוב שיעור מפורט על {st.session_state.current_topic} למבחן המתווכים.", stream=True)
+    for chunk in res:
+        full_txt += chunk.text
+        placeholder.markdown(full_txt)
+    st.session_state.lesson_data = full_txt
+    
+    with st.status("מכין שאלות תרגול בתפריט הצד..."):
+        q_p = f"צור 3 שאלות אמריקאיות על {st.session_state.current_topic}. חובה להשתמש בפורמט: [START_Q] [QUESTION] שאלה [OPTIONS] 1) א 2) ב 3) ג 4) ד [ANSWER] מספר [LAW] סעיף חוק [END_Q]"
+        q_res = model.generate_content(q_p)
+        st.session_state.quiz_data = parse_quiz_robust(q_res.text)
+        st.session_state.quiz_ready = len(st.session_state.quiz_data) > 0
+    
+    if st.session_state.current_topic not in st.session_state.history:
+        st.session_state.history.append(st.session_state.current_topic)
+    st.session_state.view_mode = "lesson"; st.rerun()
 
-elif current_mode == "lesson":
+elif m == "lesson":
     st.title(st.session_state.current_topic)
     st.markdown(st.session_state.lesson_data)
-    st.info("השיעור מוכן. כפתור המבחן זמין כעת בתפריט הצד מימין.")
+    if not st.session_state.quiz_ready:
+        st.warning("⚠️ השאלות לא נוצרו בהצלחה. נסה לבחור נושא שוב.")
+    else:
+        st.info("✅ המבחן מוכן! לחץ על 'מעבר למבחן' בתפריט הצד מימין.")
 
-elif current_mode == "quiz":
+elif m == "quiz":
     st.title(f"תרגול: {st.session_state.current_topic}")
-    for i, q in enumerate(st.session_state.quiz_data):
-        st.markdown('<div class="quiz-card">', unsafe_allow_html=True)
-        st.write(f"**{i+1}. {q['q']}**")
-        ans = st.radio("בחר תשובה:", q['options'], key=f"quiz_q_{i}", index=None)
-        if st.button(f"בדוק תשובה {i+1}", key=f"quiz_b_{i}"):
-            if ans:
-                if q['options'].index(ans) == q['correct']: st.success("נכון מאוד!")
-                else: st.error(f"טעות. התשובה הנכונה היא: {q['options'][q['correct']]}")
-                st.info(f"⚖️ {q['ref']}")
-        st.markdown('</div>', unsafe_allow_html=True)
+    if not st.session_state.quiz_data:
+        st.error("לא נמצאו שאלות. חזור לשיעור ונסה שוב.")
+    else:
+        for i, q in enumerate(st.session_state.quiz_data):
+            with st.container():
+                st.markdown(f'<div class="quiz-card">', unsafe_allow_html=True)
+                st.subheader(f"שאלה {i+1}")
+                st.write(q['q'])
+                ans = st.radio(f"בחר תשובה ל{i+1}:", q['options'], key=f"q{i}", index=None)
+                if st.button(f"בדוק תשובה {i+1}", key=f"b{i}"):
+                    if ans:
+                        correct_idx = q['correct']
+                        if q['options'].index(ans) == correct_idx:
+                            st.success("נכון מאוד! 🌟")
+                        else:
+                            st.error(f"לא נכון. התשובה הנכונה היא: {q['options'][correct_idx]}")
+                        st.info(f"⚖️ **המקור בחוק:** {q['ref']}")
+                st.markdown('</div>', unsafe_allow_html=True)
