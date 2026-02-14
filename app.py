@@ -3,7 +3,7 @@ import google.generativeai as genai
 import re
 import time
 
-# 1. הגדרות עיצוב RTL
+# 1. הגדרות עיצוב RTL וקיבוע תפריטים
 st.set_page_config(page_title="מתווך בקליק", layout="wide")
 
 st.markdown("""
@@ -11,14 +11,13 @@ st.markdown("""
     .stApp, .main, .block-container { direction: rtl !important; text-align: right !important; }
     [data-testid="stSidebar"] { direction: rtl !important; text-align: right !important; }
     
-    /* עיצוב כפתורי ניווט בתפריט הצידי */
-    .sidebar-nav-btn button {
-        background-color: #f0f2f6 !important;
+    /* עיצוב כפתורי הניווט בסיידבר */
+    .sidebar .stButton button {
+        background-color: #ffffff !important;
         color: #1E88E5 !important;
-        border: 1px solid #1E88E5 !important;
-        margin-bottom: 10px !important;
+        border: 2px solid #1E88E5 !important;
     }
-    
+
     div.stButton > button { 
         width: 100%; border-radius: 8px; font-weight: bold;
     }
@@ -31,14 +30,15 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# 2. אתחול משתנים
-for key in ["user_name", "lesson_data", "current_topic"]:
-    if key not in st.session_state: st.session_state[key] = ""
+# 2. ניהול משתני מערכת
+if "user_name" not in st.session_state: st.session_state.user_name = ""
 if "view_mode" not in st.session_state: st.session_state.view_mode = "login"
-if "history" not in st.session_state: st.session_state.history = []
+if "lesson_data" not in st.session_state: st.session_state.lesson_data = ""
 if "quiz_data" not in st.session_state: st.session_state.quiz_data = []
+if "history" not in st.session_state: st.session_state.history = []
+if "current_topic" not in st.session_state: st.session_state.current_topic = ""
 
-# 3. חיבור ל-AI
+# 3. אתחול AI
 if "GEMINI_API_KEY" in st.secrets:
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
     model = genai.GenerativeModel('gemini-2.0-flash')
@@ -56,20 +56,20 @@ def parse_quiz(quiz_text):
             questions.append({"q": q_text, "options": options, "correct": correct_idx})
     return questions
 
-# --- סרגל צידי (ניווט והיסטוריה) ---
+# --- סרגל צידי (תפריט ניווט חכם) ---
 if st.session_state.user_name:
     with st.sidebar:
         st.title(f"שלום, {st.session_state.user_name}")
+        st.markdown("---")
         
         st.subheader("📍 ניווט מהיר")
-        # כפתור חזרה לבחירת נושא תמיד מופיע
         if st.button("➕ בחירת נושא חדש"):
             st.session_state.view_mode = "setup"
             st.rerun()
             
-        # כפתורי ניווט מבוססי הקשר
+        # מעברים דינמיים בתפריט
         if st.session_state.view_mode == "lesson" and st.session_state.quiz_data:
-            if st.button("📝 עבר למבחן התרגול"):
+            if st.button("📝 מעבר למבחן התרגול"):
                 st.session_state.view_mode = "quiz"
                 st.rerun()
         
@@ -79,11 +79,11 @@ if st.session_state.user_name:
                 st.rerun()
         
         st.markdown("---")
-        st.subheader("📚 היסטוריית למידה")
+        st.subheader("📚 היסטוריה")
         for item in st.session_state.history:
-            st.write(f"• {item}")
+            st.caption(f"• {item}")
 
-# --- ניהול עמודים ---
+# --- עמודי האפליקציה ---
 
 if st.session_state.view_mode == "login":
     st.title("🎓 מתווך בקליק")
@@ -103,9 +103,12 @@ elif st.session_state.view_mode == "setup":
         msg = st.empty()
         try:
             msg.text("מייצר שיעור...")
+            bar.progress(30)
             res = model.generate_content(f"כתוב שיעור מפורט על {topic} למבחן המתווכים.")
             st.session_state.lesson_data = res.text
-            bar.progress(50)
             
+            bar.progress(70)
             msg.text("בונה מבחן תרגול...")
-            quiz_res = model.generate_content(f"צור 3 שאלות אמריקאיות על {topic}. פורמט: שאלה X: [טקסט] 1) [א]
+            # השורה המתוקנת:
+            quiz_res = model.generate_content(f"צור 3 שאלות אמריקאיות על {topic}. פורמט: שאלה X: [טקסט] 1) [א] 2) [ב] 3) [ג] 4) [ד] תשובה נכונה: [מספר]")
+            st.session_
