@@ -17,8 +17,8 @@ st.markdown("""
 # 2. חיבור ל-API
 if "GEMINI_API_KEY" in st.secrets:
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-    # שימוש במודל יציב
-    model = genai.GenerativeModel('gemini-pro')
+     # זה השם המדויק שהגרסה החדשה מצפה לו
+    model = genai.GenerativeModel('gemini-1.5-flash')
 else:
     st.error("חסרה סיסמת ה-API ב-Secrets!")
     st.stop()
