@@ -26,7 +26,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# 2. אתחול משתנים בצורה בטוחה
+# 2. אתחול משתנים
 keys = ["user_name", "view_mode", "lesson_data", "quiz_data", 
         "history", "lesson_count", "user_answers", "current_topic", "quiz_ready"]
 
@@ -37,7 +37,7 @@ for k in keys:
         elif k == "quiz_ready": st.session_state[k] = False
         else: st.session_state[k] = ""
 
-if "view_mode" not in st.session_state or not st.session_state.view_mode:
+if not st.session_state.view_mode:
     st.session_state.view_mode = "login"
 
 if "GEMINI_API_KEY" in st.secrets:
@@ -65,8 +65,7 @@ if st.session_state.user_name:
         st.markdown('<div class="sidebar-logo">🎓 מתווך בקליק</div>', unsafe_allow_html=True)
         st.write(f"שלום, **{st.session_state.user_name}**")
         if st.button("➕ נושא חדש"):
-            st.session_state.view_mode = "setup"
-            st.rerun()
+            st.session_state.view_mode = "setup"; st.rerun()
         if st.session_state.current_topic:
             if st.button("📖 חזרה לשיעור"):
                 st.session_state.view_mode = "lesson"; st.rerun()
@@ -83,23 +82,28 @@ if m == "login":
     if st.button("כניסה"):
         if name:
             st.session_state.user_name = name
-            st.session_state.view_mode = "setup"
-            st.rerun()
+            st.session_state.view_mode = "setup"; st.rerun()
 
 elif m == "setup":
     st.title(f"מה נלמד, {st.session_state.user_name}?")
-    t = st.selectbox("נושא:", ["חוק המתווכים", "חוק המקרקעין", "דיני חוזים"])
+    # רשימת נושאים מלאה
+    topics_list = [
+        "חוק המתווכים במקרקעין", "חוק המקרקעין", "חוק המכר (דירות)",
+        "חוק הגנת הצרכן", "חוק החוזים", "דיני תכנון ובנייה",
+        "מיסוי מקרקעין", "חוק העונשין", "חוק שמאי מקרקעין"
+    ]
+    t = st.selectbox("בחר נושא למבחן:", topics_list)
     if st.button("התחל ללמוד"):
         st.session_state.current_topic = t
         st.session_state.lesson_count += 1
-        st.session_state.view_mode = "streaming_lesson"
-        st.rerun()
+        st.session_state.view_mode = "streaming_lesson"; st.rerun()
 
 elif m == "streaming_lesson":
     st.title(f"שיעור: {st.session_state.current_topic}")
     placeholder = st.empty()
     full_text = ""
-    res = model.generate_content(f"כתוב שיעור על {st.session_state.current_topic}", stream=True)
+    prompt = f"כתוב שיעור מפורט על {st.session_state.current_topic} למבחן המתווכים."
+    res = model.generate_content(prompt, stream=True)
     for chunk in res:
         full_text += chunk.text
         placeholder.markdown(full_text)
@@ -113,3 +117,24 @@ elif m == "streaming_lesson":
     
     if st.session_state.current_topic not in st.session_state.history:
         st.session_state.history.append(st.session_state.current_topic)
+    
+    if st.button("סיימתי לקרוא - למבחן"):
+        st.session_state.view_mode = "quiz"; st.rerun()
+
+elif m == "lesson":
+    st.title(st.session_state.current_topic)
+    st.markdown(st.session_state.lesson_data)
+    st.button("למבחן", on_click=lambda: setattr(st.session_state, 'view_mode', 'quiz'))
+
+elif m == "quiz":
+    st.title(f"תרגול: {st.session_state.current_topic}")
+    for i, q in enumerate(st.session_state.quiz_data):
+        st.markdown('<div class="quiz-card">', unsafe_allow_html=True)
+        st.write(f"**{i+1}. {q['q']}**")
+        ans = st.radio("בחר:", q['options'], key=f"q{i}", index=None)
+        if st.button(f"בדוק {i+1}", key=f"b{i}"):
+            if ans:
+                if q['options'].index(ans) == q['correct']: st.success("נכון!")
+                else: st.error(f"טעות. הנכונה: {q['options'][q['correct']]}")
+                st.info(f"⚖️ {q['ref']}")
+        st.markdown('</div>', unsafe_allow_html=True)
