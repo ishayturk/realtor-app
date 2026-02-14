@@ -2,7 +2,7 @@ import streamlit as st
 import google.generativeai as genai
 import time
 
-# --- 1. הגדרות תצוגה RTL קשיחות ---
+# --- 1. הגדרות תצוגה RTL ---
 st.set_page_config(page_title="מתווך בקליק", layout="centered")
 
 st.markdown("""
@@ -61,31 +61,4 @@ elif st.session_state.step == "study":
             try:
                 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
                 model = genai.GenerativeModel('gemini-2.0-flash')
-                response = model.generate_content(f"כתוב שיעור מפורט על {topic} למבחן המתווכים בישראל.", stream=True)
-                
-                placeholder = st.empty()
-                full_text = ""
-                for chunk in response:
-                    full_text += chunk.text
-                    placeholder.markdown(f"<div class='lesson-box'>{full_text}</div>", unsafe_allow_html=True)
-                
-                st.session_state.lesson_text = full_text
-                st.rerun()
-            except Exception as e:
-                st.error(f"שגיאה: {str(e)}")
-
-    if st.session_state.lesson_text:
-        st.markdown(f"<div class='lesson-box'>{st.session_state.lesson_text}</div>", unsafe_allow_html=True)
-        
-        if not st.session_state.quiz_active and not st.session_state.quiz_done:
-            if st.button("✍️ סיימתי לקרוא, עבור לתרגול"):
-                st.session_state.quiz_questions = [
-                    {
-                        "q": f"שאלה {i+1} על {topic}:", 
-                        "options": ["אופציה א'", "אופציה ב'", "אופציה ג'", "אופציה ד'"], 
-                        "correct": "אופציה א'", 
-                        "reason": "הסבר מפורט על התשובה.",
-                        "source": "סעיף רלוונטי בשיעור לעיל."
-                    } for i in range(10)
-                ]
-                st.session_state.
+                response = model.generate_content(f"כתוב שיעור מפורט על {topic} למבחן המתו
