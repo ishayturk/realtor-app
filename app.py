@@ -2,64 +2,36 @@ import streamlit as st
 import google.generativeai as genai
 import re
 
-# 1. הגדרות דף ו-CSS אגרסיבי במיוחד
+# 1. הגדרות RTL נקיות ויישור בנייד
 st.set_page_config(page_title="מתווך בקליק", layout="wide")
 
 st.markdown("""
 <style>
-    /* הגדרות בסיס לכל האפליקציה */
-    .stApp {
-        direction: rtl;
-        text-align: right;
-    }
-
-    /* יישור הסיידבר */
-    [data-testid="stSidebar"] {
+    /* יישור גלובלי לכל האפליקציה */
+    .stApp, [data-testid="stAppViewContainer"], [data-testid="stMarkdownContainer"] {
         direction: rtl !important;
-        text-align: right !important;
-    }
-
-    /* העברת כפתור שלושת הקווים (המבורגר) לימין בנייד */
-    [data-testid="stSidebarCollapsedControl"] {
-        right: 10px !important;
-        left: auto !important;
-    }
-
-    /* יישור כל הבלוקים והטקסטים */
-    div[data-testid="stVerticalBlock"] div {
-        direction: rtl !important;
-        text-align: right !important;
-    }
-
-    /* יישור כפתורי רדיו (העיגול לימין הטקסט) */
-    [data-testid="stMarkdownContainer"] p {
         text-align: right !important;
     }
     
-    .stRadio div[role="radiogroup"] {
-        direction: rtl !important;
-    }
+    /* תיקון סיידבר והמבורגר */
+    [data-testid="stSidebar"] { direction: rtl !important; text-align: right !important; }
+    [data-testid="stSidebarCollapsedControl"] { right: 10px !important; left: auto !important; }
 
-    /* עיצוב כפתורים */
-    .stButton button {
-        width: 100%;
-        text-align: right !important;
-        direction: rtl !important;
-    }
+    /* יישור כפתורים */
+    .stButton button { width: 100%; text-align: right !important; }
+    
+    /* יישור רדיו (עיגול בצד ימין) */
+    div[role="radiogroup"] { direction: rtl !important; }
     
     .main-header {
-        font-size: 26px;
-        font-weight: bold;
-        text-align: center !important;
-        color: #1E88E5;
-        border-bottom: 2px solid #1E88E5;
-        padding-bottom: 10px;
-        margin-bottom: 20px;
+        font-size: 26px; font-weight: bold; text-align: center !important;
+        color: #1E88E5; border-bottom: 2px solid #1E88E5;
+        padding-bottom: 10px; margin-bottom: 20px;
     }
 </style>
 """, unsafe_allow_html=True)
 
-# 2. ניהול Session State
+# 2. Session State
 for k, v in {
     "view_mode": "login", "user_name": "", "current_topic": "",
     "lesson_data": "", "lesson_quiz_data": [], "history": []
@@ -82,16 +54,16 @@ def parse_quiz(text):
         except: continue
     return qs[:5]
 
-# --- תפריט צד ---
+# 3. תפריט צד
 if st.session_state.user_name:
     with st.sidebar:
         st.write(f"### שלום, {st.session_state.user_name}")
         if st.button("📚 בחירת נושא"):
+            st.session_state.current_topic = ""
             st.session_state.view_mode = "setup"; st.rerun()
         
         if st.session_state.current_topic:
             st.markdown("---")
-            st.write(f"📖 {st.session_state.current_topic}")
             if st.button("📖 קרא שיעור"):
                 st.session_state.view_mode = "lesson_view"; st.rerun()
             if st.button("✍️ שאלון תרגול"):
@@ -103,10 +75,7 @@ if st.session_state.user_name:
             for h in st.session_state.history:
                 st.write(f"• {h['topic']}: {h['score']}/5")
 
-# --- תוכן ראשי ---
-# עטיפת כל התוכן ב-div של RTL
-st.markdown('<div style="direction: rtl; text-align: right;">', unsafe_allow_html=True)
-
+# 4. לוגיקת דפים
 if st.session_state.view_mode == "login":
     st.markdown('<div class="main-header">🎓 מתווך בקליק</div>', unsafe_allow_html=True)
     name = st.text_input("שם משתמש:")
@@ -120,11 +89,53 @@ elif st.session_state.view_mode == "setup":
     t = st.selectbox("בחר נושא:", ["חוק המתווכים", "חוק המקרקעין", "דיני חוזים", "מיסוי מקרקעין"])
     if st.button("התחל ללמוד"):
         st.session_state.current_topic = t
-        st.session_state.lesson_data = ""; st.session_state.lesson_quiz_data = []
+        st.session_state.lesson_data = ""
+        st.session_state.lesson_quiz_data = []
         st.session_state.view_mode = "lesson_view"; st.rerun()
 
 elif st.session_state.view_mode == "lesson_view":
     st.markdown(f'<div class="main-header">{st.session_state.current_topic}</div>', unsafe_allow_html=True)
+    
     if not st.session_state.lesson_data:
         full_text = ""
-        placeholder = st
+        # יצירת אלמנט ריק ומילוי שלו בהזרמה
+        placeholder = st.empty()
+        try:
+            resp = model.generate_content(f"כתוב שיעור מפורט למבחן המתווכים על {st.session_state.current_topic}. כתוב בעברית בלבד.", stream=True)
+            for chunk in resp:
+                full_text += chunk.text
+                placeholder.markdown(full_text)
+            st.session_state.lesson_data = full_text
+        except Exception as e:
+            st.error("שגיאה בטעינת השיעור. נסה שוב.")
+    else:
+        st.markdown(st.session_state.lesson_data)
+    
+    st.markdown("---")
+    if st.button("🎯 סיימתי לקרוא, עבור לשאלון", type="primary"):
+        st.session_state.view_mode = "lesson_quiz"; st.rerun()
+
+elif st.session_state.view_mode == "lesson_quiz":
+    st.markdown(f'<div class="main-header">תרגול: {st.session_state.current_topic}</div>', unsafe_allow_html=True)
+    if not st.session_state.lesson_quiz_data:
+        with st.spinner("מייצר שאלות..."):
+            res = model.generate_content(f"צור 5 שאלות על {st.session_state.current_topic} בפורמט [START_Q] [QUESTION] [OPTIONS] [ANSWER]")
+            st.session_state.lesson_quiz_data = parse_quiz(res.text)
+            st.rerun()
+    
+    with st.form("quiz_form"):
+        choices = []
+        for i, q in enumerate(st.session_state.lesson_quiz_data):
+            st.write(f"**{i+1}. {q['q']}**")
+            c = st.radio(f"בחר תשובה {i+1}:", q['options'], key=f"q_{i}", index=None)
+            choices.append(c)
+            st.markdown("---")
+        
+        if st.form_submit_button("בדוק ציון"):
+            score = 0
+            for i, q in enumerate(st.session_state.lesson_quiz_data):
+                if choices[i] and q['options'].index(choices[i]) == q['correct']:
+                    score += 1
+            st.success(f"הציון שלך: {score} מתוך 5")
+            # הוספה להיסטוריה
+            st.session_state.history.append({"topic": st.session_state.current_topic, "score": score})
