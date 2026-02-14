@@ -13,7 +13,7 @@ st.markdown("""
 # חיבור ל-API של Gemini (צריך להזין KEY)
 # ב-GitHub שמים את זה ב-Secrets
 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-model = genai.GenerativeModel('gemini-1.5-flash')
+model = genai.GenerativeModel('gemini-1.5-flash-latest')
 
 def get_ai_content(prompt):
     response = model.generate_content(prompt)
