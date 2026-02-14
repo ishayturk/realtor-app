@@ -2,7 +2,7 @@ import streamlit as st
 import google.generativeai as genai
 import re
 
-# 1. הגדרות ועיצוב RTL ממוקד
+# 1. הגדרות ועיצוב RTL
 st.set_page_config(page_title="מתווך בקליק", layout="wide")
 
 def scroll_to_top():
@@ -13,48 +13,22 @@ def scroll_to_top():
 
 st.markdown("""
 <style>
-/* יישור כללי לימין */
 html, body, [data-testid="stAppViewContainer"], .main, .block-container {
-    direction: rtl !important;
-    text-align: right !important;
+    direction: rtl !important; text-align: right !important;
 }
-
-/* תיקון ספציפי לרכיבי בחירה (Radio) שלא יברחו שמאלה */
 [data-testid="stWidgetLabel"], [data-testid="stMarkdownContainer"] p {
-    text-align: right !important;
-    direction: rtl !important;
+    text-align: right !important; direction: rtl !important;
 }
-
-/* יישור כפתורי הרדיו עצמם */
 div[data-testid="stRadio"] > label {
-    display: flex;
-    flex-direction: row-reverse;
-    justify-content: flex-end;
-    gap: 10px;
+    display: flex; flex-direction: row-reverse; justify-content: flex-end; gap: 10px;
 }
-
-div[role="radiogroup"] {
-    text-align: right !important;
-    direction: rtl !important;
-}
-
-/* עיצוב כרטיסיית שאלה */
 .quiz-card { 
-    background-color: #f9f9f9; 
-    padding: 25px; 
-    border-radius: 12px; 
-    border-right: 6px solid #1E88E5; 
-    margin-bottom: 20px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    background-color: #f9f9f9; padding: 25px; border-radius: 12px; 
+    border-right: 6px solid #1E88E5; margin-bottom: 20px;
 }
-
 .score-box {
-    background-color: #E3F2FD; 
-    padding: 20px; 
-    border-radius: 12px;
-    text-align: center !important; 
-    border: 2px solid #1E88E5; 
-    margin-bottom: 25px;
+    background-color: #E3F2FD; padding: 20px; border-radius: 12px;
+    text-align: center !important; border: 2px solid #1E88E5; margin-bottom: 25px;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -81,7 +55,7 @@ def parse_quiz_robust(text):
             q = re.search(r"\[QUESTION\](.*?)\[OPTIONS\]", b, re.DOTALL).group(1).strip()
             opts_raw = re.search(r"\[OPTIONS\](.*?)\[ANSWER\]", b, re.DOTALL).group(1).strip()
             ans = re.search(r"\[ANSWER\]\s*(\d)", b).group(1)
-            law = b.split("[LAW]")[1].split("[END_Q]")[0].strip() if "[LAW]" in b else "סעיף חוק רלוונטי"
+            law = b.split("[LAW]")[1].split("[END_Q]")[0].strip() if "[LAW]" in b else "סעיף חוק"
             options = [re.sub(r"^\d+[\s\).\-]+", "", o.strip()) for o in opts_raw.split('\n') if len(o.strip()) > 1]
             qs.append({"q": q, "options": options[:4], "correct": int(ans)-1, "ref": law})
         except: continue
@@ -90,7 +64,7 @@ def parse_quiz_robust(text):
 # 3. סרגל צידי
 if st.session_state.user_name:
     with st.sidebar:
-        st.markdown(f"### שלום, {st.session_state.user_name}")
+        st.write(f"### שלום, {st.session_state.user_name}")
         if st.button("➕ נושא חדש"):
             st.session_state.view_mode = "setup"; st.rerun()
         if st.session_state.current_topic and st.session_state.quiz_ready:
@@ -144,23 +118,22 @@ elif m == "lesson":
 
 elif m == "quiz":
     st.title(f"מבחן: {st.session_state.current_topic}")
-    
-    # הצגת ציון
     if st.session_state.user_answers:
         correct = sum(1 for v in st.session_state.user_answers.values() if v is True)
-        total = len(st.session_state.quiz_data)
-        st.markdown(f'<div class="score-box">הציון שלך: {int((correct/total)*100)}%</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="score-box">הציון שלך: {int((correct/len(st.session_state.quiz_data))*100)}%</div>', unsafe_allow_html=True)
 
     for i, q in enumerate(st.session_state.quiz_data):
         st.markdown('<div class="quiz-card">', unsafe_allow_html=True)
         st.write(f"**{i+1}. {q['q']}**")
-        
-        # בחירת תשובה
-        ans = st.radio(f"בחר תשובה נכונה:", q['options'], key=f"r_{i}", index=None)
-        
-        if st.button(f"בדוק תשובה {i+1}", key=f"b_{i}"):
+        ans = st.radio(f"בחירה:", q['options'], key=f"r_{i}", index=None)
+        if st.button(f"בדוק {i+1}", key=f"b_{i}"):
             if ans:
                 is_correct = q['options'].index(ans) == q['correct']
                 st.session_state.user_answers[i] = is_correct
-                if is_correct: st.success("נכון מאוד! 🟢")
-                else: st.error(f"טעות. התשובה הנכונה היא: {
+                if is_correct: st.success("נכון!")
+                else: 
+                    correct_text = q['options'][q['correct']]
+                    st.error(f"טעות. הנכונה היא: {correct_text}")
+                st.info(f"⚖️ {q['ref']}")
+            else: st.warning("בחר תשובה")
+        st.markdown('</div>', unsafe_allow_html=True)
