@@ -8,42 +8,31 @@ st.set_page_config(page_title="מתווך בקליק", layout="wide")
 
 st.markdown("""
 <style>
+    /* הגדרות כיווניות כלליות */
     .stApp, [data-testid="stAppViewContainer"], [data-testid="stMarkdownContainer"] {
         direction: rtl !important; text-align: right !important;
     }
     [data-testid="stSidebar"] { direction: rtl !important; text-align: right !important; }
     
-    .app-header {
-        background-color: #f8f9fa; padding: 25px; border-radius: 12px;
-        text-align: center; border-bottom: 5px solid #1E88E5; margin-bottom: 30px;
+    /* עיצוב הלוגו בתוך הסיידבר */
+    .sidebar-header {
+        text-align: center;
+        padding: 20px 10px;
+        background-color: #f8f9fa;
+        border-radius: 10px;
+        margin-bottom: 20px;
+        border: 1px solid #e0e0e0;
     }
+    .sidebar-logo { font-size: 50px; }
+    .sidebar-title { color: #1E88E5; font-size: 22px; font-weight: bold; margin: 5px 0; }
     
     .feedback-box { padding: 15px; border-radius: 8px; margin: 10px 0; border: 1px solid #eee; }
     .correct { background-color: #e6ffed; color: #1e4620; border-color: #b2f2bb; }
     .wrong { background-color: #fff5f5; color: #a91e2c; border-color: #ffa8a8; }
-    
-    .score-banner {
-        background: linear-gradient(90deg, #1E88E5, #1565C0);
-        color: white; padding: 20px; border-radius: 15px;
-        text-align: center; margin-top: 40px; font-size: 1.2em;
-    }
-    .source-tag { 
-        display: inline-block; background: #e7f3ff; color: #0d6efd; 
-        padding: 4px 12px; border-radius: 20px; font-size: 0.85em; margin-top: 8px;
-    }
 </style>
 """, unsafe_allow_html=True)
 
-# כותרת קבועה
-st.markdown("""
-<div class="app-header">
-    <div style="font-size: 60px; margin-bottom: 10px;">🎓</div>
-    <h1 style='color: #1E88E5; margin: 0;'>מתווך בקליק</h1>
-    <p style='color: #666;'>הכנה למבחן המתווכים - גרסה יציבה</p>
-</div>
-""", unsafe_allow_html=True)
-
-# 2. Session State
+# 2. ניהול Session State
 if "view_mode" not in st.session_state:
     st.session_state.update({
         "view_mode": "login", "user_name": "", "current_topic": "", 
@@ -62,11 +51,21 @@ def generate_quiz_json(topic):
         return json.loads(json_str)
     except: return None
 
-# 3. Sidebar
-if st.session_state.user_name:
-    with st.sidebar:
-        st.write(f"### שלום, {st.session_state.user_name}")
-        if st.button("🏠 נושא חדש"):
+# 3. סיידבר - הלוגו והשם עוברים לכאן!
+with st.sidebar:
+    # לוגו ושם מופיעים תמיד בראש הפריים הימני
+    st.markdown("""
+    <div class="sidebar-header">
+        <div class="sidebar-logo">🏠</div>
+        <div class="sidebar-title">מתווך בקליק</div>
+        <div style="font-size: 12px; color: #888;">הכנה למבחן המתווכים</div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    if st.session_state.user_name:
+        st.write(f"👤 **שלום, {st.session_state.user_name}**")
+        st.markdown("---")
+        if st.button("📚 נושא חדש"):
             st.session_state.update({"view_mode": "setup", "quiz_questions": []})
             st.rerun()
         if st.session_state.current_topic:
@@ -75,29 +74,29 @@ if st.session_state.user_name:
         if st.button("🚪 יציאה"):
             st.session_state.clear(); st.rerun()
 
-# 4. לוגיקה
+# 4. לוגיקת דפים (מרכז המסך נקי)
 if st.session_state.view_mode == "login":
-    name = st.text_input("שם משתמש:")
-    if st.button("כניסה"):
+    st.subheader("ברוכים הבאים - כניסה למערכת")
+    name = st.text_input("הכנס שם מלא:")
+    if st.button("התחל ללמוד"):
         if name: st.session_state.user_name = name; st.session_state.view_mode = "setup"; st.rerun()
 
 elif st.session_state.view_mode == "setup":
-    st.header("בחר נושא")
+    st.header("מה נלמד היום?")
     topics = ["חוק המתווכים", "חוק המקרקעין", "חוק המכר (דירות)", "חוק הגנת הצרכן", "חוק החוזים", "מיסוי מקרקעין"]
-    t = st.selectbox("נושא:", topics)
-    if st.button("התחל"):
+    t = st.selectbox("בחר נושא:", topics)
+    if st.button("התחל שיעור"):
         st.session_state.update({"current_topic": t, "lesson_data": "", "quiz_questions": [], "view_mode": "lesson_view"})
         st.rerun()
 
 elif st.session_state.view_mode == "lesson_view":
     st.header(st.session_state.current_topic)
     if not st.session_state.lesson_data:
-        with st.spinner("מייצר שיעור..."):
-            resp = model.generate_content(f"כתוב שיעור מפורט על {st.session_state.current_topic}.")
+        with st.spinner("Gemini מייצר שיעור מפורט..."):
+            resp = model.generate_content(f"כתוב שיעור מפורט על {st.session_state.current_topic} למבחן המתווכים.")
             st.session_state.lesson_data = resp.text
     st.markdown(st.session_state.lesson_data)
-    if st.button("🎯 בוא נתרגל"):
-        st.session_state.view_mode = "lesson_quiz"; st.rerun()
+    st.button("🎯 עבור לשאלון תרגול", on_click=lambda: st.session_state.update({"view_mode": "lesson_quiz"}))
 
 elif st.session_state.view_mode == "lesson_quiz":
     st.header(f"תרגול: {st.session_state.current_topic}")
@@ -111,7 +110,7 @@ elif st.session_state.view_mode == "lesson_quiz":
     for i, q in enumerate(st.session_state.quiz_questions):
         st.subheader(f"שאלה {i+1}")
         st.write(q['q'])
-        choice = st.radio(f"בחר תשובה {i+1}:", q['options'], key=f"q_v52_{i}", index=None)
+        choice = st.radio(f"בחר תשובה {i+1}:", q['options'], key=f"q_vSidebar_{i}", index=None)
         if choice:
             answered += 1
             idx = q['options'].index(choice)
@@ -123,7 +122,6 @@ elif st.session_state.view_mode == "lesson_quiz":
         st.markdown("---")
 
     if answered > 0:
-        st.markdown(f'<div class="score-banner">ציון: {score} מתוך {len(st.session_state.quiz_questions)}</div>', unsafe_allow_html=True)
+        st.info(f"ציון נוכחי: {score} מתוך {len(st.session_state.quiz_questions)}")
         if score == len(st.session_state.quiz_questions):
             st.balloons()
-            st.success("ציון מושלם!")
