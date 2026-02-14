@@ -3,16 +3,35 @@ import google.generativeai as genai
 import re
 import time
 
-# 1. הגדרות עיצוב RTL וקיבוע תפריטים
+# 1. הגדרות עיצוב RTL - תיקון כותרות "בורחות"
 st.set_page_config(page_title="מתווך בקליק", layout="wide")
 
 st.markdown("""
     <style>
-    .stApp, .main, .block-container { direction: rtl !important; text-align: right !important; }
-    [data-testid="stSidebar"] { direction: rtl !important; text-align: right !important; }
-    
+    /* הגדרה גורפת לכל אלמנט אפשרי באתר */
+    html, body, [data-testid="stAppViewContainer"], .main, .block-container {
+        direction: rtl !important;
+        text-align: right !important;
+    }
+
+    /* כפיית יישור לימין על כותרות ספציפיות */
+    h1, h2, h3, h4, h5, h6, p, span, label {
+        direction: rtl !important;
+        text-align: right !important;
+        display: block;
+        width: 100%;
+    }
+
+    /* יישור הסיידבר לימין */
+    [data-testid="stSidebar"], [data-testid="stSidebar"] * {
+        direction: rtl !important;
+        text-align: right !important;
+    }
+
+    /* עיצוב כפתורים */
     div.stButton > button { 
         width: 100%; border-radius: 8px; font-weight: bold;
+        background-color: #1E88E5; color: white;
     }
     
     .quiz-card { 
@@ -52,15 +71,14 @@ def parse_quiz(quiz_text):
 # --- סרגל צידי (תפריט ניווט חכם) ---
 if st.session_state.user_name:
     with st.sidebar:
-        st.title(f"שלום, {st.session_state.user_name}")
+        st.markdown(f"### שלום, {st.session_state.user_name}")
         st.markdown("---")
         
-        st.subheader("📍 ניווט מהיר")
+        st.markdown("#### 📍 ניווט מהיר")
         if st.button("➕ בחירת נושא חדש"):
             st.session_state.view_mode = "setup"
             st.rerun()
             
-        # מעברים דינמיים בתפריט הצידי
         if st.session_state.view_mode == "lesson" and st.session_state.quiz_data:
             if st.button("📝 מעבר למבחן התרגול"):
                 st.session_state.view_mode = "quiz"
@@ -72,13 +90,12 @@ if st.session_state.user_name:
                 st.rerun()
         
         st.markdown("---")
-        st.subheader("📚 היסטוריה")
+        st.markdown("#### 📚 היסטוריה")
         for item in st.session_state.history:
             st.caption(f"• {item}")
 
 # --- עמודי האפליקציה ---
 
-# דף כניסה
 if st.session_state.view_mode == "login":
     st.title("🎓 מתווך בקליק")
     name = st.text_input("הזן שם:")
@@ -88,9 +105,9 @@ if st.session_state.view_mode == "login":
             st.session_state.view_mode = "setup"
             st.rerun()
 
-# דף בחירת נושא
 elif st.session_state.view_mode == "setup":
-    st.title("מה נלמד היום?")
+    # שימוש ב-st.markdown במקום st.title לביטחון ביישור
+    st.markdown(f"<h1>מה נלמד היום, {st.session_state.user_name}?</h1>", unsafe_allow_html=True)
     topic = st.selectbox("בחר נושא:", ["חוק המתווכים", "חוק המקרקעין", "דיני חוזים", "דיני תכנון ובנייה"])
     if st.button("הכן שיעור"):
         st.session_state.current_topic = topic
@@ -104,37 +121,4 @@ elif st.session_state.view_mode == "setup":
             
             bar.progress(70)
             msg.text("בונה מבחן תרגול...")
-            quiz_res = model.generate_content(f"צור 3 שאלות אמריקאיות על {topic}. פורמט: שאלה X: [טקסט] 1) [א] 2) [ב] 3) [ג] 4) [ד] תשובה נכונה: [מספר]")
-            st.session_state.quiz_data = parse_quiz(quiz_res.text)
-            
-            if topic not in st.session_state.history:
-                st.session_state.history.append(topic)
-            bar.progress(100)
-            time.sleep(1)
-            st.session_state.view_mode = "lesson"
-            st.rerun()
-        except Exception as e:
-            st.error(f"שגיאה: {e}")
-
-# דף השיעור
-elif st.session_state.view_mode == "lesson":
-    st.title(st.session_state.current_topic)
-    st.markdown(st.session_state.lesson_data)
-    st.markdown("---")
-    if st.button("אני מוכן למבחן! 📝"):
-        st.session_state.view_mode = "quiz"
-        st.rerun()
-
-# דף המבחן
-elif st.session_state.view_mode == "quiz":
-    st.title(f"מבחן: {st.session_state.current_topic}")
-    for i, q in enumerate(st.session_state.quiz_data):
-        st.markdown('<div class="quiz-card">', unsafe_allow_html=True)
-        st.write(f"**שאלה {i+1}:** {q['q']}")
-        ans = st.radio(f"תשובה {i}:", q['options'], key=f"q{i}", index=None, label_visibility="collapsed")
-        if st.button(f"בדוק שאלה {i+1}", key=f"b{i}"):
-            if ans:
-                idx = q['options'].index(ans)
-                if idx == q['correct']: st.success("נכון!")
-                else: st.error(f"טעות. התשובה היא אופציה {q['correct']+1}")
-        st.markdown('</div>', unsafe_allow_html=True)
+            quiz_res = model.generate_content(f"צור 3
