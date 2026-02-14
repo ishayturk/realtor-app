@@ -3,8 +3,8 @@ import google.generativeai as genai
 import re
 import time
 
-# 1. הגדרות ועיצוב RTL
-st.set_page_config(page_title="מתווך בקליק - סימולטור", layout="wide")
+# 1. הגדרות ועיצוב RTL מקיף
+st.set_page_config(page_title="מתווך בקליק", layout="wide")
 
 def scroll_to_top():
     st.components.v1.html(
@@ -14,21 +14,23 @@ def scroll_to_top():
 
 st.markdown("""
 <style>
+/* יישור כללי לימין */
 html, body, [data-testid="stAppViewContainer"], .main, .block-container {
     direction: rtl !important; text-align: right !important;
 }
-h1, h2, h3, h4, h5, p, span, label, div {
-    text-align: right !important;
+/* כפיית יישור לימין לכל סוגי הכותרות והטקסט */
+h1, h2, h3, h4, h5, p, span, label, div, [data-testid="stMarkdownContainer"] h1 {
+    text-align: right !important; direction: rtl !important; width: 100%;
+}
+/* הגדרות לסרגל הצידי */
+[data-testid="stSidebar"] {
+    direction: rtl !important; text-align: right !important;
 }
 .timer-display {
-    font-size: 28px; font-weight: bold; color: #e63946;
-    text-align: center !important; padding: 15px;
-    border: 3px solid #e63946; border-radius: 12px;
-    margin-bottom: 20px; background-color: #fff1f2;
-}
-.nav-container {
-    background-color: #f8f9fa; padding: 10px;
-    border-radius: 10px; border: 1px solid #dee2e6;
+    font-size: 24px; font-weight: bold; color: #e63946;
+    text-align: center !important; padding: 10px;
+    border: 2px solid #e63946; border-radius: 10px;
+    background-color: #fff1f2; margin-bottom: 15px;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -59,21 +61,51 @@ def parse_quiz_robust(text):
         except: continue
     return qs
 
-# 3. ניהול דפים
+# 3. סרגל צידי קבוע - מוצג תמיד לאחר התחברות
+if st.session_state.user_name:
+    with st.sidebar:
+        st.markdown("### 🎓 מתווך בקליק")
+        st.write(f"משתמש: **{st.session_state.user_name}**")
+        st.markdown("---")
+        
+        if st.button("➕ החלף נושא למידה"):
+            st.session_state.view_mode = "setup"
+            st.session_state.current_topic = ""
+            st.session_state.quiz_ready = False
+            st.rerun()
+            
+        if st.session_state.current_topic:
+            st.write(f"📖 **{st.session_state.current_topic}**")
+            if st.session_state.quiz_ready:
+                if st.session_state.view_mode == "quiz":
+                    if st.button("📖 חזור לשיעור"):
+                        st.session_state.view_mode = "lesson"; st.rerun()
+                else:
+                    if st.button("📝 עבור למבחן"):
+                        if st.session_state.start_time is None:
+                            st.session_state.start_time = time.time()
+                        st.session_state.view_mode = "quiz"
+                        scroll_to_top(); st.rerun()
+
+# 4. לוגיקת דפים
 m = st.session_state.view_mode
 
 if m == "login":
-    st.title("🎓 מתווך בקליק - כניסה")
-    name = st.text_input("שם המשתמש שלך:")
-    if st.button("כניסה למערכת"):
-        st.session_state.user_name = name
-        st.session_state.view_mode = "setup"; st.rerun()
+    st.title("🎓 ברוכים הבאים למתווך בקליק")
+    name = st.text_input("הכנס שם משתמש:")
+    if st.button("כניסה"):
+        if name:
+            st.session_state.user_name = name
+            st.session_state.view_mode = "setup"; st.rerun()
 
 elif m == "setup":
-    st.title(f"שלום {st.session_state.user_name}")
-    t = st.selectbox("בחר נושא:", ["חוק המתווכים", "חוק המקרקעין", "דיני חוזים", "מיסוי מקרקעין"])
-    if st.button("התחל שיעור"):
+    st.title("מה נלמד היום?")
+    t = st.selectbox("בחר נושא:", ["חוק המתווכים", "חוק המקרקעין", "דיני חוזים", "מיסוי מקרקעין", "חוק המכר (דירות)"])
+    if st.button("התחל למידה"):
         st.session_state.current_topic = t
+        st.session_state.quiz_ready = False
+        st.session_state.user_answers = {}
+        st.session_state.start_time = None
         st.session_state.view_mode = "streaming_lesson"; st.rerun()
 
 elif m == "streaming_lesson":
@@ -85,7 +117,7 @@ elif m == "streaming_lesson":
         full_txt += chunk.text
         placeholder.markdown(full_txt)
     st.session_state.lesson_data = full_txt
-    with st.status("מייצר מבחן..."):
+    with st.status("מכין שאלות סימולציה..."):
         q_res = model.generate_content(f"צור 15 שאלות על {st.session_state.current_topic} בפורמט: [START_Q] [QUESTION] שאלה [OPTIONS] 1) א 2) ב 3) ג 4) ד [ANSWER] מספר [LAW] סעיף [END_Q]")
         st.session_state.quiz_data = parse_quiz_robust(q_res.text)
         st.session_state.quiz_ready = True
@@ -94,30 +126,59 @@ elif m == "streaming_lesson":
 elif m == "lesson":
     st.title(st.session_state.current_topic)
     st.markdown(st.session_state.lesson_data)
-    if st.button("📝 עבור למבחן סימולציה (90 דקות)"):
-        st.session_state.start_time = time.time()
-        st.session_state.current_q_idx = 0
-        st.session_state.user_answers = {}
-        st.session_state.quiz_finished = False
-        st.session_state.view_mode = "quiz"
-        scroll_to_top(); st.rerun()
+    if st.session_state.quiz_ready:
+        st.write("---")
+        if st.button("📝 סיימתי ללמוד - התחל מבחן (90 דקות)"):
+            st.session_state.start_time = time.time()
+            st.session_state.view_mode = "quiz"
+            scroll_to_top(); st.rerun()
 
 elif m == "quiz":
-    # טיימר 90 דקות
+    # טיימר
     elapsed = time.time() - st.session_state.start_time
     remaining = max(0, 5400 - int(elapsed))
-    if remaining <= 0: st.session_state.quiz_finished = True
-
+    
+    # פריסת מבחן: מרכז המבחן וצד ימין לניווט
     col_main, col_nav = st.columns([3, 1])
 
     with col_nav:
-        st.markdown(f'<div class="timer-display">{remaining//60:02d}:{remaining%60:02d}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="timer-display">⌛ {remaining//60:02d}:{remaining%60:02d}</div>', unsafe_allow_html=True)
         st.write("### מפת שאלות")
         for i in range(len(st.session_state.quiz_data)):
-            label = f"שאלה {i+1}"
-            if i in st.session_state.user_answers: label += " ✅"
-            if i == st.session_state.current_q_idx: label += " 📍"
-            if st.button(label, key=f"n_{i}", use_container_width=True):
+            lbl = f"שאלה {i+1}"
+            if i in st.session_state.user_answers: lbl += " ✅"
+            if i == st.session_state.current_q_idx: lbl += " 📍"
+            if st.button(lbl, key=f"nav_{i}", use_container_width=True):
                 st.session_state.current_q_idx = i; st.rerun()
-        if st.button("🏁 סיום מבחן", type="primary", use_container_width=True):
-            st
+        if st.button("🏁 סיים והגש", type="primary", use_container_width=True):
+            st.session_state.quiz_finished = True; st.rerun()
+
+    with col_main:
+        if st.session_state.quiz_finished:
+            st.header("תוצאות המבחן")
+            correct = sum(1 for i, a in st.session_state.user_answers.items() if a == st.session_state.quiz_data[i]['correct'])
+            score = int((correct/len(st.session_state.quiz_data))*100)
+            st.success(f"הציון שלך: {score}%")
+            if st.button("חזרה לשיעור"):
+                st.session_state.quiz_finished = False
+                st.session_state.view_mode = "lesson"; st.rerun()
+        else:
+            curr = st.session_state.current_q_idx
+            q = st.session_state.quiz_data[curr]
+            st.subheader(f"שאלה {curr + 1}")
+            st.write(q['q'])
+            
+            ans_idx = st.session_state.user_answers.get(curr, None)
+            choice = st.radio("בחר תשובה:", q['options'], index=ans_idx, key=f"r_{curr}")
+            if choice: st.session_state.user_answers[curr] = q['options'].index(choice)
+            
+            st.write("---")
+            c1, c2 = st.columns(2)
+            with c1:
+                if curr > 0:
+                    if st.button("⬅️ שאלה קודמת"):
+                        st.session_state.current_q_idx -= 1; st.rerun()
+            with c2:
+                if curr < len(st.session_state.quiz_data) - 1:
+                    if st.button("שאלה הבאה ➡️"):
+                        st.session_state.current_q_idx += 1; st.rerun()
