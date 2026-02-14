@@ -2,7 +2,7 @@ import streamlit as st
 import google.generativeai as genai
 import time
 
-# --- 1. הגדרות תצוגה RTL ---
+# --- 1. הגדרות תצוגה RTL קשיחות ---
 st.set_page_config(page_title="מתווך בקליק", layout="centered")
 
 st.markdown("""
@@ -61,4 +61,70 @@ elif st.session_state.step == "study":
             try:
                 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
                 model = genai.GenerativeModel('gemini-2.0-flash')
-                response = model.generate_content(f"כתוב שיעור מפורט על {topic} למבחן המתו
+                response = model.generate_content(f"כתוב שיעור מפורט על {topic} למבחן המתווכים.", stream=True)
+                placeholder = st.empty()
+                full_text = ""
+                for chunk in response:
+                    full_text += chunk.text
+                    placeholder.markdown(f"<div class='lesson-box'>{full_text}</div>", unsafe_allow_html=True)
+                st.session_state.lesson_text = full_text
+                st.rerun()
+            except Exception as e:
+                st.error(f"שגיאה: {str(e)}")
+
+    if st.session_state.lesson_text:
+        st.markdown(f"<div class='lesson-box'>{st.session_state.lesson_text}</div>", unsafe_allow_html=True)
+        if not st.session_state.quiz_active and not st.session_state.quiz_done:
+            if st.button("✍️ סיימתי לקרוא, עבור לתרגול"):
+                st.session_state.quiz_questions = [
+                    {
+                        "q": f"שאלה {i+1} על {topic}:", 
+                        "options": ["אופציה א'", "אופציה ב'", "אופציה ג'", "אופציה ד'"], 
+                        "correct": "אופציה א'", 
+                        "reason": "הסבר מפורט על התשובה הנכונה.",
+                        "source": "סעיף רלוונטי בטקסט השיעור לעיל."
+                    } for i in range(10)
+                ]
+                st.session_state.quiz_active = True
+                st.rerun()
+
+    if st.session_state.quiz_active:
+        idx = st.session_state.quiz_idx
+        q = st.session_state.quiz_questions[idx]
+        st.markdown(f"#### שאלון תרגול: {idx+1}/10")
+        ans = st.radio(q['q'], q['options'], key=f"sq_{idx}", index=None)
+        
+        if ans and idx not in st.session_state.checked_questions:
+            if st.button("🔍 בדוק תשובה"):
+                st.session_state.quiz_answers[idx] = ans
+                st.session_state.checked_questions.add(idx)
+                st.rerun()
+
+        if idx in st.session_state.checked_questions:
+            user_ans = st.session_state.quiz_answers.get(idx)
+            is_correct = (user_ans == q['correct'])
+            style = "success" if is_correct else "error"
+            icon = "✅ נכון!" if is_correct else f"❌ טעות. הנכון: {q['correct']}"
+            st.markdown(f"<div class='explanation-box {style}'><b>{icon}</b><br>{q['reason']}<br><br><span class='source-tag'>📍 מקור:</span> {q['source']}</div>", unsafe_allow_html=True)
+        
+        c1, c2 = st.columns(2)
+        if c1.button("⬅️ הקודם") and idx > 0:
+            st.session_state.quiz_idx -= 1
+            st.rerun()
+        if idx < 9:
+            if c2.button("הבא ➡️"):
+                st.session_state.quiz_idx += 1
+                st.rerun()
+        else:
+            if st.button("🏁 סיום שאלון"):
+                st.session_state.quiz_active = False
+                st.session_state.quiz_done = True
+                st.rerun()
+
+    if st.session_state.quiz_done:
+        score = sum(1 for i, q in enumerate(st.session_state.quiz_questions) if st.session_state.quiz_answers.get(i) == q['correct'])
+        st.markdown(f"<div class='score-box'><h3>ציון: {score*10}</h3></div>", unsafe_allow_html=True)
+        if st.button("חזרה לתפריט"):
+            st.session_state.update({"lesson_text":"", "quiz_active":False, "quiz_done":False, "quiz_idx":0, "quiz_answers":{}, "checked_questions": set()})
+            st.session_state.step = "menu"
+            st.rerun()
