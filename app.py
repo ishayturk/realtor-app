@@ -3,10 +3,9 @@ import google.generativeai as genai
 import time
 import random
 
-# 1. הגדרות תצוגה ויישור
+# 1. הגדרות תצוגה ויישור (RTL)
 st.set_page_config(page_title="מתווך בקליק", layout="centered")
 
-# הזרקת CSS לתיקון המיקומים ועיצוב קבוע
 st.markdown("""
     <style>
     [data-testid="stAppViewContainer"], .main, .block-container {
@@ -38,7 +37,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# 2. אתחול משתני מערכת (Session State)
+# 2. אתחול משתני מערכת
 if "view" not in st.session_state:
     st.session_state.update({
         "view": "login", "user": "", "topic": "", "lesson": "",
@@ -47,31 +46,25 @@ if "view" not in st.session_state:
 
 # 3. פונקציות עזר ומאגר
 def get_official_questions():
-    # כאן יבוא המאגר המלא מהלינק. בנתיים 2 שוגמאות משוכפלות ל-25.
+    # מאגר השאלות הרשמי
     pool = [
         {"q": "מהי תקופת הבלעדיות המקסימלית בדירת מגורים?", "options": ["3 חודשים", "6 חודשים", "שנה", "ללא הגבלה"], "correct": 1},
         {"q": "האם מתווך זכאי לדמי תיווך ללא הזמנה בכתב?", "options": ["כן", "רק אם הלקוח הסכים", "לא, חובה הזמנה בכתב חתומה", "רק בבלעדיות"], "correct": 2}
     ]
-    full_list = (pool * 13)[:25]
-    return full_list
+    return (pool * 13)[:25]
 
 def init_gemini():
     if "GEMINI_API_KEY" in st.secrets:
         genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-        return genai.GenerativeModel('gemini-1.5-flash')
+        # עדכון למודל Gemini 2.0 Flash
+        return genai.GenerativeModel('gemini-2.0-flash')
     return None
 
 model = init_gemini()
 
-# ==========================================
-# לוגו וכותרת קבועה (מחוץ ל-IF - מופיע תמיד)
-# ==========================================
+# כותרת קבועה וממורכזת
 st.markdown('<h1>🏠 מתווך בקליק</h1>', unsafe_allow_html=True)
 st.write("---")
-
-# ==========================================
-# ניהול הדפים
-# ==========================================
 
 # --- דף כניסה ---
 if st.session_state.view == "login":
@@ -86,11 +79,9 @@ if st.session_state.view == "login":
 # --- תפריט ראשי ---
 elif st.session_state.view == "menu":
     st.markdown(f'### שלום {st.session_state.user} 👋', unsafe_allow_html=True)
-    
     if st.button("📚 לימוד לפי נושאים"):
         st.session_state.view = "select_topic"
         st.rerun()
-        
     if st.button("🚀 התחל מבחן רישוי (25 שאלות)"):
         st.session_state.exam_questions = get_official_questions()
         st.session_state.user_answers = {}
@@ -116,11 +107,17 @@ elif st.session_state.view == "select_topic":
 elif st.session_state.view == "lesson":
     st.markdown(f'### שיעור: {st.session_state.topic}', unsafe_allow_html=True)
     if not st.session_state.lesson:
-        with st.spinner("ה-AI מכין חומר..."):
+        with st.spinner("ה-AI (Gemini 2.0) מכין חומר..."):
             if model:
-                resp = model.generate_content(f"כתוב שיעור קצר למבחן המתווכים על {st.session_state.topic}")
-                st.session_state.lesson = resp.text
-            else: st.warning("מפתח API חסר.")
+                try:
+                    resp = model.generate_content(f"כתוב שיעור מפורט למבחן המתווכים על {st.session_state.topic} בעברית")
+                    st.session_state.lesson = resp.text
+                except Exception as e:
+                    st.error(f"שגיאה בתקשורת עם Gemini 2.0. נסה שוב.")
+                    st.session_state.lesson = "לא ניתן לטעון תוכן כרגע."
+            else:
+                st.warning("API Key לא הוגדר.")
+    
     st.markdown(f'<div class="lesson-box">{st.session_state.lesson}</div>', unsafe_allow_html=True)
     if st.button("חזרה"):
         st.session_state.view = "select_topic"
@@ -128,14 +125,12 @@ elif st.session_state.view == "lesson":
 
 # --- מבחן רישוי ---
 elif st.session_state.view == "exam":
-    # טיימר
     elapsed = time.time() - st.session_state.start_time
     rem = max(0, 90 * 60 - elapsed)
     st.markdown(f'<div class="timer-box">⏱️ זמן נותר: {int(rem//60):02d}:{int(rem%60):02d}</div>', unsafe_allow_html=True)
     
     idx = st.session_state.idx
     q = st.session_state.exam_questions[idx]
-    
     st.markdown(f'### שאלה {idx + 1} / 25', unsafe_allow_html=True)
     st.info(q['q'])
     
@@ -143,7 +138,6 @@ elif st.session_state.view == "exam":
     choice = st.radio("בחר תשובה:", q['options'], key=f"ex_{idx}", index=None if ans is None else q['options'].index(ans))
     if choice: st.session_state.user_answers[idx + 1] = choice
 
-    # ניווט
     c1, c2 = st.columns(2)
     with c1:
         if idx > 0:
@@ -154,7 +148,6 @@ elif st.session_state.view == "exam":
         else:
             if st.button("🏁 סיום"): st.session_state.view = "menu"; st.rerun()
 
-    # רשת ניווט תחתונה
     st.write("---")
     st.write("🎯 **קפיצה לשאלה:**")
     for i in range(0, 25, 5):
