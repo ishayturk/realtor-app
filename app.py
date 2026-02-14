@@ -2,21 +2,30 @@ import streamlit as st
 import google.generativeai as genai
 import json, re
 
-# עיצוב RTL וסגנון
+# עיצוב RTL קבוע וחסין
 st.set_page_config(page_title="מתווך בקליק", layout="centered")
 st.markdown("""<style>
-body, .main, .block-container { direction: rtl !important; text-align: right !important; }
-div[role="radiogroup"] { direction: rtl !important; text-align: right !important; }
-.lesson-box { background:#f9f9f9; padding:15px; border-radius:10px; border-right:5px solid #1E88E5; }
-.explanation-box { padding:10px; border-radius:5px; margin-top:5px; border-right:4px solid; }
-.success { background:#e8f5e9; border-color:#4caf50; }
-.error { background:#ffebee; border-color:#f44336; }
+* { direction: rtl !important; text-align: right !important; }
+.stMarkdown, .stText, .stButton, .stSelectbox, .stTextInput, .stRadio {
+    direction: rtl !important; text-align: right !important;
+}
+.lesson-box {
+    background: #fdfdfd; padding: 20px; border-radius: 12px;
+    border-right: 6px solid #1E88E5; line-height: 1.8;
+    margin-bottom: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+}
+.explanation-box {
+    padding: 15px; border-radius: 8px; margin-top: 10px; border-right: 5px solid;
+}
+.success { background: #e8f5e9; border-color: #4caf50; color: #2e7d32; }
+.error { background: #ffebee; border-color: #f44336; color: #c62828; }
+div[role="radiogroup"] > label { margin-right: 10px; }
 </style>""", unsafe_allow_html=True)
 
-# קיצור session_state
 S = st.session_state
 if 'user' not in S:
-    S.update({'user':'','step':'login','lt':'','qa':False,'qi':0,'qans':{},'qq':[],'cq':set(),'ei':0,'eans':{},'eq':[]})
+    S.update({'user':'','step':'login','lt':'','qa':False,'qi':0,
+              'qans':{},'qq':[],'cq':set(),'ei':0,'eans':{},'eq':[]})
 
 def parse_j(t):
     try:
@@ -32,10 +41,10 @@ if S.user == "" or S.step == "login":
         if u: S.user, S.step = u, "menu"; st.rerun()
 
 elif S.step == "menu":
-    st.subheader(f"שלום, {S.user}")
-    if st.button("📚 שיעור + שאלון"):
+    st.subheader(f"שלום, {S.user} 👋")
+    if st.button("📚 שיעור עיוני + שאלון"):
         S.step, S.lt, S.qa = "study", "", False; st.rerun()
-    if st.button("📝 סימולציה 25"):
+    if st.button("📝 סימולציה 25 שאלות"):
         S.eq = [{"q":f"שאלה {i+1}:","options":["א","ב","ג","ד"],"correct":"א","reason":"הסבר"} for i in range(25)]
         S.step, S.ei, S.cq = "full_exam", 0, set(); st.rerun()
 
@@ -46,12 +55,12 @@ elif S.step == "study":
         "הגנת הדייר", "חוק הירושה", "בתים משותפים", "חוק השמאות", 
         "חוק העונשין", "דיני קניין", "אתיקה", "מקרקעי ישראל"
     ]
-    sel = st.selectbox("נושא:", all_t)
+    sel = st.selectbox("בחר נושא:", all_t)
     if not S.lt:
-        if st.button("📖 התחל"):
+        if st.button("📖 התחל שיעור"):
             genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
             m = genai.GenerativeModel('gemini-2.0-flash')
-            res = m.generate_content(f"כתוב שיעור על {sel} למבחן המתווכים.", stream=True)
+            res = m.generate_content(f"כתוב שיעור מפורט על {sel} למבחן המתווכים.", stream=True)
             ph, full = st.empty(), ""
             for ch in res:
                 full += ch.text
@@ -68,20 +77,20 @@ elif S.step == "study":
                 if d: S.qq, S.qa, S.cq, S.qi = d, True, set(), 0; st.rerun()
         else:
             it = S.qq[S.qi]
-            st.write(f"**שאלה {S.qi+1}/10**")
+            st.write(f"### שאלה {S.qi+1}/10")
             p = st.radio(it['q'], it['options'], key=f"q{S.qi}", index=None)
             if p and S.qi not in S.cq:
-                if st.button("🔍 בדוק"): S.qans[S.qi], _ = p, S.cq.add(S.qi); st.rerun()
+                if st.button("🔍 בדוק תשובה"): S.qans[S.qi], _ = p, S.cq.add(S.qi); st.rerun()
             if S.qi in S.cq:
                 ok = S.qans.get(S.qi) == it['correct']
                 c = "success" if ok else "error"
                 st.markdown(f"<div class='explanation-box {c}'>{it['reason']}</div>", unsafe_allow_html=True)
             if st.button("➡️ הבא") and S.qi < 9: S.qi += 1; st.rerun()
-            if st.button("🏁 חזרה"): S.step = "menu"; st.rerun()
+            if st.button("🏁 חזרה לתפריט"): S.step = "menu"; st.rerun()
 
 elif S.step == "full_exam":
     it = S.eq[S.ei]
-    st.write(f"**סימולציה: {S.ei+1}/25**")
+    st.write(f"### סימולציה: {S.ei+1}/25")
     p = st.radio(it['q'], it['options'], key=f"e{S.ei}", index=None)
     if p and S.ei not in S.cq:
         if st.button("🔍 בדוק"): S.eans[S.ei], _ = p, S.cq.add(S.ei); st.rerun()
