@@ -1,43 +1,46 @@
 import streamlit as st
 import requests
-import json
 
-st.set_page_config(page_title="מתווך בקליק", layout="centered")
-
-# עיצוב RTL
+st.set_page_config(page_title="מתווך בקליק 3.0", layout="centered")
 st.markdown("<style>.stApp {text-align: right; direction: rtl;}</style>", unsafe_allow_html=True)
-st.title("🎓 מתווך בקליק - חיבור ישיר")
 
-topic = st.selectbox("בחר נושא:", ["חוק המתווכים", "חוק המקרקעין", "דיני חוזים"])
+st.title("🚀 מתווך בקליק - דור 3")
 
-if st.button("ייצר שיעור"):
-    if "GEMINI_API_KEY" not in st.secrets:
-        st.error("חסר מפתח API ב-Secrets")
-    else:
-        api_key = st.secrets["GEMINI_API_KEY"]
-        
-        # שימוש בכתובת v1 (היציבה) במקום v1beta שעושה שגיאות 404
-        url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={api_key}"
-        
+if "GEMINI_API_KEY" not in st.secrets:
+    st.error("חסר מפתח API ב-Secrets")
+else:
+    api_key = st.secrets["GEMINI_API_KEY"]
+    
+    # בגרסה 3, אנחנו משתמשים בנתיב ה-v1beta עם שם המודל החדש
+    # ננסה את השם הנפוץ ביותר לגרסה 3 כרגע
+    model_name = "gemini-3-flash-experimental" 
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
+
+    if st.button("ייצר שיעור עם Gemini 3"):
         payload = {
-            "contents": [{
-                "parts": [{"text": f"כתוב שיעור קצר בעברית על {topic}"}]
-            }]
+            "contents": [{"parts": [{"text": "כתוב הסבר קצר על חוק המתווכים בישראל"}]}]
         }
-        headers = {'Content-Type': 'application/json'}
+        
+        try:
+            response = requests.post(url, json=payload)
+            res_data = response.json()
 
-        with st.spinner("מתחבר ישירות לשרתי גוגל..."):
-            try:
-                response = requests.post(url, headers=headers, json=payload)
-                res_json = response.json()
+            if response.status_code == 200:
+                text = res_data['candidates'][0]['content']['parts'][0]['text']
+                st.success("התחברנו בהצלחה ל-Gemini 3!")
+                st.write(text)
+            else:
+                st.warning(f"מודל {model_name} לא הגיב (שגיאה {response.status_code}).")
+                st.info("מנסה למשוך את רשימת המודלים המדויקת שפתוחה לך...")
                 
-                if response.status_code == 200:
-                    answer = res_json['candidates'][0]['content']['parts'][0]['text']
-                    st.success("החיבור הצליח!")
-                    st.markdown("---")
-                    st.write(answer)
-                else:
-                    st.error(f"שגיאה מהשרת: {response.status_code}")
-                    st.json(res_json) # מציג את השגיאה המדויקת מגוגל
-            except Exception as e:
-                st.error(f"תקלה מקומית: {e}")
+                # כאן הקוד בודק מה גוגל מרשה לך באמת
+                list_url = f"https://generativelanguage.googleapis.com/v1beta/models?key={api_key}"
+                list_res = requests.get(list_url).json()
+                
+                # מציג לך את השמות שאנחנו צריכים להשתמש בהם
+                st.write("אלו השמות שגוגל מאשרת למפתח שלך:")
+                model_names = [m['name'] for m in list_res.get('models', [])]
+                st.json(model_names)
+                
+        except Exception as e:
+            st.error(f"תקלה: {e}")
