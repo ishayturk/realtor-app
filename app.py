@@ -1,6 +1,5 @@
 import streamlit as st
 import google.generativeai as genai
-import json
 import re
 
 # 1. הגדרות RTL ועיצוב
@@ -8,136 +7,63 @@ st.set_page_config(page_title="מתווך בקליק", layout="wide")
 
 st.markdown("""
 <style>
-    .stApp, [data-testid="stAppViewContainer"], [data-testid="stMarkdownContainer"] {
+    .stApp, [data-testid="stAppViewContainer"], [data-testid="stMarkdownContainer"], p, li, h1, h2, h3, div {
         direction: rtl !important; text-align: right !important;
     }
-    [data-testid="stSidebar"] { direction: rtl !important; text-align: right !important; }
-    
-    .sidebar-top-branding {
-        text-align: center;
-        margin-top: -50px; 
-        margin-bottom: 20px;
-        padding-bottom: 10px;
-        border-bottom: 1px solid #eee;
-    }
+    ul, ol { direction: rtl !important; text-align: right !important; padding-right: 1.5rem !important; list-style-position: inside !important; }
+    .sidebar-top-branding { text-align: center; margin-top: -50px; margin-bottom: 20px; border-bottom: 1px solid #eee; }
     .sidebar-logo-icon { font-size: 45px; }
-    .sidebar-app-name { 
-        color: #1E88E5; font-size: 24px; font-weight: 800; margin-top: -10px;
-    }
-    .feedback-box { padding: 15px; border-radius: 8px; margin: 10px 0; border: 1px solid #eee; }
-    .correct { background-color: #e6ffed; color: #1e4620; border-color: #b2f2bb; }
-    .wrong { background-color: #fff5f5; color: #a91e2c; border-color: #ffa8a8; }
+    .sidebar-app-name { color: #1E88E5; font-size: 24px; font-weight: 800; margin-top: -10px; }
 </style>
 """, unsafe_allow_html=True)
 
-# 2. רשימת כל השיעורים - הסילבוס המלא
-FULL_TOPICS_LIST = [
-    "חוק המתווכים במקרקעין, התשנ\"ו-1996",
-    "תקנות המתווכים (פרטי הזמנה בכתב)",
-    "חוק המקרקעין (בעלות, חזקה, שיתוף, בתים משותפים)",
-    "חוק המכר (דירות) (הבטחת השקעות)",
-    "חוק המכר (דירות) (חובת גילוי ואחריות)",
-    "חוק הגנת הצרכן (ביטול עסקאות ורוכלות)",
-    "חוק החוזים (חלק כללי) - כריתה וביטול",
-    "חוק החוזים (תרופות בשל הפרת חוזה)",
-    "חוק הגנת הדייר (נוסח משולב)",
-    "חוק התכנון והבנייה (היתרים ומוסדות)",
-    "חוק מיסוי מקרקעין (שבח, רכישה ופטורים)",
-    "חוק העונשין (עבירות מרמה ושוחד)",
-    "חוק שמאי מקרקעין",
-    "חוק הירושה (הורשה על פי דין וצוואה)",
-    "חוק מקרקעי ישראל (רמ\"י)",
-    "מושגי יסוד בכלכלה ושמאות"
-]
+# 2. פונקציית הקסם - CACHE
+# זה מבטיח שאם השיעור נוצר פעם אחת, הוא יישלף מהזיכרון תוך 0 שניות
+@st.cache_resource(show_spinner=False)
+def get_lesson_content(topic):
+    model = genai.GenerativeModel('gemini-2.0-flash')
+    prompt = f"כתוב שיעור מפורט למבחן המתווכים על {topic}. השתמש בבולטים וסעיפי חוק."
+    response = model.generate_content(prompt)
+    return response.text
 
 # 3. ניהול Session State
 if "view_mode" not in st.session_state:
-    st.session_state.update({
-        "view_mode": "login", "user_name": "", "current_topic": "", 
-        "lesson_data": "", "quiz_questions": []
-    })
+    st.session_state.update({"view_mode": "login", "user_name": "", "current_topic": ""})
 
 if "GEMINI_API_KEY" in st.secrets:
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-    model = genai.GenerativeModel('gemini-2.0-flash')
 
-def generate_quiz_json(topic):
-    prompt = f"Create a 5-question quiz in HEBREW about {topic}. Return ONLY a JSON array."
-    try:
-        response = model.generate_content(prompt)
-        json_str = re.search(r'\[.*\]', response.text, re.DOTALL).group()
-        return json.loads(json_str)
-    except: return None
-
-# 4. סיידבר - מיתוג עליון וניווט
+# 4. סיידבר
 with st.sidebar:
-    st.markdown("""
-    <div class="sidebar-top-branding">
-        <div class="sidebar-logo-icon">🏠</div>
-        <div class="sidebar-app-name">מתווך בקליק</div>
-    </div>
-    """, unsafe_allow_html=True)
-    
+    st.markdown('<div class="sidebar-top-branding"><div class="sidebar-logo-icon">🏠</div><div class="sidebar-app-name">מתווך בקליק</div></div>', unsafe_allow_html=True)
     if st.session_state.user_name:
-        st.markdown(f"**שלום, {st.session_state.user_name}**")
-        st.markdown("---")
-        if st.button("📚 בחירת נושא חדש"):
-            st.session_state.update({"view_mode": "setup", "quiz_questions": []})
+        st.write(f"**שלום, {st.session_state.user_name}**")
+        if st.button("📚 נושא חדש"):
+            st.session_state.update({"view_mode": "setup", "current_topic": ""})
             st.rerun()
-        if st.session_state.current_topic:
-            if st.button("📖 חזרה לשיעור"):
-                st.session_state.view_mode = "lesson_view"; st.rerun()
-        if st.button("🚪 יציאה"):
-            st.session_state.clear(); st.rerun()
 
-# 5. לוגיקת דפים
+# 5. לוגיקה
 if st.session_state.view_mode == "login":
-    st.subheader("כניסה למערכת")
-    name = st.text_input("הכנס שם מלא:")
-    if st.button("התחל ללמוד"):
+    name = st.text_input("שם מלא:")
+    if st.button("כניסה"):
         if name: st.session_state.user_name = name; st.session_state.view_mode = "setup"; st.rerun()
 
 elif st.session_state.view_mode == "setup":
-    st.header("רשימת השיעורים המלאה")
-    t = st.selectbox("בחר נושא מהסילבוס הרשמי:", FULL_TOPICS_LIST)
-    if st.button("צור שיעור מותאם"):
-        st.session_state.update({"current_topic": t, "lesson_data": "", "quiz_questions": [], "view_mode": "lesson_view"})
+    topics = ["חוק המתווכים", "חוק המקרקעין", "חוק המכר (דירות)", "חוק הגנת הצרכן"]
+    t = st.selectbox("בחר נושא:", topics)
+    if st.button("טען שיעור"):
+        st.session_state.current_topic = t
+        st.session_state.view_mode = "lesson_view"
         st.rerun()
 
 elif st.session_state.view_mode == "lesson_view":
     st.header(st.session_state.current_topic)
-    if not st.session_state.lesson_data:
-        with st.spinner("מייצר תוכן לימודי..."):
-            resp = model.generate_content(f"כתוב שיעור מפורט למבחן המתווכים על {st.session_state.current_topic}.")
-            st.session_state.lesson_data = resp.text
-    st.markdown(st.session_state.lesson_data)
+    
+    # כאן קורה הקסם: אם השיעור בזיכרון, הוא עולה מיד. אם לא, Gemini יוצר אותו פעם אחת בלבד.
+    with st.spinner("שולף שיעור מהמאגר..."):
+        lesson_text = get_lesson_content(st.session_state.current_topic)
+    
+    st.markdown(lesson_text)
+    
     if st.button("🎯 בוא נתרגל"):
-        st.session_state.view_mode = "lesson_quiz"; st.rerun()
-
-elif st.session_state.view_mode == "lesson_quiz":
-    st.header(f"תרגול: {st.session_state.current_topic}")
-    if not st.session_state.quiz_questions:
-        with st.spinner("מייצר שאלות..."):
-            st.session_state.quiz_questions = generate_quiz_json(st.session_state.current_topic)
-            st.rerun()
-
-    score = 0
-    answered = 0
-    for i, q in enumerate(st.session_state.quiz_questions):
-        st.subheader(f"שאלה {i+1}")
-        st.write(q['q'])
-        choice = st.radio(f"בחר תשובה {i+1}:", q['options'], key=f"q_full_{i}", index=None)
-        if choice:
-            answered += 1
-            idx = q['options'].index(choice)
-            if idx == q['correct']:
-                st.markdown(f'<div class="feedback-box correct">✅ {q.get("explanation","")}</div>', unsafe_allow_html=True)
-                score += 1
-            else:
-                st.markdown(f'<div class="feedback-box wrong">❌ {q["options"][q["correct"]]}<br>{q.get("explanation","")}</div>', unsafe_allow_html=True)
-        st.markdown("---")
-
-    if answered > 0:
-        st.info(f"ציון: {score} מתוך {len(st.session_state.quiz_questions)}")
-        if score == len(st.session_state.quiz_questions):
-            st.balloons()
+        st.info("כאן יבוא השאלון...")
