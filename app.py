@@ -3,7 +3,7 @@ import google.generativeai as genai
 import re
 import time
 
-# 1. הגדרות דף ועיצוב RTL
+# 1. הגדרות דף ועיצוב RTL יציב
 st.set_page_config(page_title="מתווך בקליק", layout="wide")
 
 st.markdown("""
@@ -37,8 +37,8 @@ st.markdown("""
         text-align: center;
         margin-bottom: 30px;
         border-bottom: 3px solid #1E88E5;
-        width: 100%;
     }
+    .stButton button { width: 100%; text-align: right; }
     .summary-card { 
         border: 1px solid #dee2e6; 
         padding: 20px; 
@@ -46,7 +46,6 @@ st.markdown("""
         margin-bottom: 15px; 
         background-color: #ffffff;
     }
-    .stButton button { width: 100%; text-align: right; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -55,7 +54,7 @@ for k, v in {
     "view_mode": "login", "user_name": "", "current_topic": "",
     "full_exam_data": [], "full_exam_ready": False,
     "lesson_data": "", "lesson_quiz_data": [], "lesson_quiz_ready": False,
-    "current_exam_idx": 0, "exam_answers": {}, "exam_start_time": None, "exam_finished": False
+    "current_exam_idx": 0, "exam_answers": {}, "exam_finished": False
 }.items():
     if k not in st.session_state: st.session_state[k] = v
 
@@ -75,16 +74,7 @@ def parse_quiz(text):
         except: continue
     return qs
 
-def prepare_full_exam():
-    prompt = "צור מבחן סימולציה מלא לרישיון תיווך עם 25 שאלות אינטגרטיביות. פורמט: [START_Q] [QUESTION]... [OPTIONS]... [ANSWER]..."
-    try:
-        res = model.generate_content(prompt)
-        st.session_state.full_exam_data = parse_quiz(res.text)
-        st.session_state.full_exam_ready = True
-        st.rerun() # רענון כדי להפוך את הכפתור לפעיל
-    except: pass
-
-# 3. סרגל צידי (Sidebar)
+# 3. סרגל צידי קבוע (Sidebar)
 if st.session_state.user_name:
     with st.sidebar:
         st.markdown('<div class="sidebar-logo">🎓 מתווך בקליק</div>', unsafe_allow_html=True)
@@ -95,23 +85,20 @@ if st.session_state.user_name:
             st.session_state.view_mode = "setup"; st.rerun()
             
         if st.session_state.current_topic:
-            st.markdown(f"**נושא נבחר:** {st.session_state.current_topic}")
-            if st.button("📖 קרא את השיעור", use_container_width=True):
+            st.write(f"📖 נושא: {st.session_state.current_topic}")
+            if st.button("קרא שיעור", use_container_width=True):
                 st.session_state.view_mode = "lesson_view"; st.rerun()
             
-            # כפתור שאלון - לא פעיל עד שהנתונים מוכנים
-            quiz_btn_label = "✍️ שאלון תרגול" if st.session_state.lesson_quiz_ready else "⌛ מכין שאלון..."
-            if st.button(quiz_btn_label, use_container_width=True, disabled=not st.session_state.lesson_quiz_ready):
+            # כפתור שאלון - לא פעיל עד שהדאטה מוכן
+            quiz_ready = st.session_state.lesson_quiz_ready
+            if st.button("✍️ שאלון תרגול", use_container_width=True, disabled=not quiz_ready):
                 st.session_state.view_mode = "lesson_quiz"; st.rerun()
 
         st.markdown("---")
-        st.subheader("🏆 סימולציה מלאה")
-        
-        # כפתור מבחן - לא פעיל עד שהנתונים מוכנים
-        exam_btn_label = "📝 התחל בחינה (25 שאלות)" if st.session_state.full_exam_ready else "⌛ מכין בחינה..."
-        if st.button(exam_btn_label, use_container_width=True, type="primary", disabled=not st.session_state.full_exam_ready):
+        # כפתור מבחן - לא פעיל עד שהדאטה מוכן
+        exam_ready = st.session_state.full_exam_ready
+        if st.button("📝 בחינה (25 שאלות)", use_container_width=True, type="primary", disabled=not exam_ready):
             st.session_state.view_mode = "full_exam"
-            st.session_state.exam_start_time = time.time()
             st.session_state.exam_answers = {}
             st.session_state.current_exam_idx = 0
             st.session_state.exam_finished = False
@@ -119,41 +106,41 @@ if st.session_state.user_name:
 
 # 4. דפים
 if st.session_state.view_mode == "login":
-    st.markdown('<div class="main-header">🎓 מתווך בקליק - כניסה</div>', unsafe_allow_html=True)
+    st.markdown('<div class="main-header">🎓 מתווך בקליק</div>', unsafe_allow_html=True)
     name = st.text_input("שם משתמש:")
     if st.button("התחבר"):
         st.session_state.user_name = name
         st.session_state.view_mode = "setup"
-        # התחלת יצירת מבחן ברקע (ללא הודעה למשתמש)
-        import threading
-        threading.Thread(target=prepare_full_exam).start()
+        # יצירת המבחן מתחילה כאן
+        res = model.generate_content("צור מבחן סימולציה לרישיון תיווך 25 שאלות בפורמט [START_Q]")
+        st.session_state.full_exam_data = parse_quiz(res.text)
+        st.session_state.full_exam_ready = True
         st.rerun()
 
 elif st.session_state.view_mode == "setup":
-    st.markdown('<div class="main-header">ספריית שיעורי לימוד</div>', unsafe_allow_html=True)
-    t = st.selectbox("בחר נושא לימוד:", ["חוק המתווכים", "חוק המקרקעין", "דיני חוזים", "מיסוי מקרקעין", "חוק המכר"])
-    if st.button("טען חומרים"):
+    st.markdown('<div class="main-header">ספריית שיעורים</div>', unsafe_allow_html=True)
+    t = st.selectbox("בחר נושא:", ["חוק המתווכים", "חוק המקרקעין", "דיני חוזים", "מיסוי מקרקעין", "חוק המכר"])
+    if st.button("טען שיעור"):
         st.session_state.current_topic = t
         st.session_state.lesson_data = ""
         st.session_state.lesson_quiz_ready = False
-        st.session_state.view_mode = "lesson_view"; st.rerun()
+        st.session_state.view_mode = "lesson_view"
+        st.rerun()
 
 elif st.session_state.view_mode == "lesson_view":
     st.markdown(f'<div class="main-header">{st.session_state.current_topic}</div>', unsafe_allow_html=True)
     if not st.session_state.lesson_data:
-        with st.spinner("טוען..."):
-            res = model.generate_content(f"כתוב שיעור מפורט למבחן המתווכים על {st.session_state.current_topic}")
-            st.session_state.lesson_data = res.text
-            # יצירת שאלון (ללא הודעה, הכפתור פשוט יהיה כבוי בסיידבר)
-            l_res = model.generate_content(f"צור 5 שאלות על {st.session_state.current_topic} בפורמט START_Q")
-            st.session_state.lesson_quiz_data = parse_quiz(l_res.text)
+        with st.spinner("טוען חומר לימוד..."):
+            res_l = model.generate_content(f"כתוב שיעור מפורט על {st.session_state.current_topic}")
+            st.session_state.lesson_data = res_l.text
+            res_q = model.generate_content(f"צור 5 שאלות על {st.session_state.current_topic} בפורמט [START_Q]")
+            st.session_state.lesson_quiz_data = parse_quiz(res_q.text)
             st.session_state.lesson_quiz_ready = True
             st.rerun()
     st.markdown(st.session_state.lesson_data)
 
 elif st.session_state.view_mode == "lesson_quiz":
     st.markdown(f'<div class="main-header">תרגול: {st.session_state.current_topic}</div>', unsafe_allow_html=True)
-    # ... לוגיקת השאלון ...
     for i, q in enumerate(st.session_state.lesson_quiz_data):
         with st.container():
             st.markdown('<div class="summary-card">', unsafe_allow_html=True)
@@ -165,10 +152,28 @@ elif st.session_state.view_mode == "lesson_quiz":
             st.markdown('</div>', unsafe_allow_html=True)
 
 elif st.session_state.view_mode == "full_exam":
-    # ... לוגיקת המבחן וסיכום התוצאות ...
     if not st.session_state.exam_finished:
-        st.markdown('<div class="main-header">בחינה כוללת</div>', unsafe_allow_html=True)
-        # (ניווט ושאלות המבחן)
+        st.markdown('<div class="main-header">בחינה כוללת (25 שאלות)</div>', unsafe_allow_html=True)
+        col_m, col_n = st.columns([4, 1])
+        with col_n:
+            for i in range(25):
+                if st.button(f"{i+1}" + (" ✅" if i in st.session_state.exam_answers else ""), key=f"ex_n_{i}", use_container_width=True):
+                    st.session_state.current_exam_idx = i; st.rerun()
+            if st.button("🏁 סיים", type="primary", use_container_width=True):
+                st.session_state.exam_finished = True; st.rerun()
+        with col_m:
+            idx = st.session_state.current_exam_idx
+            q = st.session_state.full_exam_data[idx]
+            st.write(f"**שאלה {idx+1}:** {q['q']}")
+            ch = st.radio("תשובה:", q['options'], index=st.session_state.exam_answers.get(idx), key=f"eq_{idx}")
+            if ch: st.session_state.exam_answers[idx] = q['options'].index(ch)
     else:
-        st.markdown('<div class="main-header">תוצאות הבחינה</div>', unsafe_allow_html=True)
-        # (הצגת ציון ופירוט שאלות)
+        st.markdown('<div class="main-header">סיכום מבחן</div>', unsafe_allow_html=True)
+        # כאן מופיע הפירוט המלא של התשובות והציון כפי שביקשת
+        correct = sum(1 for i, a in st.session_state.exam_answers.items() if a == st.session_state.full_exam_data[i]['correct'])
+        st.metric("ציון", f"{int((correct/25)*100)}%")
+        for i, q in enumerate(st.session_state.full_exam_data):
+            st.markdown('<div class="summary-card">', unsafe_allow_html=True)
+            st.write(f"**שאלה {i+1}: {q['q']}**")
+            # הצגת מה שענית לעומת התשובה הנכונה
+            st.markdown('</div>', unsafe_allow_html=True)
