@@ -29,23 +29,21 @@ if "GEMINI_API_KEY" in st.secrets:
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
     model = genai.GenerativeModel('gemini-2.5-flash')
 
-# --- פונקציה לפירוק המבחן ---
 def parse_quiz(quiz_text):
     questions = []
-    # מחפש תבנית של שאלה, 4 אפשרויות ותשובה
+    # פירוק הטקסט לשאלות לפי המילה "שאלה"
     parts = re.split(r"שאלה \d+:?", quiz_text)[1:]
     for part in parts:
         lines = [line.strip() for line in part.strip().split('\n') if line.strip()]
         if len(lines) >= 5:
-            q = lines[0]
-            opts = lines[1:5]
-            # ניסיון למצוא את התשובה הנכונה (מחפש מספר בסוף הטקסט)
+            q_text = lines[0]
+            options = lines[1:5]
             ans_match = re.search(r"תשובה נכונה:?\s*(\d)", part)
-            ans = int(ans_match.group(1)) - 1 if ans_match else 0
-            questions.append({"q": q, "options": opts, "correct": ans})
+            correct_idx = int(ans_match.group(1)) - 1 if ans_match else 0
+            questions.append({"q": q_text, "options": options, "correct": correct_idx})
     return questions
 
-# --- פריים שמאלי קבוע ---
+# --- תפריט פריים שמאלי (Sidebar) ---
 if st.session_state.user_name:
     with st.sidebar:
         st.header(f"שלום, {st.session_state.user_name}")
@@ -54,7 +52,7 @@ if st.session_state.user_name:
             st.session_state.lesson_data = ""
             st.session_state.quiz_data = []
             st.rerun()
-        st.subheader("📚 מה למדנו:")
+        st.subheader("📚 היסטוריה:")
         for item in st.session_state.history:
             st.write(f"🔹 {item}")
         if st.button("🚪 יציאה"):
@@ -72,42 +70,50 @@ if not st.session_state.user_name:
 else:
     if not st.session_state.lesson_data:
         st.title("בחירת נושא לימוד")
-        topic = st.selectbox("בחר מהרשימה:", ["חוק המתווכים", "חוק המקרקעין", "דיני חוזים", "דיני תכנון ובנייה", "חוק הגנת הצרכן"])
+        topic = st.selectbox("בחר נושא:", ["חוק המתווכים", "חוק המקרקעין", "דיני חוזים", "דיני תכנון ובנייה", "חוק הגנת הצרכן"])
         
         if st.button("כניסה לשיעור"):
             num = len(st.session_state.history) + 1
             st.session_state.current_title = f"שיעור {num}: {topic}"
-            st.markdown(f'<div class="lesson-header"><h1>{st.session_state.current_title}</h1></div>', unsafe_allow_html=True)
             
+            # יצירת הזרמה (Streaming) של השיעור
             placeholder = st.empty()
             full_text = ""
-            
             try:
-                # 1. הזרמת השיעור
+                # הזרמת השיעור
                 response = model.generate_content(f"כתוב שיעור מפורט על {topic} למבחן המתווכים.", stream=True)
                 for chunk in response:
                     full_text += chunk.text
                     placeholder.markdown(full_text)
+                
                 st.session_state.lesson_data = full_text
                 
-                # 2. יצירת המבחן בפורמט קשיח לפירוק
-                quiz_prompt = f"""צור 3 שאלות אמריקאיות על {topic}. חובה להשתמש בפורמט הזה בדיוק:
-                שאלה 1: [טקסט השאלה]
-                1) [אופציה 1]
-                2) [אופציה 2]
-                3) [אופציה 3]
-                4) [אופציה 4]
-                תשובה נכונה: [מספר האופציה]
-                """
+                # יצירת המבחן ברקע
+                quiz_prompt = f"צור 3 שאלות אמריקאיות על {topic}. פורמט: שאלה X: [טקסט] 1) [א] 2) [ב] 3) [ג] 4) [ד] תשובה נכונה: [מספר]"
                 quiz_res = model.generate_content(quiz_prompt)
                 st.session_state.quiz_data = parse_quiz(quiz_res.text)
                 
                 if topic not in st.session_state.history:
                     st.session_state.history.append(topic)
                 st.rerun()
-                
             except Exception as e:
-                st.error(f"שגיאה: {e}")
+                st.error(f"שגיאה בייצור השיעור: {e}")
 
     elif st.session_state.lesson_data:
-        st.markdown(f'<div class="lesson-header"><h1>{st.session_state.current_title}</h1></div>', unsafe_allow
+        # הצגת הכותרת והשיעור
+        st.markdown(f'<div class="lesson-header"><h1>{st.session_state.current_title}</h1></div>', unsafe_allow_html=True)
+        st.markdown(st.session_state.lesson_data)
+        
+        # הצגת המבחן במידה וקיים
+        if st.session_state.quiz_data:
+            st.markdown("---")
+            st.subheader("📝 בחינה עצמית")
+            for i, q in enumerate(st.session_state.quiz_data):
+                st.write(f"**שאלה {i+1}: {q['q']}**")
+                choice = st.radio("בחר תשובה:", q['options'], key=f"quiz_opt_{i}")
+                if st.button(f"בדוק תשובה {i+1}", key=f"btn_{i}"):
+                    idx = q['options'].index(choice)
+                    if idx == q['correct']:
+                        st.success("נכון מאוד!")
+                    else:
+                        st.error(f"טעות. התשובה הנכונה היא: {q['options'][q['correct']]}")
