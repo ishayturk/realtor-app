@@ -2,18 +2,18 @@ import streamlit as st
 import google.generativeai as genai
 import re
 
-# 1. הגדרות עיצוב RTL מוחלטות
+# 1. הגדרות עיצוב RTL ונעילת כותרות
 st.set_page_config(page_title="מתווך בקליק", layout="wide")
 
 st.markdown("""
     <style>
-    /* נעילת הכל לימין - כולל כותרות ותפריטים */
-    html, body, [data-testid="stAppViewContainer"], .main, .block-container, .stHeading, h1, h2, h3, p, li, span, label {
+    /* יישור כללי לימין */
+    html, body, [data-testid="stAppViewContainer"], .main, .block-container, h1, h2, h3, p, li, span, label {
         direction: rtl !important;
         text-align: right !important;
     }
     
-    /* לוגו בסיידבר */
+    /* לוגו בסיידבר - מוגדל וגבוה */
     .sidebar-logo {
         font-size: 34px !important;
         font-weight: bold;
@@ -21,17 +21,15 @@ st.markdown("""
         margin-top: -50px !important;
         color: #1E88E5;
         display: block;
+        width: 100%;
     }
 
-    /* תיקון רשימות */
-    ul, ol { padding-right: 2rem !important; padding-left: 0 !important; }
-
-    /* עיצוב כפתורים */
-    div.stButton > button { 
-        width: 100%; border-radius: 8px; font-weight: bold;
-        background-color: #1E88E5; color: white;
+    /* עיצוב כפתורים בסיידבר */
+    [data-testid="stSidebar"] button {
+        width: 100% !important;
+        margin-bottom: 10px;
     }
-    
+
     /* כרטיסיות שאלון */
     .quiz-card { 
         background-color: #f9f9f9; padding: 20px; border-radius: 12px; 
@@ -39,13 +37,13 @@ st.markdown("""
     }
     </style>
     <script>
-        // איפוס גלילה בכל פעם שהתוכן משתנה
+        // איפוס גלילה
         var mainSection = window.parent.document.querySelector('section.main');
         if (mainSection) { mainSection.scrollTo(0, 0); }
     </script>
     """, unsafe_allow_html=True)
 
-# 2. ניהול משתני מערכת
+# 2. ניהול משתנים
 for key, default in [
     ("user_name", ""), ("view_mode", "login"), ("lesson_data", ""), 
     ("quiz_data", []), ("history", []), ("lesson_count", 0), 
@@ -72,20 +70,30 @@ def parse_quiz(text):
         except: continue
     return questions
 
-# 3. סרגל צידי
+# 3. סרגל צידי (Sidebar)
 if st.session_state.user_name:
     with st.sidebar:
         st.markdown('<div class="sidebar-logo">🎓 מתווך בקליק</div>', unsafe_allow_html=True)
         st.write(f"שלום, **{st.session_state.user_name}**")
+        st.markdown("---")
+        
+        # כפתור נושא חדש
         if st.button("➕ נושא חדש"):
             st.session_state.update({"lesson_data": "", "quiz_data": [], "user_answers": {}, "view_mode": "setup"})
             st.rerun()
-        if st.session_state.quiz_data:
-            lbl = "📝 למבחן" if st.session_state.view_mode != "quiz" else "📖 לשיעור"
-            if st.button(lbl):
-                st.session_state.view_mode = "quiz" if st.session_state.view_mode != "quiz" else "lesson"
+            
+        # כפתורי ניווט נוכחיים (תמיד יוצגו אם יש שיעור פעיל)
+        if st.session_state.current_topic:
+            st.markdown(f"**נושא נוכחי: {st.session_state.current_topic}**")
+            if st.button("📖 חזרה לשיעור"):
+                st.session_state.view_mode = "lesson"
                 st.rerun()
+            if st.button("📝 מעבר למבחן"):
+                st.session_state.view_mode = "quiz"
+                st.rerun()
+        
         st.markdown("---")
+        st.write("🕒 היסטוריה:")
         for h in st.session_state.history: st.caption(f"• {h}")
 
 # 4. תוכן ראשי
@@ -118,10 +126,15 @@ elif st.session_state.view_mode == "setup":
 elif st.session_state.view_mode == "lesson":
     st.title(f"שיעור: {st.session_state.current_topic}")
     st.markdown(st.session_state.lesson_data)
-    st.button("למבחן 📝", on_click=lambda: setattr(st.session_state, 'view_mode', 'quiz'))
+    st.markdown("---")
+    if st.button("סיימתי ללמוד! למבחן 📝"):
+        st.session_state.view_mode = "quiz"
+        st.rerun()
 
 elif st.session_state.view_mode == "quiz":
     st.title(f"תרגול: {st.session_state.current_topic}")
+    if not st.session_state.quiz_data:
+        st.warning("לא נמצאו שאלות. נסה לחזור לשיעור או לבחור נושא מחדש.")
     for i, q in enumerate(st.session_state.quiz_data):
         st.markdown(f'<div class="quiz-card">', unsafe_allow_html=True)
         st.write(f"**{i+1}. {q['q']}**")
