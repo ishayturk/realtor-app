@@ -6,7 +6,7 @@ import time
 import random
 
 # ==========================================
-# 1. הגדרות ועיצוב - תיקון צבעים וניראות
+# 1. הגדרות ועיצוב
 # ==========================================
 def apply_design():
     st.set_page_config(page_title="מתווך בקליק", layout="wide")
@@ -19,7 +19,6 @@ def apply_design():
         .main-header {
             text-align: center !important; background: linear-gradient(90deg, #1E88E5, #1565C0);
             color: white !important; padding: 20px; border-radius: 15px; margin-bottom: 20px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
         .lesson-box {
             background-color: #ffffff !important; color: #1a1a1a !important; padding: 25px; 
@@ -33,12 +32,12 @@ def apply_design():
         .stButton button { width: 100% !important; border-radius: 10px !important; height: 3.5em; font-weight: bold; }
         [data-testid="stSidebar"] { display: none; }
         .score-display { background: #e3f2fd; padding: 12px; border-radius: 10px; text-align: center; font-weight: bold; color: #1565C0; margin-bottom: 15px; }
-        p, span, label { color: #1a1a1a !important; } /* וידוא טקסט כהה */
+        p, span, label { color: #1a1a1a !important; }
     </style>
     """, unsafe_allow_html=True)
 
 # ==========================================
-# 2. נתונים (סילבוס ושאלות רשמיות)
+# 2. נתונים
 # ==========================================
 FULL_SYLLABUS = [
     "חוק המתווכים במקרקעין", "חוק המקרקעין", "חוק המכר (דירות)",
@@ -47,22 +46,21 @@ FULL_SYLLABUS = [
 ]
 
 def get_official_questions():
-    # מאגר לדוגמה - כאן תכניס את כל השאלות מהלינקים
-    return [
+    # שאלות לדוגמה - כאן תכניס את כל השאלות מהלינקים שלך
+    q_list = [
         {"q": "מתווך פעל ללא רישיון בתוקף. האם הוא זכאי לדמי תיווך?", "options": ["כן, אם עשה עבודה טובה", "לא, הרישיון הוא תנאי סף חקוק", "רק אם הלקוח הסכים", "רק חצי מהסכום"], "correct": 1, "explanation": "חוק המתווכים קובע כי רק בעל רישיון בתוקף זכאי לדמי תיווך."},
-        {"q": "מהו 'הגורם היעיל' לפי הפסיקה?", "options": ["מי שהחתים ראשון", "מי שהיה הסיבה המכרעת לכריתת החוזה", "מי שהראה הכי הרבה דירות", "עורך הדין של העסקה"], "correct": 1, "explanation": "מתווך זכאי לדמי תיווך רק אם היה הגורם היעיל שהוביל להסכם מחייב."},
-    ] * 13
+        {"q": "מהו 'הגורם היעיל' לפי הפסיקה?", "options": ["מי שהחתים ראשון", "מי שהיה הסיבה המכרעת לכריתת החוזה", "מי שהראה הכי הרבה דירות", "עורך הדין של העסקה"], "correct": 1, "explanation": "מתווך זכאי לדמי תיווך רק אם היה הגורם היעיל שהוביל להסכם מחייב."}
+    ]
+    # השלמה ל-25 שאלות
+    return (q_list * 13)[:25]
 
 # ==========================================
-# 3. מנוע AI (Gemini)
+# 3. מנוע AI
 # ==========================================
 def init_gemini():
-    try:
-        if "GEMINI_API_KEY" in st.secrets:
-            genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-            return genai.GenerativeModel('gemini-1.5-flash') # שימוש במודל יציב
-    except:
-        return None
+    if "GEMINI_API_KEY" in st.secrets:
+        genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+        return genai.GenerativeModel('gemini-1.5-flash')
     return None
 
 def fetch_quiz(model, topic):
@@ -75,13 +73,12 @@ def fetch_quiz(model, topic):
     except: return None
 
 # ==========================================
-# 4. ניהול האפליקציה (Main)
+# 4. ניהול האפליקציה
 # ==========================================
 def main():
     apply_design()
     model = init_gemini()
     
-    # אתחול Session State
     if "view" not in st.session_state:
         st.session_state.update({
             "view": "login", "user": "", "topic": "", "lesson": "", 
@@ -91,23 +88,30 @@ def main():
 
     st.markdown('<div class="main-header"><h1 style="margin:0; font-size: 26px; color: white;">🏠 מתווך בקליק</h1></div>', unsafe_allow_html=True)
 
-    # --- דף כניסה ---
     if st.session_state.view == "login":
-        with st.container():
-            st.write("### ברוכים הבאים למערכת ההכנה למבחן המתווכים")
-            name = st.text_input("הכנס את שמך כדי להתחיל:", key="login_name")
-            if st.button("כניסה למערכת 🔓"):
-                if name: 
-                    st.session_state.user = name
-                    st.session_state.view = "menu"
-                    st.rerun()
-                else:
-                    st.warning("בבקשה הכנס שם")
+        st.write("### ברוכים הבאים למערכת ההכנה למבחן המתווכים")
+        name = st.text_input("הכנס את שמך כדי להתחיל:", key="login_input")
+        if st.button("כניסה למערכת 🔓"):
+            if name:
+                st.session_state.user = name
+                st.session_state.view = "menu"
+                st.rerun()
 
-    # --- תפריט ראשי ---
     elif st.session_state.view == "menu":
         st.write(f"### שלום, {st.session_state.user} 👋")
         t1, t2 = st.tabs(["📚 למידה מודרכת", "⏱️ סימולציית מבחן"])
         
         with t1:
-            st.write("בחר נושא כדי לקבל שיעור מפורט מה-AI
+            st.write("בחר נושא לקבלת שיעור מה-AI ותרגול ממוקד.")
+            selected = st.selectbox("בחר נושא:", ["בחר..."] + FULL_SYLLABUS)
+            if selected != "בחר...":
+                st.session_state.topic = selected
+                if st.button("📖 התחל שיעור"):
+                    st.session_state.lesson = ""
+                    st.session_state.view = "lesson"
+                    st.rerun()
+        
+        with t2:
+            st.write("מבחן מלא של 25 שאלות מהמאגר הרשמי.")
+            if st.button("🚀 התחל מבחן רישוי"):
+                st.session_state.exam_questions = get_official_questions()
