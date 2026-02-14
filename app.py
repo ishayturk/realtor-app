@@ -11,13 +11,6 @@ st.markdown("""
     .stApp, .main, .block-container { direction: rtl !important; text-align: right !important; }
     [data-testid="stSidebar"] { direction: rtl !important; text-align: right !important; }
     
-    /* עיצוב כפתורי הניווט בסיידבר */
-    .sidebar .stButton button {
-        background-color: #ffffff !important;
-        color: #1E88E5 !important;
-        border: 2px solid #1E88E5 !important;
-    }
-
     div.stButton > button { 
         width: 100%; border-radius: 8px; font-weight: bold;
     }
@@ -67,7 +60,7 @@ if st.session_state.user_name:
             st.session_state.view_mode = "setup"
             st.rerun()
             
-        # מעברים דינמיים בתפריט
+        # מעברים דינמיים בתפריט הצידי
         if st.session_state.view_mode == "lesson" and st.session_state.quiz_data:
             if st.button("📝 מעבר למבחן התרגול"):
                 st.session_state.view_mode = "quiz"
@@ -85,6 +78,7 @@ if st.session_state.user_name:
 
 # --- עמודי האפליקציה ---
 
+# דף כניסה
 if st.session_state.view_mode == "login":
     st.title("🎓 מתווך בקליק")
     name = st.text_input("הזן שם:")
@@ -94,6 +88,7 @@ if st.session_state.view_mode == "login":
             st.session_state.view_mode = "setup"
             st.rerun()
 
+# דף בחירת נושא
 elif st.session_state.view_mode == "setup":
     st.title("מה נלמד היום?")
     topic = st.selectbox("בחר נושא:", ["חוק המתווכים", "חוק המקרקעין", "דיני חוזים", "דיני תכנון ובנייה"])
@@ -109,6 +104,37 @@ elif st.session_state.view_mode == "setup":
             
             bar.progress(70)
             msg.text("בונה מבחן תרגול...")
-            # השורה המתוקנת:
             quiz_res = model.generate_content(f"צור 3 שאלות אמריקאיות על {topic}. פורמט: שאלה X: [טקסט] 1) [א] 2) [ב] 3) [ג] 4) [ד] תשובה נכונה: [מספר]")
-            st.session_
+            st.session_state.quiz_data = parse_quiz(quiz_res.text)
+            
+            if topic not in st.session_state.history:
+                st.session_state.history.append(topic)
+            bar.progress(100)
+            time.sleep(1)
+            st.session_state.view_mode = "lesson"
+            st.rerun()
+        except Exception as e:
+            st.error(f"שגיאה: {e}")
+
+# דף השיעור
+elif st.session_state.view_mode == "lesson":
+    st.title(st.session_state.current_topic)
+    st.markdown(st.session_state.lesson_data)
+    st.markdown("---")
+    if st.button("אני מוכן למבחן! 📝"):
+        st.session_state.view_mode = "quiz"
+        st.rerun()
+
+# דף המבחן
+elif st.session_state.view_mode == "quiz":
+    st.title(f"מבחן: {st.session_state.current_topic}")
+    for i, q in enumerate(st.session_state.quiz_data):
+        st.markdown('<div class="quiz-card">', unsafe_allow_html=True)
+        st.write(f"**שאלה {i+1}:** {q['q']}")
+        ans = st.radio(f"תשובה {i}:", q['options'], key=f"q{i}", index=None, label_visibility="collapsed")
+        if st.button(f"בדוק שאלה {i+1}", key=f"b{i}"):
+            if ans:
+                idx = q['options'].index(ans)
+                if idx == q['correct']: st.success("נכון!")
+                else: st.error(f"טעות. התשובה היא אופציה {q['correct']+1}")
+        st.markdown('</div>', unsafe_allow_html=True)
