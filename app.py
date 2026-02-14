@@ -1,6 +1,7 @@
 import streamlit as st
 import google.generativeai as genai
 import re
+import time
 
 # 1. הגדרות דף ועיצוב CSS
 st.set_page_config(page_title="מתווך בקליק", layout="wide")
@@ -31,7 +32,6 @@ if "GEMINI_API_KEY" in st.secrets:
 
 def parse_quiz(quiz_text):
     questions = []
-    # פירוק הטקסט לשאלות לפי המילה "שאלה"
     parts = re.split(r"שאלה \d+:?", quiz_text)[1:]
     for part in parts:
         lines = [line.strip() for line in part.strip().split('\n') if line.strip()]
@@ -76,44 +76,60 @@ else:
             num = len(st.session_state.history) + 1
             st.session_state.current_title = f"שיעור {num}: {topic}"
             
-            # יצירת הזרמה (Streaming) של השיעור
+            status_placeholder = st.empty()
+            progress_bar = st.progress(0)
+            status_placeholder.markdown("### **מכין את השיעור...**")
+            progress_bar.progress(25)
+            
             placeholder = st.empty()
             full_text = ""
             try:
-                # הזרמת השיעור
                 response = model.generate_content(f"כתוב שיעור מפורט על {topic} למבחן המתווכים.", stream=True)
+                
                 for chunk in response:
+                    if not full_text:
+                        progress_bar.progress(50)
                     full_text += chunk.text
                     placeholder.markdown(full_text)
                 
                 st.session_state.lesson_data = full_text
                 
-                # יצירת המבחן ברקע
+                status_placeholder.markdown("### **בונה מבחן תרגול...**")
+                progress_bar.progress(80)
+                
                 quiz_prompt = f"צור 3 שאלות אמריקאיות על {topic}. פורמט: שאלה X: [טקסט] 1) [א] 2) [ב] 3) [ג] 4) [ד] תשובה נכונה: [מספר]"
                 quiz_res = model.generate_content(quiz_prompt)
                 st.session_state.quiz_data = parse_quiz(quiz_res.text)
                 
                 if topic not in st.session_state.history:
                     st.session_state.history.append(topic)
+                
+                progress_bar.progress(100)
+                time.sleep(0.5)
+                status_placeholder.empty()
+                progress_bar.empty()
                 st.rerun()
             except Exception as e:
                 st.error(f"שגיאה בייצור השיעור: {e}")
 
     elif st.session_state.lesson_data:
-        # הצגת הכותרת והשיעור
         st.markdown(f'<div class="lesson-header"><h1>{st.session_state.current_title}</h1></div>', unsafe_allow_html=True)
         st.markdown(st.session_state.lesson_data)
         
-        # הצגת המבחן במידה וקיים
         if st.session_state.quiz_data:
             st.markdown("---")
             st.subheader("📝 בחינה עצמית")
             for i, q in enumerate(st.session_state.quiz_data):
                 st.write(f"**שאלה {i+1}: {q['q']}**")
-                choice = st.radio("בחר תשובה:", q['options'], key=f"quiz_opt_{i}")
-                if st.button(f"בדוק תשובה {i+1}", key=f"btn_{i}"):
-                    idx = q['options'].index(choice)
-                    if idx == q['correct']:
-                        st.success("נכון מאוד!")
+                # index=None גורם לכך שלא תיבחר תשובה בדיפולט
+                choice = st.radio("בחר תשובה:", q['options'], key=f"quiz_opt_{i}", index=None)
+                
+                if st.button("בדוק", key=f"btn_{i}"):
+                    if choice is None:
+                        st.warning("בחר תשובה לפני הבדיקה")
                     else:
-                        st.error(f"טעות. התשובה הנכונה היא: {q['options'][q['correct']]}")
+                        idx = q['options'].index(choice)
+                        if idx == q['correct']:
+                            st.success("נכון מאוד!")
+                        else:
+                            st.error(f"טעות. התשובה הנכונה היא: {q['options'][q['correct']]}")
