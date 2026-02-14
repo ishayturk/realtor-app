@@ -16,7 +16,6 @@ st.markdown("""
     [data-testid="stCodeBlock"], code, pre { 
         direction: ltr !important; 
         text-align: left !important; 
-        unicode-bidi: plaintext;
     }
 
     h1, h2, h3, p, li, span, label, .stSelectbox { direction: rtl !important; text-align: right !important; }
@@ -36,15 +35,11 @@ if "quiz_data" not in st.session_state: st.session_state.quiz_data = []
 if "current_title" not in st.session_state: st.session_state.current_title = ""
 if "view_mode" not in st.session_state: st.session_state.view_mode = "setup"
 
-# 3. חיבור ל-AI עם מנגנון גיבוי למודלים
+# 3. חיבור ל-AI - ניסיון טעינה של מודל יציב יותר
 if "GEMINI_API_KEY" in st.secrets:
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-    
-    # ניסיון טעינת מודל חכם
-    try:
-        model = genai.GenerativeModel('gemini-1.5-flash')
-    except:
-        model = genai.GenerativeModel('gemini-pro')
+    # שימוש בשם מודל ללא קידומות models/
+    model = genai.GenerativeModel('gemini-1.5-pro')
 
 def parse_quiz(quiz_text):
     questions = []
