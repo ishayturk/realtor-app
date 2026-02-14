@@ -1,160 +1,115 @@
 import streamlit as st
 import google.generativeai as genai
 import time
-import random
 
-# 1. הגדרות תצוגה ויישור (RTL)
+# --- הגדרות ליבה ---
 st.set_page_config(page_title="מתווך בקליק", layout="centered")
 
+# עיצוב RTL מקצועי עם יישור לימין וכותרות ממורכזות
 st.markdown("""
     <style>
-    [data-testid="stAppViewContainer"], .main, .block-container {
-        direction: rtl !important;
-        text-align: right !important;
+    [data-testid="stAppViewContainer"] { direction: rtl !important; text-align: right !important; }
+    h1, h2, .stAlert { text-align: center !important; direction: rtl !important; }
+    .stButton > button { width: 100%; border-radius: 8px; font-weight: bold; margin-top: 10px; }
+    .lesson-content { 
+        background: white; padding: 20px; border-radius: 12px; 
+        border-right: 5px solid #1E88E5; box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        line-height: 1.8; color: #333;
     }
-    h1, h2, h3, .centered-header {
-        text-align: center !important;
-        width: 100%;
-        display: block;
-        color: #1E88E5;
-    }
-    .stButton > button {
-        display: block;
-        margin-right: 0;
-        margin-left: auto;
-        border-radius: 10px;
-    }
-    input { direction: rtl !important; text-align: right !important; }
-    .lesson-box {
-        border: 1px solid #ddd; padding: 15px; border-radius: 10px; 
-        background: #fff; color: #1a1a1a; line-height: 1.6;
-    }
-    .timer-box {
-        text-align: center; background: #ffebee; border: 1px solid #d32f2f;
-        padding: 10px; border-radius: 10px; font-weight: bold; color: #d32f2f;
-        margin-bottom: 20px;
-    }
+    div[data-testid="stExpander"] { direction: rtl !important; }
     </style>
     """, unsafe_allow_html=True)
 
-# 2. אתחול משתני מערכת
-if "view" not in st.session_state:
+# --- ניהול זיכרון (Session State) ---
+if "step" not in st.session_state:
     st.session_state.update({
-        "view": "login", "user": "", "topic": "", "lesson": "",
-        "exam_questions": [], "user_answers": {}, "idx": 0, "start_time": None
+        "step": "login", "user": "", "topic": "", 
+        "lessons": {}, "exam_idx": 0, "answers": {}
     })
 
-# 3. פונקציות עזר ומאגר
-def get_official_questions():
-    # מאגר השאלות הרשמי
-    pool = [
-        {"q": "מהי תקופת הבלעדיות המקסימלית בדירת מגורים?", "options": ["3 חודשים", "6 חודשים", "שנה", "ללא הגבלה"], "correct": 1},
-        {"q": "האם מתווך זכאי לדמי תיווך ללא הזמנה בכתב?", "options": ["כן", "רק אם הלקוח הסכים", "לא, חובה הזמנה בכתב חתומה", "רק בבלעדיות"], "correct": 2}
-    ]
-    return (pool * 13)[:25]
-
-def init_gemini():
-    if "GEMINI_API_KEY" in st.secrets:
+# --- פונקציות AI ---
+def get_ai_lesson(topic):
+    if topic in st.session_state.lessons:
+        return st.session_state.lessons[topic]
+    
+    try:
         genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-        # עדכון למודל Gemini 2.0 Flash
-        return genai.GenerativeModel('gemini-2.0-flash')
-    return None
+        model = genai.GenerativeModel('gemini-2.0-flash')
+        prompt = f"כתוב שיעור הכנה למבחן המתווכים על {topic}. כלול סעיפי חוק רלוונטיים והסברים פשוטים."
+        response = model.generate_content(prompt)
+        st.session_state.lessons[topic] = response.text
+        return response.text
+    except Exception as e:
+        return f"שגיאה בתקשורת: {str(e)}"
 
-model = init_gemini()
+# --- מבנה האפליקציה ---
 
-# כותרת קבועה וממורכזת
-st.markdown('<h1>🏠 מתווך בקליק</h1>', unsafe_allow_html=True)
+# כותרת קבועה בראש כל דף
+st.markdown("<h1>🏠 מתווך בקליק</h1>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center;'>הכנה מקצועית למבחן רישוי מתווכים</p>", unsafe_allow_html=True)
 st.write("---")
 
-# --- דף כניסה ---
-if st.session_state.view == "login":
-    st.markdown('### ברוכים הבאים! הכנס שם כדי להתחיל.', unsafe_allow_html=True)
-    name = st.text_input("שם מלא:", key="name_input")
-    if st.button("כניסה למערכת 🔓"):
+# 1. דף כניסה
+if st.session_state.step == "login":
+    name = st.text_input("הכנס שם מלא לכניסה:", placeholder="ישראל ישראלי")
+    if st.button("התחבר"):
         if name:
             st.session_state.user = name
-            st.session_state.view = "menu"
+            st.session_state.step = "menu"
             st.rerun()
 
-# --- תפריט ראשי ---
-elif st.session_state.view == "menu":
-    st.markdown(f'### שלום {st.session_state.user} 👋', unsafe_allow_html=True)
-    if st.button("📚 לימוד לפי נושאים"):
-        st.session_state.view = "select_topic"
-        st.rerun()
-    if st.button("🚀 התחל מבחן רישוי (25 שאלות)"):
-        st.session_state.exam_questions = get_official_questions()
-        st.session_state.user_answers = {}
-        st.session_state.idx = 0
-        st.session_state.start_time = time.time()
-        st.session_state.view = "exam"
-        st.rerun()
+# 2. תפריט ראשי
+elif st.session_state.step == "menu":
+    st.markdown(f"### שלום, {st.session_state.user}")
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("📚 לימוד עיוני"):
+            st.session_state.step = "select_topic"
+            st.rerun()
+    with col2:
+        if st.button("📝 מבחן תרגול"):
+            st.session_state.step = "exam"
+            st.rerun()
 
-# --- בחירת נושא ---
-elif st.session_state.view == "select_topic":
-    st.markdown('### בחר נושא ללימוד', unsafe_allow_html=True)
-    topic = st.selectbox("נושאים:", ["חוק המתווכים", "חוק המקרקעין", "חוק החוזים"])
-    if st.button("התחל שיעור"):
-        st.session_state.topic = topic
-        st.session_state.lesson = ""
-        st.session_state.view = "lesson"
+# 3. בחירת נושא
+elif st.session_state.step == "select_topic":
+    st.markdown("### בחר נושא ללימוד")
+    topics = ["חוק המתווכים", "חוק המקרקעין", "חוק הגנת הצרכן", "חוק החוזים", "מושגי יסוד בנדל\"ן"]
+    selected = st.selectbox("נושאים זמינים:", topics)
+    
+    if st.button("פתח שיעור 📖"):
+        st.session_state.topic = selected
+        st.session_state.step = "view_lesson"
         st.rerun()
+    
     if st.button("חזרה לתפריט"):
-        st.session_state.view = "menu"
+        st.session_state.step = "menu"
         st.rerun()
 
-# --- דף שיעור ---
-elif st.session_state.view == "lesson":
-    st.markdown(f'### שיעור: {st.session_state.topic}', unsafe_allow_html=True)
-    if not st.session_state.lesson:
-        with st.spinner("ה-AI (Gemini 2.0) מכין חומר..."):
-            if model:
-                try:
-                    resp = model.generate_content(f"כתוב שיעור מפורט למבחן המתווכים על {st.session_state.topic} בעברית")
-                    st.session_state.lesson = resp.text
-                except Exception as e:
-                    st.error(f"שגיאה בתקשורת עם Gemini 2.0. נסה שוב.")
-                    st.session_state.lesson = "לא ניתן לטעון תוכן כרגע."
-            else:
-                st.warning("API Key לא הוגדר.")
+# 4. הצגת שיעור
+elif st.session_state.step == "view_lesson":
+    st.markdown(f"## {st.session_state.topic}")
     
-    st.markdown(f'<div class="lesson-box">{st.session_state.lesson}</div>', unsafe_allow_html=True)
-    if st.button("חזרה"):
-        st.session_state.view = "select_topic"
+    # טעינה מהירה - אם קיים ב-Cache לא פונה ל-AI
+    with st.spinner("מטעין תוכן מקצועי..."):
+        content = get_ai_lesson(st.session_state.topic)
+    
+    st.markdown(f"<div class='lesson-content'>{content}</div>", unsafe_allow_html=True)
+    
+    if st.button("סיום וחזרה לבחירת נושא"):
+        st.session_state.step = "select_topic"
         st.rerun()
 
-# --- מבחן רישוי ---
-elif st.session_state.view == "exam":
-    elapsed = time.time() - st.session_state.start_time
-    rem = max(0, 90 * 60 - elapsed)
-    st.markdown(f'<div class="timer-box">⏱️ זמן נותר: {int(rem//60):02d}:{int(rem%60):02d}</div>', unsafe_allow_html=True)
+# 5. מבחן (שלד מקצועי)
+elif st.session_state.step == "exam":
+    st.markdown("## מבחן תרגול")
+    st.warning("בשלב זה המבחן כולל שאלות מהמאגר המובנה. האם תרצה לייבא שאלות מהרשת?")
     
-    idx = st.session_state.idx
-    q = st.session_state.exam_questions[idx]
-    st.markdown(f'### שאלה {idx + 1} / 25', unsafe_allow_html=True)
-    st.info(q['q'])
+    # דוגמה לשאלה
+    st.info("שאלה 1: מהו התנאי היסודי לקבלת דמי תיווך?")
+    st.radio("בחר תשובה:", ["רישיון בתוקף בלבד", "רישיון בתוקף, הזמנה בכתב והיות המתווך הגורם היעיל", "חתימה על בלעדיות", "הסכמה בעל פה"], index=None)
     
-    ans = st.session_state.user_answers.get(idx + 1)
-    choice = st.radio("בחר תשובה:", q['options'], key=f"ex_{idx}", index=None if ans is None else q['options'].index(ans))
-    if choice: st.session_state.user_answers[idx + 1] = choice
-
-    c1, c2 = st.columns(2)
-    with c1:
-        if idx > 0:
-            if st.button("⬅️ הקודם"): st.session_state.idx -= 1; st.rerun()
-    with c2:
-        if idx < 24:
-            if st.button("הבא ➡️"): st.session_state.idx += 1; st.rerun()
-        else:
-            if st.button("🏁 סיום"): st.session_state.view = "menu"; st.rerun()
-
-    st.write("---")
-    st.write("🎯 **קפיצה לשאלה:**")
-    for i in range(0, 25, 5):
-        cols = st.columns(5)
-        for j in range(5):
-            n = i + j + 1
-            if n <= 25:
-                label = f"{n} ✅" if n in st.session_state.user_answers else f"{n}"
-                if cols[j].button(label, key=f"btn_{n}", type="primary" if i+j == idx else "secondary"):
-                    st.session_state.idx = i + j; st.rerun()
+    if st.button("חזרה לתפריט"):
+        st.session_state.step = "menu"
+        st.rerun()
