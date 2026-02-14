@@ -2,8 +2,9 @@ import streamlit as st
 import google.generativeai as genai
 import time
 
-# --- 1. CSS קשיח ---
+# --- 1. הגדרות תצוגה RTL ---
 st.set_page_config(page_title="מתווך בקליק", layout="centered")
+
 st.markdown("""
     <style>
     [data-testid="stAppViewContainer"], .main, .block-container { direction: rtl !important; text-align: right !important; }
@@ -19,7 +20,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. אתחול ---
+# --- 2. אתחול משתנים ---
 if "step" not in st.session_state:
     st.session_state.update({
         "step": "login", "user": "", "lesson_text": "",
@@ -27,7 +28,7 @@ if "step" not in st.session_state:
         "exam_idx": 0, "exam_answers": {}, "exam_questions": [], "exam_start_time": None
     })
 
-# --- 3. לוגיקה ---
+# --- 3. לוגיקה מרכזית ---
 st.markdown("<h1>🏠 מתווך בקליק</h1>", unsafe_allow_html=True)
 
 if st.session_state.step == "login":
@@ -59,20 +60,70 @@ elif st.session_state.step == "study":
     
     if not st.session_state.quiz_active and not st.session_state.quiz_done:
         if st.button("📖 התחל שיעור"):
-            genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-            model = genai.GenerativeModel('gemini-2.0-flash')
-            response = model.generate_content(f"כתוב שיעור מפורט על {topic}", stream=True)
-            placeholder = st.empty()
-            full_text = ""
-            for chunk in response:
-                full_text += chunk.text
-                placeholder.markdown(f"<div class='lesson-box'>{full_text}</div>", unsafe_allow_html=True)
-            st.session_state.lesson_text = full_text
-            st.session_state.quiz_questions = [{"q": f"שאלה {i+1} על {topic}:", "options": ["תשובה 1", "תשובה 2", "תשובה 3", "תשובה 4"], "correct": "תשובה 1"} for i in range(10)]
-            st.session_state.quiz_active = True
-            st.rerun()
+            try:
+                genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+                model = genai.GenerativeModel('gemini-2.0-flash')
+                response = model.generate_content(f"כתוב שיעור מפורט על {topic}", stream=True)
+                placeholder = st.empty()
+                full_text = ""
+                for chunk in response:
+                    full_text += chunk.text
+                    placeholder.markdown(f"<div class='lesson-box'>{full_text}</div>", unsafe_allow_html=True)
+                st.session_state.lesson_text = full_text
+                st.session_state.quiz_questions = [{"q": f"שאלה {i+1} על {topic}:", "options": ["תשובה 1", "תשובה 2", "תשובה 3", "תשובה 4"], "correct": "תשובה 1"} for i in range(10)]
+                st.session_state.quiz_active = True
+                st.rerun()
+            except Exception as e:
+                st.error(f"שגיאה: {str(e)}")
 
     if st.session_state.lesson_text:
         st.markdown(f"<div class='lesson-box'>{st.session_state.lesson_text}</div>", unsafe_allow_html=True)
 
     if st.session_state.quiz_active:
+        idx = st.session_state.quiz_idx
+        q = st.session_state.quiz_questions[idx]
+        st.markdown(f"#### שאלון תרגול: {idx+1}/10")
+        ans = st.radio(q['q'], q['options'], key=f"sq_{idx}", index=None)
+        if ans:
+            st.session_state.quiz_answers[idx] = ans
+        
+        c1, c2 = st.columns(2)
+        if c1.button("⬅️ הקודם") and idx > 0:
+            st.session_state.quiz_idx -= 1
+            st.rerun()
+        if idx < 9:
+            if c2.button("הבא ➡️"):
+                st.session_state.quiz_idx += 1
+                st.rerun()
+        else:
+            if c2.button("🏁 סיום"):
+                st.session_state.quiz_active = False
+                st.session_state.quiz_done = True
+                st.rerun()
+
+    if st.session_state.quiz_done:
+        score = sum(1 for i, q in enumerate(st.session_state.quiz_questions) if st.session_state.quiz_answers.get(i) == q['correct'])
+        st.markdown(f"<div class='score-box'><h3>ציון: {score*10}</h3><p>{score}/10 נכונות</p></div>", unsafe_allow_html=True)
+        if st.button("חזרה לתפריט"):
+            st.session_state.update({"lesson_text":"", "quiz_active":False, "quiz_done":False, "quiz_idx":0, "quiz_answers":{}})
+            st.session_state.step = "menu"
+            st.rerun()
+
+elif st.session_state.step == "full_exam":
+    idx = st.session_state.exam_idx
+    q = st.session_state.exam_questions[idx]
+    st.markdown(f"### שאלה {idx+1} / 25")
+    ans = st.radio(q['q'], q['options'], key=f"ex_{idx}", index=None)
+    if ans:
+        st.session_state.exam_answers[idx] = ans
+    c1, c2 = st.columns(2)
+    if c1.button("⬅️ הקודם") and idx > 0:
+        st.session_state.exam_idx -= 1
+        st.rerun()
+    if idx < 24:
+        if c2.button("הבא ➡️"):
+            st.session_state.exam_idx += 1
+            st.rerun()
+    elif c2.button("🏁 סיום בחינה"):
+        st.session_state.step = "menu"
+        st.rerun()
