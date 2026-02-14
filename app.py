@@ -2,25 +2,34 @@ import streamlit as st
 import google.generativeai as genai
 import time
 
-# 1. הגדרות דף ועיצוב CSS "נועל" סיידבר
+# 1. הגדרות דף ועיצוב CSS מתקדם לתיקון היישור
 st.set_page_config(page_title="מתווך בקליק", layout="wide")
 
 st.markdown("""
     <style>
-    /* יישור כללי לימין */
-    .main, .block-container { direction: rtl; text-align: right; }
-    
-    /* עיצוב הסיידבר (הפריים השמאלי) */
-    section[data-testid="stSidebar"] {
+    /* הגדרת כיוון כללית לכל האתר */
+    html, body, [data-testid="stAppViewContainer"] {
         direction: rtl;
-        background-color: #f8f9fa;
-        border-right: 1px solid #ddd;
+        text-align: right;
     }
     
-    /* תיקון טקסט בתוך הסיידבר */
-    section[data-testid="stSidebar"] .stMarkdown, 
-    section[data-testid="stSidebar"] p, 
-    section[data-testid="stSidebar"] span {
+    /* תיקון ספציפי לגוף המסך (שלא יקפוץ שמאלה) */
+    [data-testid="stMainBlockContainer"] {
+        margin-right: auto;
+        margin-left: 0;
+        padding-right: 5rem;
+        padding-left: 2rem;
+    }
+
+    /* עיצוב הפריים השמאלי (Sidebar) - נשאר בשמאל אבל הטקסט בו מימין */
+    section[data-testid="stSidebar"] {
+        direction: rtl;
+        text-align: right;
+        background-color: #f8f9fa;
+    }
+    
+    /* כותרות וטקסט - כפייה של RTL */
+    h1, h2, h3, p, li, span, label, .stSelectbox {
         direction: rtl !important;
         text-align: right !important;
     }
@@ -28,13 +37,22 @@ st.markdown("""
     /* עיצוב כותרת השיעור */
     .lesson-header {
         background-color: #f0f7ff;
-        padding: 20px;
-        border-radius: 10px;
+        padding: 25px;
+        border-radius: 12px;
         border-right: 8px solid #1E88E5;
-        margin-bottom: 25px;
+        margin-bottom: 30px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
     }
     
-    div.stButton > button { width: 100%; border-radius: 8px; font-weight: bold; }
+    /* כפתורים */
+    div.stButton > button {
+        width: 100%;
+        border-radius: 8px;
+        font-weight: bold;
+        height: 3em;
+        background-color: #1E88E5;
+        color: white;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -55,25 +73,24 @@ def reset_session():
     st.session_state.quiz_raw = ""
     st.session_state.current_title = ""
 
-# --- ניהול הסיידבר (הפריים הקבוע) ---
+# --- סיידבר (הפריים הקבוע) ---
 if st.session_state.user_name:
     with st.sidebar:
-        st.title(f"שלום, {st.session_state.user_name}")
+        st.header(f"שלום, {st.session_state.user_name}")
         st.markdown("---")
-        
         if st.button("➕ נושא חדש"):
             reset_session()
             st.rerun()
-            
-        st.markdown("### 📚 היסטוריית למידה")
+        
+        st.subheader("📚 מה למדנו:")
         if st.session_state.history:
             for item in st.session_state.history:
-                st.write(f"✔️ {item}")
+                st.write(f"🔹 {item}")
         else:
-            st.write("עדיין לא נלמדו נושאים")
-            
-        st.markdown("---")
-        if st.button("🚪 יציאה מהמערכת"):
+            st.write("רשימה ריקה")
+        
+        st.markdown("<br><br>", unsafe_allow_html=True)
+        if st.button("🚪 יציאה"):
             st.session_state.user_name = ""
             reset_session()
             st.rerun()
@@ -88,8 +105,8 @@ if not st.session_state.user_name:
             st.rerun()
 else:
     if not st.session_state.lesson_data:
-        st.subheader("מה נלמד היום?")
-        topic = st.selectbox("בחר נושא:", 
+        st.title("בחירת נושא לימוד")
+        topic = st.selectbox("בחר מהרשימה:", 
                              ["חוק המתווכים", "חוק המקרקעין", "דיני חוזים", "דיני תכנון ובנייה", "חוק הגנת הצרכן"])
         
         if st.button("כניסה לשיעור"):
