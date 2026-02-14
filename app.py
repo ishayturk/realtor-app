@@ -1,58 +1,19 @@
 import streamlit as st
 import google.generativeai as genai
-import time
+import re
 
-# 1. הגדרות דף ועיצוב CSS מתקדם לתיקון היישור
+# 1. הגדרות דף ועיצוב CSS
 st.set_page_config(page_title="מתווך בקליק", layout="wide")
 
 st.markdown("""
     <style>
-    /* הגדרת כיוון כללית לכל האתר */
-    html, body, [data-testid="stAppViewContainer"] {
-        direction: rtl;
-        text-align: right;
-    }
-    
-    /* תיקון ספציפי לגוף המסך (שלא יקפוץ שמאלה) */
-    [data-testid="stMainBlockContainer"] {
-        margin-right: auto;
-        margin-left: 0;
-        padding-right: 5rem;
-        padding-left: 2rem;
-    }
-
-    /* עיצוב הפריים השמאלי (Sidebar) - נשאר בשמאל אבל הטקסט בו מימין */
-    section[data-testid="stSidebar"] {
-        direction: rtl;
-        text-align: right;
-        background-color: #f8f9fa;
-    }
-    
-    /* כותרות וטקסט - כפייה של RTL */
-    h1, h2, h3, p, li, span, label, .stSelectbox {
-        direction: rtl !important;
-        text-align: right !important;
-    }
-
-    /* עיצוב כותרת השיעור */
-    .lesson-header {
-        background-color: #f0f7ff;
-        padding: 25px;
-        border-radius: 12px;
-        border-right: 8px solid #1E88E5;
-        margin-bottom: 30px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-    }
-    
-    /* כפתורים */
-    div.stButton > button {
-        width: 100%;
-        border-radius: 8px;
-        font-weight: bold;
-        height: 3em;
-        background-color: #1E88E5;
-        color: white;
-    }
+    html, body, [data-testid="stAppViewContainer"] { direction: rtl; text-align: right; }
+    [data-testid="stMainBlockContainer"] { margin-right: auto; margin-left: 0; padding-right: 5rem; padding-left: 2rem; }
+    section[data-testid="stSidebar"] { direction: rtl; text-align: right; background-color: #f8f9fa; }
+    h1, h2, h3, p, li, span, label, .stSelectbox { direction: rtl !important; text-align: right !important; }
+    .lesson-header { background-color: #f0f7ff; padding: 25px; border-radius: 12px; border-right: 8px solid #1E88E5; margin-bottom: 30px; }
+    div.stButton > button { width: 100%; border-radius: 8px; font-weight: bold; height: 3em; background-color: #1E88E5; color: white; }
+    .stRadio > div { direction: rtl; text-align: right; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -60,7 +21,7 @@ st.markdown("""
 if "user_name" not in st.session_state: st.session_state.user_name = ""
 if "history" not in st.session_state: st.session_state.history = []
 if "lesson_data" not in st.session_state: st.session_state.lesson_data = ""
-if "quiz_raw" not in st.session_state: st.session_state.quiz_raw = ""
+if "quiz_data" not in st.session_state: st.session_state.quiz_data = []
 if "current_title" not in st.session_state: st.session_state.current_title = ""
 
 # 3. חיבור ל-AI
@@ -68,31 +29,36 @@ if "GEMINI_API_KEY" in st.secrets:
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
     model = genai.GenerativeModel('gemini-2.5-flash')
 
-def reset_session():
-    st.session_state.lesson_data = ""
-    st.session_state.quiz_raw = ""
-    st.session_state.current_title = ""
+# --- פונקציה לפירוק המבחן ---
+def parse_quiz(quiz_text):
+    questions = []
+    # מחפש תבנית של שאלה, 4 אפשרויות ותשובה
+    parts = re.split(r"שאלה \d+:?", quiz_text)[1:]
+    for part in parts:
+        lines = [line.strip() for line in part.strip().split('\n') if line.strip()]
+        if len(lines) >= 5:
+            q = lines[0]
+            opts = lines[1:5]
+            # ניסיון למצוא את התשובה הנכונה (מחפש מספר בסוף הטקסט)
+            ans_match = re.search(r"תשובה נכונה:?\s*(\d)", part)
+            ans = int(ans_match.group(1)) - 1 if ans_match else 0
+            questions.append({"q": q, "options": opts, "correct": ans})
+    return questions
 
-# --- סיידבר (הפריים הקבוע) ---
+# --- פריים שמאלי קבוע ---
 if st.session_state.user_name:
     with st.sidebar:
         st.header(f"שלום, {st.session_state.user_name}")
         st.markdown("---")
         if st.button("➕ נושא חדש"):
-            reset_session()
+            st.session_state.lesson_data = ""
+            st.session_state.quiz_data = []
             st.rerun()
-        
         st.subheader("📚 מה למדנו:")
-        if st.session_state.history:
-            for item in st.session_state.history:
-                st.write(f"🔹 {item}")
-        else:
-            st.write("רשימה ריקה")
-        
-        st.markdown("<br><br>", unsafe_allow_html=True)
+        for item in st.session_state.history:
+            st.write(f"🔹 {item}")
         if st.button("🚪 יציאה"):
             st.session_state.user_name = ""
-            reset_session()
             st.rerun()
 
 # --- מרכז המסך ---
@@ -106,45 +72,42 @@ if not st.session_state.user_name:
 else:
     if not st.session_state.lesson_data:
         st.title("בחירת נושא לימוד")
-        topic = st.selectbox("בחר מהרשימה:", 
-                             ["חוק המתווכים", "חוק המקרקעין", "דיני חוזים", "דיני תכנון ובנייה", "חוק הגנת הצרכן"])
+        topic = st.selectbox("בחר מהרשימה:", ["חוק המתווכים", "חוק המקרקעין", "דיני חוזים", "דיני תכנון ובנייה", "חוק הגנת הצרכן"])
         
         if st.button("כניסה לשיעור"):
             num = len(st.session_state.history) + 1
             st.session_state.current_title = f"שיעור {num}: {topic}"
+            st.markdown(f'<div class="lesson-header"><h1>{st.session_state.current_title}</h1></div>', unsafe_allow_html=True)
             
-            progress_bar = st.progress(0)
-            status_text = st.empty()
+            placeholder = st.empty()
+            full_text = ""
             
             try:
-                status_text.markdown("### **מכין את השיעור...**")
-                progress_bar.progress(30)
+                # 1. הזרמת השיעור
+                response = model.generate_content(f"כתוב שיעור מפורט על {topic} למבחן המתווכים.", stream=True)
+                for chunk in response:
+                    full_text += chunk.text
+                    placeholder.markdown(full_text)
+                st.session_state.lesson_data = full_text
                 
-                l_res = model.generate_content(f"כתוב שיעור על {topic} למבחן המתווכים.")
-                progress_bar.progress(70)
-                
-                q_res = model.generate_content(f"צור 3 שאלות אמריקאיות על {topic} עם פתרונות.")
-                
-                st.session_state.lesson_data = l_res.text
-                st.session_state.quiz_raw = q_res.text
+                # 2. יצירת המבחן בפורמט קשיח לפירוק
+                quiz_prompt = f"""צור 3 שאלות אמריקאיות על {topic}. חובה להשתמש בפורמט הזה בדיוק:
+                שאלה 1: [טקסט השאלה]
+                1) [אופציה 1]
+                2) [אופציה 2]
+                3) [אופציה 3]
+                4) [אופציה 4]
+                תשובה נכונה: [מספר האופציה]
+                """
+                quiz_res = model.generate_content(quiz_prompt)
+                st.session_state.quiz_data = parse_quiz(quiz_res.text)
                 
                 if topic not in st.session_state.history:
                     st.session_state.history.append(topic)
-                
-                progress_bar.progress(100)
-                time.sleep(0.5)
-                status_text.empty()
-                progress_bar.empty()
                 st.rerun()
                 
             except Exception as e:
                 st.error(f"שגיאה: {e}")
 
-    # הצגת השיעור
-    if st.session_state.lesson_data:
-        st.markdown(f'<div class="lesson-header"><h1>{st.session_state.current_title}</h1></div>', unsafe_allow_html=True)
-        st.markdown(st.session_state.lesson_data)
-        
-        st.markdown("---")
-        with st.expander("📝 בחן את עצמך על השיעור"):
-            st.markdown(st.session_state.quiz_raw)
+    elif st.session_state.lesson_data:
+        st.markdown(f'<div class="lesson-header"><h1>{st.session_state.current_title}</h1></div>', unsafe_allow
