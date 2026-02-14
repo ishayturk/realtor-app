@@ -27,16 +27,15 @@ if "history" not in st.session_state: st.session_state.history = []
 if "lesson_data" not in st.session_state: st.session_state.lesson_data = ""
 if "quiz_data" not in st.session_state: st.session_state.quiz_data = []
 if "current_title" not in st.session_state: st.session_state.current_title = ""
-if "view_mode" not in st.session_state: st.session_state.view_mode = "setup" # setup, lesson, quiz
+if "view_mode" not in st.session_state: st.session_state.view_mode = "setup"
 
-# 3. חיבור ל-AI
+# 3. חיבור ל-AI (שימוש במודל 1.5 פלאש ליציבות)
 if "GEMINI_API_KEY" in st.secrets:
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-    model = genai.GenerativeModel('gemini-2.5-flash')
+    model = genai.GenerativeModel('gemini-1.5-flash')
 
 def parse_quiz(quiz_text):
     questions = []
-    # פיצול לפי שאלה X
     parts = re.split(r'שאלה \d+:?', quiz_text)[1:]
     for part in parts:
         lines = [l.strip() for l in part.strip().split('\n') if l.strip()]
@@ -55,6 +54,7 @@ if st.session_state.user_name:
         if st.button("➕ נושא חדש"):
             st.session_state.view_mode = "setup"
             st.session_state.lesson_data = ""
+            st.session_state.quiz_data = []
             st.rerun()
         st.markdown("---")
         st.subheader("📚 היסטוריה:")
@@ -84,13 +84,14 @@ elif st.session_state.view_mode == "setup":
         placeholder = st.empty()
         full_text = ""
         try:
+            # הזרמת שיעור
             response = model.generate_content(f"כתוב שיעור מפורט על {topic} למבחן המתווכים.", stream=True)
             for chunk in response:
                 full_text += chunk.text
                 placeholder.markdown(full_text)
-            
             st.session_state.lesson_data = full_text
             
+            # יצירת מבחן (רק אם המכסה מאפשרת)
             status.markdown("### **בונה שאלות תרגול...**")
             bar.progress(70)
             quiz_prompt = f"צור 3 שאלות אמריקאיות על {topic}. פורמט: שאלה X: [טקסט] 1) [א] 2) [ב] 3) [ג] 4) [ד] תשובה נכונה: [מספר]"
@@ -107,13 +108,16 @@ elif st.session_state.view_mode == "setup":
             st.session_state.view_mode = "lesson"
             st.rerun()
         except Exception as e:
-            st.error(f"שגיאה: {e}")
+            if "429" in str(e):
+                st.error("הגענו למכסת הבקשות החינמית ליום זה. נסה שוב בעוד כמה דקות או מחר.")
+            else:
+                st.error(f"שגיאה: {e}")
 
 elif st.session_state.view_mode == "lesson":
     st.markdown(f'<div class="lesson-header"><h1>{st.session_state.current_title}</h1></div>', unsafe_allow_html=True)
     st.markdown(st.session_state.lesson_data)
     st.markdown("---")
-    if st.button("🔥 סיימתי לקרוא, אני רוצה להיבחן!"):
+    if st.button("🔥 סיימתי ללמוד, אני רוצה להיבחן!"):
         st.session_state.view_mode = "quiz"
         st.rerun()
 
@@ -121,7 +125,7 @@ elif st.session_state.view_mode == "quiz":
     st.markdown(f'<div class="lesson-header"><h1>📝 מבחן תרגול: {st.session_state.current_title}</h1></div>', unsafe_allow_html=True)
     
     if not st.session_state.quiz_data:
-        st.warning("לא נמצאו שאלות לשיעור זה.")
+        st.warning("לא נוצרו שאלות לשיעור זה עקב עומס על השרת.")
         if st.button("חזרה לשיעור"):
             st.session_state.view_mode = "lesson"
             st.rerun()
