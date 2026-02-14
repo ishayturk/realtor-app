@@ -99,4 +99,62 @@ if st.session_state.view_mode == "login":
     with st.container():
         name = st.text_input("הזן שם כדי להתחיל:")
         if st.button("כניסה למערכת"):
-            if name
+            if name:
+                st.session_state.user_name = name
+                st.session_state.view_mode = "setup"
+                st.rerun()
+
+elif st.session_state.view_mode == "setup":
+    st.title("מה נלמד היום?")
+    topic = st.selectbox("בחר נושא מהסילבוס:", [
+        "חוק המתווכים במקרקעין", "חוק המקרקעין", "דיני חוזים", "חוק הגנת הצרכן", "דיני תכנון ובנייה"
+    ])
+    if st.button("התחל שיעור"):
+        st.session_state.current_topic = topic
+        progress_bar = st.progress(0)
+        status_text = st.empty()
+        try:
+            status_text.text("מכין את חומר הלימוד...")
+            progress_bar.progress(30)
+            lesson_res = model.generate_content(f"כתוב שיעור מפורט בעברית על {topic}. השתמש בכותרות ברורות.")
+            st.session_state.lesson_data = lesson_res.text
+            
+            progress_bar.progress(70)
+            status_text.text("בונה שאלות תרגול...")
+            quiz_prompt = f"על בסיס {topic}, צור 3 שאלות אמריקאיות. פורמט: שאלה X: [טקסט] 1) [א] 2) [ב] 3) [ג] 4) [ד] תשובה נכונה: [מספר]"
+            quiz_res = model.generate_content(quiz_prompt)
+            st.session_state.quiz_data = parse_quiz(quiz_res.text)
+            
+            progress_bar.progress(100)
+            if topic not in st.session_state.history:
+                st.session_state.history.append(topic)
+            time.sleep(1)
+            st.session_state.view_mode = "lesson"
+            st.rerun()
+        except Exception as e:
+            st.error(f"שגיאה: {e}")
+
+elif st.session_state.view_mode == "lesson":
+    st.title(f"שיעור: {st.session_state.current_topic}")
+    st.markdown(st.session_state.lesson_data)
+    st.markdown("---")
+    if st.button("🔥 סיימתי ללמוד, אני רוצה להיבחן!"):
+        st.session_state.view_mode = "quiz"
+        st.rerun()
+
+elif st.session_state.view_mode == "quiz":
+    st.title(f"📝 תרגול: {st.session_state.current_topic}")
+    for i, q in enumerate(st.session_state.quiz_data):
+        st.markdown(f'<div class="quiz-card">', unsafe_allow_html=True)
+        st.write(f"**שאלה {i+1}:** {q['q']}")
+        choice = st.radio(f"בחר תשובה {i}:", q['options'], key=f"q_{i}", index=None, label_visibility="collapsed")
+        if st.button(f"בדוק תשובה {i+1}", key=f"btn_{i}"):
+            if choice:
+                idx = q['options'].index(choice)
+                if idx == q['correct']: st.success("נכון מאוד!")
+                else: st.error(f"לא נכון. התשובה היא אופציה {q['correct']+1}")
+        st.markdown('</div>', unsafe_allow_html=True)
+    
+    if st.button("🔝 חזרה לבחירת נושא חדש"):
+        st.session_state.view_mode = "setup"
+        st.rerun()
