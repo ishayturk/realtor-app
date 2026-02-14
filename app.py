@@ -3,55 +3,49 @@ import google.generativeai as genai
 import json
 import re
 
-# 1. הגדרות תצוגה RTL
+# 1. הגדרות תצוגה RTL ועיצוב כפתורי ניווט
 st.set_page_config(page_title="מתווך בקליק", layout="wide", initial_sidebar_state="collapsed")
 
 st.markdown("""
 <style>
     .stApp { direction: rtl !important; text-align: right !important; }
     [data-testid="stSidebar"] { display: none; }
-    .stButton > button { width: 100%; border-radius: 10px; font-weight: bold; height: 3em; }
-    .lesson-box { 
-        background-color: #ffffff; 
-        padding: 30px; 
-        border-radius: 15px; 
-        border-right: 8px solid #1E88E5; 
-        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-        font-size: 1.2rem;
-        line-height: 1.6;
-        margin-bottom: 20px;
+    
+    /* עיצוב כפתורי המספרים בלוח הניווט */
+    .nav-btn {
+        display: inline-block;
+        width: 40px;
+        height: 40px;
+        line-height: 40px;
+        text-align: center;
+        margin: 5px;
+        border-radius: 5px;
+        border: 1px solid #ccc;
+        cursor: pointer;
+        font-weight: bold;
     }
-    h1, h2, h3, h4 { text-align: right !important; }
+    .stButton > button { width: 100%; border-radius: 10px; font-weight: bold; }
+    .question-card { background-color: #f8f9fa; padding: 20px; border-radius: 15px; border-right: 6px solid #1E88E5; margin-bottom: 20px; }
 </style>
 """, unsafe_allow_html=True)
 
 # 2. ניהול State
 if "view_mode" not in st.session_state:
     st.session_state.update({
-        "view_mode": "login", "user_name": "", "current_topic": "", "lesson_content": "",
-        "exam_questions": [], "user_answers": {}, "current_exam_idx": 0, "show_feedback": False
+        "view_mode": "login", "user_name": "", "current_topic": "בחר נושא...", 
+        "lesson_content": "", "exam_questions": [], "user_answers": {}, 
+        "current_exam_idx": 0, "show_feedback": False
     })
 
-# חיבור ל-AI
 if "GEMINI_API_KEY" in st.secrets:
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
     model = genai.GenerativeModel('gemini-2.0-flash')
 
 # 3. פונקציות AI
-def get_lesson(topic):
-    with st.spinner(f"מכין שיעור על {topic}..."):
+def load_exam(topic, count=25):
+    with st.spinner(f"מייצר {count} שאלות..."):
         try:
-            prompt = f"כתוב שיעור קצר וממוקד בעברית למבחן המתווכים על: {topic}. כלול נקודות מפתח בלבד."
-            resp = model.generate_content(prompt)
-            st.session_state.lesson_content = resp.text
-            st.session_state.view_mode = "lesson_view"
-            st.rerun()
-        except: st.error("שגיאה בייצור השיעור")
-
-def load_exam(topic, count=10):
-    with st.spinner(f"מייצר {count} שאלות תרגול..."):
-        try:
-            prompt = f"Create a {count}-question quiz in HEBREW about {topic}. Return ONLY JSON array."
+            prompt = f"Create a {count}-question quiz in HEBREW about {topic}. Return ONLY JSON array: [{'q':'','options':['','','',''],'correct':0,'explanation':''}]"
             resp = model.generate_content(prompt)
             match = re.search(r'\[\s*\{.*\}\s*\]', resp.text, re.DOTALL)
             if match:
@@ -62,48 +56,97 @@ def load_exam(topic, count=10):
 
 # 4. לוגיקת דפים
 if st.session_state.view_mode == "login":
-    st.title("מתווך בקליק 🏠")
+    st.title("🏠 מתווך בקליק")
     name = st.text_input("הכנס שם מלא:")
-    if st.button("התחל ללמוד"):
+    if st.button("כניסה"):
         if name: st.session_state.user_name = name; st.session_state.view_mode = "setup"; st.rerun()
 
-else:
-    # תפריט עליון
-    c1, c2 = st.columns([4,1])
-    with c1: st.write(f"שלום, **{st.session_state.user_name}**")
-    with c2: 
-        if st.button("יציאה"): st.session_state.clear(); st.rerun()
+elif st.session_state.view_mode == "setup":
+    st.header(f"שלום {st.session_state.user_name}")
+    topic = st.selectbox("בחר נושא לתרגול או מבחן מלא:", ["בחר נושא...", "חוק המתווכים", "חוק המקרקעין", "מבחן סימולציה מלא"])
+    if topic != "בחר נושא...":
+        num = 25 if "מלא" in topic else 10
+        if st.button(f"התחל {topic}"):
+            st.session_state.current_topic = topic
+            load_exam(topic, num)
+
+elif st.session_state.view_mode == "exam_mode":
+    idx = st.session_state.current_exam_idx
+    questions = st.session_state.exam_questions
+    q = questions[idx]
+
+    # --- לוח ניווט חכם (כאן מתבצע הקסם) ---
+    st.write("### 📍 סטטוס שאלות:")
+    nav_cols = st.columns(10) # מציג 10 שאלות בשורה
+    for i in range(len(questions)):
+        with nav_cols[i % 10]:
+            # סימון אם נענתה
+            label = f"{i+1}"
+            if i in st.session_state.user_answers:
+                label += " ✓"
+            
+            # צבע הכפתור לפי הסטטוס
+            if i == idx:
+                btn_type = "primary" # השאלה הנוכחית (צבע בולט)
+            elif i in st.session_state.user_answers:
+                btn_type = "secondary" # נענתה
+            else:
+                btn_type = "secondary" # טרם נענתה
+
+            if st.button(label, key=f"nav_{i}", type=btn_type, use_container_width=True):
+                st.session_state.current_exam_idx = i
+                st.session_state.show_feedback = False
+                st.rerun()
+    
     st.markdown("---")
 
-    if st.session_state.view_mode == "setup":
-        st.header("בחר נושא:")
-        # הוספת ה-Callback: ברגע שבוחרים נושא, המערכת מריצה את get_lesson מיד
-        topic = st.selectbox("בחר מהסילבוס:", [
-            "בחר נושא...", "חוק המתווכים", "חוק המקרקעין", "חוק המכר", 
-            "חוק הגנת הצרכן", "חוק החוזים", "מיסוי מקרקעין"
-        ])
-        
-        if topic != "בחר נושא...":
-            st.session_state.current_topic = topic
-            get_lesson(topic) # טעינה אוטומטית ברגע הבחירה
+    # הצגת השאלה
+    st.subheader(f"שאלה {idx+1}")
+    st.markdown(f'<div class="question-card"><h4>{q["q"]}</h4></div>', unsafe_allow_html=True)
+    
+    # חישוב אינדקס התשובה הקודמת אם קיימת
+    current_val = st.session_state.user_answers.get(idx)
+    ans_idx = q['options'].index(current_val) if current_val in q['options'] else None
 
-    elif st.session_state.view_mode == "lesson_view":
-        st.header(st.session_state.current_topic)
-        st.markdown(f'<div class="lesson-box">{st.session_state.lesson_content}</div>', unsafe_allow_html=True)
-        if st.button(f"התחל תרגול על {st.session_state.current_topic}"):
-            load_exam(st.session_state.current_topic)
+    ans = st.radio("בחר תשובה:", q['options'], key=f"ans_{idx}", index=ans_idx)
+    
+    if ans:
+        st.session_state.user_answers[idx] = ans
 
-    elif st.session_state.view_mode == "exam_mode":
-        idx = st.session_state.current_exam_idx
-        q = st.session_state.exam_questions[idx]
-        st.subheader(f"שאלה {idx+1}")
-        st.write(q['q'])
-        ans = st.radio("תשובה:", q['options'], key=f"ans_{idx}")
-        if st.button("בדוק"): st.session_state.show_feedback = True
-        if st.session_state.show_feedback:
-            if q['options'].index(ans) == q['correct']: st.success("נכון!")
-            else: st.error("טעות")
-            if st.button("הבא"): 
-                if idx < len(st.session_state.exam_questions)-1:
-                    st.session_state.current_exam_idx += 1; st.session_state.show_feedback = False; st.rerun()
-                else: st.session_state.view_mode = "setup"; st.rerun()
+    # כפתורי ניווט תחתונים
+    col1, col2, col3 = st.columns([1,1,1])
+    with col1:
+        if st.button("⬅️ הקודם", disabled=idx==0):
+            st.session_state.current_exam_idx -= 1; st.rerun()
+    with col2:
+        if st.button("בדוק תשובה"): st.session_state.show_feedback = True
+    with col3:
+        if idx < len(questions) - 1:
+            if st.button("הבא ➡️"):
+                st.session_state.current_exam_idx += 1; st.session_state.show_feedback = False; st.rerun()
+        else:
+            if st.button("🏁 סיים מבחן וקבל ציון"):
+                st.session_state.view_mode = "summary"; st.rerun()
+
+    if st.session_state.show_feedback and ans:
+        if q['options'].index(ans) == q['correct']: st.success("נכון!")
+        else: st.error(f"טעות. הנכון: {q['options'][q['correct']]}")
+        st.write(f"הסבר: {q['explanation']}")
+
+elif st.session_state.view_mode == "summary":
+    st.header("🏁 סיכום המבחן")
+    correct_count = 0
+    for i, q in enumerate(st.session_state.exam_questions):
+        user_ans = st.session_state.user_answers.get(i)
+        if user_ans and q['options'].index(user_ans) == q['correct']:
+            correct_count += 1
+    
+    score = int((correct_count / len(st.session_state.exam_questions)) * 100)
+    st.metric("הציון שלך:", f"{score}/100")
+    st.write(f"צדקת ב-{correct_count} שאלות מתוך {len(st.session_state.exam_questions)}")
+    
+    if score >= 60: st.balloons(); st.success("עברת את המבחן! כל הכבוד.")
+    else: st.warning("לא עברת הפעם. צריך 60 לפחות. המשך לתרגל!")
+    
+    if st.button("חזרה לתפריט הראשי"):
+        st.session_state.view_mode = "setup"; st.rerun()
