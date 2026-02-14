@@ -3,17 +3,17 @@ import google.generativeai as genai
 import re
 import time
 
-# 1. הגדרות דף ועיצוב CSS
+# 1. הגדרות דף ועיצוב CSS (כולל קיבוע תיבות קוד לשמאל)
 st.set_page_config(page_title="מתווך בקליק", layout="wide")
 
 st.markdown("""
     <style>
-    /* יישור כל האתר לימין */
+    /* יישור כללי לימין */
     html, body, [data-testid="stAppViewContainer"] { direction: rtl; text-align: right; }
     [data-testid="stMainBlockContainer"] { margin-right: auto; margin-left: 0; padding-right: 5rem; padding-left: 2rem; }
     section[data-testid="stSidebar"] { direction: rtl; text-align: right; background-color: #f8f9fa; }
     
-    /* קיבוע תיבות הקוד - שיישארו תמיד משמאל לימין (LTR) */
+    /* קיבוע תיבות קוד לשמאל - מונע מה-Python וה-Copy לקפוץ */
     [data-testid="stCodeBlock"], code, pre { 
         direction: ltr !important; 
         text-align: left !important; 
@@ -37,11 +37,12 @@ if "quiz_data" not in st.session_state: st.session_state.quiz_data = []
 if "current_title" not in st.session_state: st.session_state.current_title = ""
 if "view_mode" not in st.session_state: st.session_state.view_mode = "setup"
 
-# 3. חיבור ל-AI - שימוש בשם הדגם המדויק
+# 3. חיבור ל-AI - הגדרה גמישה למודל
 if "GEMINI_API_KEY" in st.secrets:
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-    # ניסיון להשתמש במודל הפלאש היציב
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    # שימוש בשם המודל ללא קידומת models/ אם יש שגיאת 404
+    model_name = 'gemini-1.5-flash'
+    model = genai.GenerativeModel(model_name)
 
 def parse_quiz(quiz_text):
     questions = []
@@ -93,12 +94,14 @@ elif st.session_state.view_mode == "setup":
         placeholder = st.empty()
         full_text = ""
         try:
+            # הזרמת השיעור
             response = model.generate_content(f"כתוב שיעור מפורט על {topic} למבחן המתווכים.", stream=True)
             for chunk in response:
                 full_text += chunk.text
                 placeholder.markdown(full_text)
             st.session_state.lesson_data = full_text
             
+            # יצירת המבחן
             status.markdown("### **בונה שאלות תרגול...**")
             bar.progress(70)
             quiz_prompt = "צור 3 שאלות אמריקאיות על הנושא. פורמט: שאלה X: [טקסט] 1) [א] 2) [ב] 3) [ג] 4) [ד] תשובה נכונה: [מספר]"
@@ -126,29 +129,4 @@ elif st.session_state.view_mode == "lesson":
         st.rerun()
 
 elif st.session_state.view_mode == "quiz":
-    st.markdown(f'<div class="lesson-header"><h1>📝 מבחן תרגול: {st.session_state.current_title}</h1></div>', unsafe_allow_html=True)
-    
-    if not st.session_state.quiz_data:
-        st.warning("לא נוצרו שאלות. ייתכן עקב עומס על השרת.")
-        if st.button("חזרה לשיעור"):
-            st.session_state.view_mode = "lesson"
-            st.rerun()
-    else:
-        for i, q in enumerate(st.session_state.quiz_data):
-            st.markdown(f'<div class="quiz-card">', unsafe_allow_html=True)
-            st.write(f"**שאלה {i+1}: {q['q']}**")
-            choice = st.radio("בחר תשובה:", q['options'], key=f"q_{i}", index=None)
-            if st.button("בדוק", key=f"btn_{i}"):
-                if choice:
-                    idx = q['options'].index(choice)
-                    if idx == q['correct']:
-                        st.success("נכון מאוד!")
-                    else:
-                        st.error(f"טעות. התשובה הנכונה היא אופציה {q['correct']+1}")
-                else:
-                    st.warning("נא לבחור תשובה")
-            st.markdown('</div>', unsafe_allow_html=True)
-        
-        if st.button("⬅️ חזרה לטקסט השיעור"):
-            st.session_state.view_mode = "lesson"
-            st.rerun()
+    st.markdown(f'<div class
