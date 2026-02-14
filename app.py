@@ -22,19 +22,21 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. אתחול משתנים ---
-if "step" not in st.session_state:
-    st.session_state.update({
-        "step": "login", "user": "", "lesson_text": "",
-        "quiz_active": False, "quiz_idx": 0, "quiz_answers": {}, "quiz_questions": [], 
-        "checked_questions": set(), "exam_idx": 0, "exam_questions": []
-    })
+# --- 2. אתחול משתנים (בלי למחוק את הקיים) ---
+if "user" not in st.session_state: st.session_state.user = ""
+if "step" not in st.session_state: st.session_state.step = "login"
+if "lesson_text" not in st.session_state: st.session_state.lesson_text = ""
+if "quiz_active" not in st.session_state: st.session_state.quiz_active = False
+if "quiz_idx" not in st.session_state: st.session_state.quiz_idx = 0
+if "quiz_answers" not in st.session_state: st.session_state.quiz_answers = {}
+if "quiz_questions" not in st.session_state: st.session_state.quiz_questions = []
+if "checked_questions" not in st.session_state: st.session_state.checked_questions = set()
 
 # --- 3. לוגיקה ---
 st.markdown("<h1>🏠 מתווך בקליק</h1>", unsafe_allow_html=True)
 
-# מסך כניסה
-if st.session_state.step == "login":
+# מסך כניסה - מופיע רק אם אין שם משתמש
+if not st.session_state.user or st.session_state.step == "login":
     name_input = st.text_input("הכנס שם מלא:")
     if st.button("כניסה"):
         if name_input:
@@ -44,29 +46,31 @@ if st.session_state.step == "login":
 
 # תפריט ראשי
 elif st.session_state.step == "menu":
-    st.markdown(f"### שלום, {st.session_state.user}")
+    st.markdown(f"### שלום, {st.session_state.user} 👋")
     col1, col2 = st.columns(2)
     with col1:
         if st.button("📚 שיעור עיוני + שאלון"):
             st.session_state.step = "study"
+            # מנקים רק את תוכן השיעור, לא את המשתמש
             st.session_state.lesson_text = ""
             st.session_state.quiz_active = False
             st.rerun()
     with col2:
         if st.button("📝 סימולציית בחינה (25 שאלות)"):
-            st.info("טוען סימולציה...")
             st.session_state.step = "full_exam"
             st.rerun()
 
-# שיעור ושאלון מבוסס תוכן
+# שיעור ושאלון
 elif st.session_state.step == "study":
-    topic = st.selectbox("בחר נושא:", ["חוק המתווכים", "חוק המקרקעין", "חוק החוזים"])
+    # הצגת שם המשתמש גם כאן למעלה
+    st.markdown(f"**לומד כעת:** {st.session_state.user}")
+    topic = st.selectbox("בחר נושא ללימוד:", ["חוק המתווכים", "חוק המקרקעין", "חוק החוזים"])
     
     if not st.session_state.lesson_text:
         if st.button("התחל שיעור"):
             genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
             model = genai.GenerativeModel('gemini-2.0-flash')
-            response = model.generate_content(f"כתוב שיעור מפורט ומקצועי על {topic} למבחן המתווכים בישראל.", stream=True)
+            response = model.generate_content(f"כתוב שיעור מפורט על {topic} למבחן המתווכים בישראל.", stream=True)
             placeholder = st.empty()
             full_text = ""
             for chunk in response:
@@ -79,18 +83,12 @@ elif st.session_state.step == "study":
         st.markdown(f"<div class='lesson-box'>{st.session_state.lesson_text}</div>", unsafe_allow_html=True)
         
         if not st.session_state.quiz_active:
-            if st.button("✍️ סיימתי לקרוא, בנה שאלון על בסיס השיעור"):
-                with st.spinner("מייצר שאלות מהחומר שהרגע למדת..."):
+            if st.button("✍️ בנה שאלון על בסיס השיעור"):
+                with st.spinner("מייצר שאלות מהחומר..."):
                     model = genai.GenerativeModel('gemini-2.0-flash')
-                    prompt = f"""
-                    על בסיס הטקסט הבא: {st.session_state.lesson_text}
-                    צור 10 שאלות אמריקאיות. לכל שאלה: 4 אפשרויות, תשובה נכונה אחת, והסבר למה היא נכונה בהתבסס על הטקסט.
-                    החזר את התשובה בפורמט JSON בלבד:
-                    [{{"q": "שאלה", "options": ["1","2","3","4"], "correct": "תשובה", "reason": "הסבר", "source": "סעיף מהטקסט"}}]
-                    """
+                    prompt = f"על בסיס הטקסט: {st.session_state.lesson_text}. צור 10 שאלות אמריקאיות בפורמט JSON בלבד: [{{'q': 'שאלה', 'options': ['1','2','3','4'], 'correct': 'תשובה', 'reason': 'הסבר', 'source': 'סעיף'}}] - שים לב להחזיר רק JSON תקין."
                     quiz_response = model.generate_content(prompt)
                     try:
-                        # ניקוי פורמט ה-JSON מה-AI
                         clean_json = quiz_response.text.strip().replace('```json', '').replace('```', '')
                         st.session_state.quiz_questions = json.loads(clean_json)
                         st.session_state.quiz_active = True
@@ -98,7 +96,7 @@ elif st.session_state.step == "study":
                         st.session_state.quiz_idx = 0
                         st.rerun()
                     except:
-                        st.error("הייתה בעיה ביצירת השאלון, נסה שוב.")
+                        st.error("שגיאה ביצירת השאלון. נסה שוב.")
 
     if st.session_state.quiz_active:
         idx = st.session_state.quiz_idx
@@ -113,16 +111,15 @@ elif st.session_state.step == "study":
                 st.rerun()
 
         if idx in st.session_state.checked_questions:
-            user_ans = st.session_state.quiz_answers.get(idx)
-            is_correct = user_ans == q['correct']
+            is_correct = st.session_state.quiz_answers[idx] == q['correct']
             style = "success" if is_correct else "error"
-            st.markdown(f"<div class='explanation-box {style}'><b>{'✅ נכון!' if is_correct else '❌ טעות.'}</b><br>{q['reason']}<br><b>מקור מהשיעור:</b> {q['source']}</div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='explanation-box {style}'><b>{'✅ נכון!' if is_correct else '❌ טעות.'}</b><br>{q['reason']}<br><b>מקור:</b> {q['source']}</div>", unsafe_allow_html=True)
         
         c1, c2 = st.columns(2)
         if c1.button("⬅️ הקודם") and idx > 0: st.session_state.quiz_idx -= 1; st.rerun()
         if idx < 9:
             if c2.button("הבא ➡️"): st.session_state.quiz_idx += 1; st.rerun()
         else:
-            if st.button("🏁 סיום וחזרה לתפריט"): 
-                st.session_state.update({"lesson_text":"", "quiz_active":False, "step":"menu"})
+            if st.button("🏁 חזרה לתפריט"): 
+                st.session_state.step = "menu"
                 st.rerun()
