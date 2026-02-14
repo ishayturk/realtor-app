@@ -46,7 +46,6 @@ def extract_json(text):
 # --- 3. לוגיקה מרכזית ---
 st.markdown("<h1>🏠 מתווך בקליק</h1>", unsafe_allow_html=True)
 
-# מסך כניסה
 if st.session_state.user == "" or st.session_state.step == "login":
     name_input = st.text_input("הכנס שם מלא:")
     if st.button("כניסה למערכת"):
@@ -55,7 +54,6 @@ if st.session_state.user == "" or st.session_state.step == "login":
             st.session_state.step = "menu"
             st.rerun()
 
-# תפריט ראשי
 elif st.session_state.step == "menu":
     st.markdown(f"### שלום, {st.session_state.user} 👋")
     col1, col2 = st.columns(2)
@@ -67,15 +65,13 @@ elif st.session_state.step == "menu":
             st.rerun()
     with col2:
         if st.button("📝 סימולציית בחינה (25 שאלות)"):
-            st.session_state.exam_questions = [{"q": f"שאלה {i+1} לסימולציה:", "options": ["אופציה 1", "אופציה 2", "אופציה 3", "אופציה 4"], "correct": "אופציה 1", "reason": "הסבר סימולציה כללי.", "source": "חוק המתווכים"} for i in range(25)]
+            st.session_state.exam_questions = [{"q": f"שאלה {i+1} לסימולציה:", "options": ["א", "ב", "ג", "ד"], "correct": "א", "reason": "הסבר כללי.", "source": "חוק"} for i in range(25)]
             st.session_state.exam_idx = 0
             st.session_state.checked_questions = set()
             st.session_state.step = "full_exam"
             st.rerun()
 
-# שלב לימוד
 elif st.session_state.step == "study":
-    st.markdown(f"**משתמש:** {st.session_state.user}")
     topics = ["חוק המתווכים", "חוק המקרקעין", "חוק החוזים", "חוק הגנת הצרכן", "חוק המכר (דירות)", "מיסוי מקרקעין"]
     selected_topic = st.selectbox("בחר נושא:", topics)
     
@@ -114,12 +110,4 @@ elif st.session_state.step == "study":
         st.markdown(f"#### שאלה {idx+1}/10")
         ans = st.radio(q['q'], q['options'], key=f"q_{idx}", index=None)
         
-        if ans and idx not in st.session_state.checked_questions:
-            if st.button("🔍 בדוק תשובה"):
-                st.session_state.quiz_answers[idx] = ans
-                st.session_state.checked_questions.add(idx)
-                st.rerun()
-
-        if idx in st.session_state.checked_questions:
-            is_correct = st.session_state.quiz_answers.get(idx) == q['correct']
-            st.markdown(f"<div class='explanation-box {'success' if is_correct else '
+        if
