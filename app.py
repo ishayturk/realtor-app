@@ -2,42 +2,23 @@ import streamlit as st
 import google.generativeai as genai
 import re
 
-# 1. הגדרות עיצוב - הגרסה החסינה
+# 1. עיצוב ו-RTL
 st.set_page_config(page_title="מתווך בקליק", layout="wide")
 
 st.markdown("""
     <style>
-    /* יישור גלובלי כולל הזרמת טקסט */
     html, body, [data-testid="stAppViewContainer"], .main, .block-container, 
     div[data-testid="stMarkdownContainer"], h1, h2, h3, p, li, span, label {
-        direction: rtl !important;
-        text-align: right !important;
+        direction: rtl !important; text-align: right !important;
     }
-    
-    /* תיקון נקודות ברשימות (בולטים) */
-    ul, ol { padding-right: 2rem !important; padding-left: 0 !important; }
-
-    /* לוגו בסיידבר - נעול למרכז וגבוה */
     .sidebar-logo {
-        font-size: 34px !important;
-        font-weight: bold;
-        text-align: center !important;
-        margin-top: -50px !important;
-        color: #1E88E5;
-        display: block;
-        width: 100%;
+        font-size: 34px !important; font-weight: bold; text-align: center !important;
+        margin-top: -50px !important; color: #1E88E5; display: block; width: 100%;
     }
-
-    /* עיצוב כפתורים אחיד */
     [data-testid="stSidebar"] button, div.stButton > button {
-        width: 100% !important;
-        border-radius: 8px;
-        font-weight: bold;
-        background-color: #1E88E5;
-        color: white;
+        width: 100% !important; border-radius: 8px; font-weight: bold;
+        background-color: #1E88E5; color: white;
     }
-
-    /* כרטיסיות שאלון */
     .quiz-card { 
         background-color: #f9f9f9; padding: 20px; border-radius: 12px; 
         border-right: 6px solid #1E88E5; margin-bottom: 20px;
@@ -45,13 +26,19 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# 2. ניהול משתני מערכת
-for key, default in [
-    ("user_name", ""), ("view_mode", "login"), ("lesson_data", ""), 
-    ("quiz_data", []), ("history", []), ("lesson_count", 0), 
-    ("user_answers", {}), ("current_topic", ""), ("quiz_ready", False)
-]:
-    if key not in st.session_state: st.session_state[key] = default
+# 2. אתחול משתנים בצורה בטוחה
+keys = ["user_name", "view_mode", "lesson_data", "quiz_data", 
+        "history", "lesson_count", "user_answers", "current_topic", "quiz_ready"]
+
+for k in keys:
+    if k not in st.session_state:
+        if k in ["quiz_data", "history", "user_answers"]: st.session_state[k] = []
+        elif k == "lesson_count": st.session_state[k] = 0
+        elif k == "quiz_ready": st.session_state[k] = False
+        else: st.session_state[k] = ""
+
+if "view_mode" not in st.session_state or not st.session_state.view_mode:
+    st.session_state.view_mode = "login"
 
 if "GEMINI_API_KEY" in st.secrets:
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
@@ -67,71 +54,62 @@ def parse_quiz(text):
             ans = re.search(r"\[ANSWER\](.*?)(?:\[LAW\]|$)", b, re.DOTALL).group(1).strip()
             law = re.search(r"\[LAW\](.*?)$", b, re.DOTALL).group(1).strip()
             options = [re.sub(r"^\d+[\s\).\-]+", "", o.strip()) for o in opts_raw.split('\n') if o.strip()]
-            questions.append({"q": q, "options": options[:4], "correct": int(re.search(r'\d', ans).group())-1, "ref": law})
+            idx = int(re.search(r'\d', ans).group()) - 1
+            questions.append({"q": q, "options": options[:4], "correct": idx, "ref": law})
         except: continue
     return questions
 
-# 3. סרגל צידי (Sidebar)
+# 3. סרגל צידי
 if st.session_state.user_name:
     with st.sidebar:
         st.markdown('<div class="sidebar-logo">🎓 מתווך בקליק</div>', unsafe_allow_html=True)
         st.write(f"שלום, **{st.session_state.user_name}**")
-        st.markdown("---")
-        
         if st.button("➕ נושא חדש"):
-            for k in ["lesson_data", "quiz_data", "user_answers", "current_topic"]: st.session_state[k] = default
             st.session_state.view_mode = "setup"
-            st.session_state.quiz_ready = False
             st.rerun()
-            
         if st.session_state.current_topic:
-            st.info(f"נושא פעיל: {st.session_state.current_topic}")
             if st.button("📖 חזרה לשיעור"):
-                st.session_state.view_mode = "lesson"
-                st.rerun()
+                st.session_state.view_mode = "lesson"; st.rerun()
             if st.session_state.quiz_ready:
                 if st.button("📝 מעבר למבחן"):
-                    st.session_state.view_mode = "quiz"
-                    st.rerun()
-        
-        st.markdown("---")
+                    st.session_state.view_mode = "quiz"; st.rerun()
         for h in st.session_state.history: st.caption(f"• {h}")
 
 # 4. ניהול דפים
-if st.session_state.view_mode == "login":
+m = st.session_state.view_mode
+if m == "login":
     st.title("🎓 מתווך בקליק")
-    name = st.text_input("הזן שם כדי להתחיל:")
-    if st.button("כניסה למערכת"):
-        if name: st.session_state.user_name = name; st.session_state.view_mode = "setup"; st.rerun()
+    name = st.text_input("הזן שם:")
+    if st.button("כניסה"):
+        if name:
+            st.session_state.user_name = name
+            st.session_state.view_mode = "setup"
+            st.rerun()
 
-elif st.session_state.view_mode == "setup":
-    st.title(f"מה נלמד היום, {st.session_state.user_name}?")
-    topic = st.selectbox("בחר נושא מרשימת המבחן:", ["חוק המתווכים", "חוק המקרקעין", "דיני חוזים", "דיני תכנון ובנייה", "חוק הגנת הצרכן"])
+elif m == "setup":
+    st.title(f"מה נלמד, {st.session_state.user_name}?")
+    t = st.selectbox("נושא:", ["חוק המתווכים", "חוק המקרקעין", "דיני חוזים"])
     if st.button("התחל ללמוד"):
-        st.session_state.current_topic = topic
+        st.session_state.current_topic = t
         st.session_state.lesson_count += 1
         st.session_state.view_mode = "streaming_lesson"
         st.rerun()
 
-elif st.session_state.view_mode == "streaming_lesson":
-    st.title(f"שיעור {st.session_state.lesson_count}: {st.session_state.current_topic}")
-    
-    # הזרמת תוכן השיעור
+elif m == "streaming_lesson":
+    st.title(f"שיעור: {st.session_state.current_topic}")
     placeholder = st.empty()
     full_text = ""
-    try:
-        response = model.generate_content(f"כתוב שיעור מפורט על {st.session_state.current_topic} למבחן המתווכים במקרקעין.", stream=True)
-        for chunk in response:
-            full_text += chunk.text
-            placeholder.markdown(full_text)
-        
-        st.session_state.lesson_data = full_text
-        
-        # ייצור שאלון לאחר סיום השיעור
-        with st.status("מכין שאלות תרגול...", expanded=False) as status:
-            q_res = model.generate_content(f"צור 3 שאלות אמריקאיות על {st.session_state.current_topic}. פורמט: [START_Q] [QUESTION] שאלה [OPTIONS] 1) א 2) ב 3) ג 4) ד [ANSWER] מספר [LAW] סעיף [END_Q]")
-            st.session_state.quiz_data = parse_quiz(q_res.text)
-            st.session_state.quiz_ready = True
-            status.update(label="המבחן מוכן!", state="complete")
-
-        if st.session_state.current_topic not in [h.split(". ", 1)[-1] for h in st.session_state
+    res = model.generate_content(f"כתוב שיעור על {st.session_state.current_topic}", stream=True)
+    for chunk in res:
+        full_text += chunk.text
+        placeholder.markdown(full_text)
+    st.session_state.lesson_data = full_text
+    
+    with st.status("מכין שאלות..."):
+        q_p = f"צור 3 שאלות על {st.session_state.current_topic}. פורמט: [START_Q] [QUESTION] שאלה [OPTIONS] 1) א 2) ב 3) ג 4) ד [ANSWER] מספר [LAW] סעיף [END_Q]"
+        q_res = model.generate_content(q_p)
+        st.session_state.quiz_data = parse_quiz(q_res.text)
+        st.session_state.quiz_ready = True
+    
+    if st.session_state.current_topic not in st.session_state.history:
+        st.session_state.history.append(st.session_state.current_topic)
