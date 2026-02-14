@@ -2,34 +2,22 @@ import streamlit as st
 import google.generativeai as genai
 import json, re
 
-# עיצוב RTL קבוע וחסין
 st.set_page_config(page_title="מתווך בקליק", layout="centered")
 st.markdown("""<style>
 * { direction: rtl !important; text-align: right !important; }
-.stMarkdown, .stText, .stButton, .stSelectbox, .stTextInput, .stRadio {
-    direction: rtl !important; text-align: right !important;
-}
-.lesson-box {
-    background: #fdfdfd; padding: 20px; border-radius: 12px;
-    border-right: 6px solid #1E88E5; line-height: 1.8;
-    margin-bottom: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-}
-.explanation-box {
-    padding: 15px; border-radius: 8px; margin-top: 10px; border-right: 5px solid;
-}
-.success { background: #e8f5e9; border-color: #4caf50; color: #2e7d32; }
-.error { background: #ffebee; border-color: #f44336; color: #c62828; }
-div[role="radiogroup"] > label { margin-right: 10px; }
+.lesson-box { background:#fdfdfd; padding:20px; border-radius:12px; border-right:6px solid #1E88E5; line-height:1.8; margin-bottom:20px; }
+.explanation-box { padding:15px; border-radius:8px; margin-top:10px; border-right:5px solid; }
+.success { background:#e8f5e9; border-color:#4caf50; color:#2e7d32; }
+.error { background:#ffebee; border-color:#f44336; color:#c62828; }
 </style>""", unsafe_allow_html=True)
 
 S = st.session_state
 if 'user' not in S:
-    S.update({'user':'','step':'login','lt':'','qa':False,'qi':0,
-              'qans':{},'qq':[],'cq':set(),'ei':0,'eans':{},'eq':[]})
+    S.update({'user':'','step':'login','lt':'','qa':False,'qi':0,'qans':{},'qq':[],'cq':set(),'ei':0,'eans':{},'eq':[]})
 
 def parse_j(t):
     try:
-        m = re.search(r'\[.*\]', t, re.DOTALL)
+        m = re.search(r'\[\s*\{.*\}\s*\]', t, re.DOTALL)
         return json.loads(m.group()) if m else None
     except: return None
 
@@ -49,13 +37,9 @@ elif S.step == "menu":
         S.step, S.ei, S.cq = "full_exam", 0, set(); st.rerun()
 
 elif S.step == "study":
-    all_t = [
-        "חוק המתווכים", "תקנות המתווכים", "חוק המקרקעין", "חוק החוזים", 
-        "הגנת הצרכן", "חוק המכר", "תכנון ובנייה", "מיסוי מקרקעין", 
-        "הגנת הדייר", "חוק הירושה", "בתים משותפים", "חוק השמאות", 
-        "חוק העונשין", "דיני קניין", "אתיקה", "מקרקעי ישראל"
-    ]
+    all_t = ["חוק המתווכים", "תקנות המתווכים", "חוק המקרקעין", "חוק החוזים", "הגנת הצרכן", "חוק המכר", "תכנון ובנייה", "מיסוי מקרקעין", "הגנת הדייר", "חוק הירושה", "בתים משותפים", "חוק השמאות", "חוק העונשין", "דיני קניין", "אתיקה", "מקרקעי ישראל"]
     sel = st.selectbox("בחר נושא:", all_t)
+    
     if not S.lt:
         if st.button("📖 התחל שיעור"):
             genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
@@ -70,23 +54,27 @@ elif S.step == "study":
         st.markdown(f"<div class='lesson-box'>{S.lt}</div>", unsafe_allow_html=True)
         if not S.qa:
             if st.button("✍️ בנה שאלון"):
-                m = genai.GenerativeModel('gemini-2.0-flash')
-                p = f"על בסיס: {S.lt}. צור 10 שאלות JSON: [{{'q':'','options':['א','ב','ג','ד'],'correct':'','reason':''}}]"
-                r = m.generate_content(p)
-                d = parse_j(r.text)
-                if d: S.qq, S.qa, S.cq, S.qi = d, True, set(), 0; st.rerun()
+                with st.spinner("מנתח את השיעור ומייצר שאלות..."):
+                    m = genai.GenerativeModel('gemini-2.0-flash')
+                    p = f"על בסיס הטקסט הבא בלבד: {S.lt}\nצור 10 שאלות אמריקאיות. החזר אך ורק פורמט JSON תקין כרשימה: [{{'q': 'שאלה', 'options': ['א','ב','ג','ד'], 'correct': 'התשובה המדויקת מהרשימה', 'reason': 'הסבר'}}] "
+                    r = m.generate_content(p)
+                    d = parse_j(r.text)
+                    if d: S.qq, S.qa, S.cq, S.qi = d, True, set(), 0; st.rerun()
+                    else: st.error("ה-AI לא הצליח לייצר שאלות בפורמט תקין. נסה שוב.")
         else:
             it = S.qq[S.qi]
-            st.write(f"### שאלה {S.qi+1}/10")
+            st.markdown(f"### שאלה {S.qi+1} מתוך 10")
             p = st.radio(it['q'], it['options'], key=f"q{S.qi}", index=None)
             if p and S.qi not in S.cq:
                 if st.button("🔍 בדוק תשובה"): S.qans[S.qi], _ = p, S.cq.add(S.qi); st.rerun()
             if S.qi in S.cq:
                 ok = S.qans.get(S.qi) == it['correct']
                 c = "success" if ok else "error"
-                st.markdown(f"<div class='explanation-box {c}'>{it['reason']}</div>", unsafe_allow_html=True)
-            if st.button("➡️ הבא") and S.qi < 9: S.qi += 1; st.rerun()
-            if st.button("🏁 חזרה לתפריט"): S.step = "menu"; st.rerun()
+                st.markdown(f"<div class='explanation-box {c}'><b>{'נכון!' if ok else 'טעות.'}</b><br>{it['reason']}</div>", unsafe_allow_html=True)
+            
+            c1, c2 = st.columns(2)
+            if c1.button("➡️ הבא") and S.qi < 9: S.qi += 1; st.rerun()
+            if c2.button("🏁 חזרה לתפריט"): S.step = "menu"; st.rerun()
 
 elif S.step == "full_exam":
     it = S.eq[S.ei]
