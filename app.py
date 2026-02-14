@@ -8,7 +8,6 @@ st.set_page_config(page_title="מתווך בקליק", layout="wide")
 
 st.markdown("""
     <style>
-    /* יישור כללי לימין */
     html, body, [data-testid="stAppViewContainer"] { direction: rtl; text-align: right; }
     [data-testid="stMainBlockContainer"] { margin-right: auto; margin-left: 0; padding-right: 5rem; padding-left: 2rem; }
     section[data-testid="stSidebar"] { direction: rtl; text-align: right; background-color: #f8f9fa; }
@@ -37,10 +36,15 @@ if "quiz_data" not in st.session_state: st.session_state.quiz_data = []
 if "current_title" not in st.session_state: st.session_state.current_title = ""
 if "view_mode" not in st.session_state: st.session_state.view_mode = "setup"
 
-# 3. חיבור ל-AI
+# 3. חיבור ל-AI עם מנגנון גיבוי למודלים
 if "GEMINI_API_KEY" in st.secrets:
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    
+    # ניסיון טעינת מודל חכם
+    try:
+        model = genai.GenerativeModel('gemini-1.5-flash')
+    except:
+        model = genai.GenerativeModel('gemini-pro')
 
 def parse_quiz(quiz_text):
     questions = []
@@ -69,7 +73,7 @@ if st.session_state.user_name:
         for item in st.session_state.history:
             st.write(f"🔹 {item}")
 
-# --- ניווט דפים ---
+# --- ניווט ---
 if not st.session_state.user_name:
     st.title("🎓 מתווך בקליק")
     name = st.text_input("הזן שם כדי להתחיל:")
@@ -128,7 +132,7 @@ elif st.session_state.view_mode == "quiz":
     st.markdown(f'<div class="lesson-header"><h1>📝 מבחן תרגול: {st.session_state.current_title}</h1></div>', unsafe_allow_html=True)
     
     if not st.session_state.quiz_data:
-        st.warning("לא נוצרו שאלות.")
+        st.warning("לא נוצרו שאלות. נסה לחזור לשיעור ולייצר שוב.")
         if st.button("חזרה לשיעור"):
             st.session_state.view_mode = "lesson"
             st.rerun()
