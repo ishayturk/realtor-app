@@ -1,4 +1,4 @@
-# גרסה: 205 | תאריך: 2024-05-23 | שעה: 19:10 (GMT+2)
+# גרסה: 208 | תאריך: 2024-05-23 | שעה: 14:15 (Israel Time - GMT+2)
 
 import streamlit as st
 import google.generativeai as genai
@@ -6,40 +6,25 @@ import json, re, time
 
 st.set_page_config(page_title="מתווך בקליק", layout="centered")
 
-# תיקון Dark Mode אגרסיבי לאנדרואיד/כרום
+# CSS לתיקון Dark Mode ותצוגה אופטימלית לנייד - דגש על ניגודיות גבוהה
 st.markdown("""<style>
 * { direction: rtl !important; text-align: right !important; }
-/* הבטחת צבעים בתיבת השיעור ללא קשר למצב המכשיר */
 .lesson-box { 
     background-color: #ffffff !important; 
     color: #000000 !important; 
-    padding: 20px; 
-    border-radius: 12px; 
-    border-right: 6px solid #1E88E5; 
-    line-height: 1.8; 
-    margin-bottom: 20px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    padding: 20px; border-radius: 12px; border-right: 6px solid #1E88E5; 
+    line-height: 1.8; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
-.explanation-box { 
-    padding: 15px; 
-    border-radius: 8px; 
-    margin-top: 10px; 
-    border-right: 5px solid; 
-}
-/* תיקון צבעים ספציפי למשוב */
+.explanation-box { padding: 15px; border-radius: 8px; margin-top: 10px; border-right: 5px solid; }
 .success { background-color: #e8f5e9 !important; color: #2e7d32 !important; border-color: #4caf50 !important; }
 .error { background-color: #ffebee !important; color: #c62828 !important; border-color: #f44336 !important; }
-
 .user-welcome { font-size: 28px; font-weight: bold; color: #1E88E5; margin-bottom: 5px; }
 .user-sub { font-size: 16px; color: #666; margin-bottom: 20px; border-bottom: 2px solid #eee; padding-bottom: 10px; }
 .lobby-card { background: #f0f7ff !important; color: #000000 !important; padding: 30px; border-radius: 15px; border: 1px solid #d1e3f8; margin: 20px 0; }
 .timer-box { font-size: 18px; font-weight: bold; color: #d32f2f; text-align:center; background:#fff1f1; padding:10px; border-radius:10px; border:1px solid #d32f2f; margin-bottom:15px; }
 div.stButton > button { width: 100%; border-radius: 8px; font-weight: bold; height: 3em; }
-
-/* וידוא שגם כותרות בתוך תיבות יהיו שחורות */
-.lesson-box h1, .lesson-box h2, .lesson-box h3, .lesson-box p, .lesson-box li {
-    color: #000000 !important;
-}
+/* וידוא טקסט שחור בתוך אלמנטים של שיעור */
+.lesson-box h1, .lesson-box h2, .lesson-box h3, .lesson-box p, .lesson-box li, .lesson-box span { color: #000000 !important; }
 </style>""", unsafe_allow_html=True)
 
 S = st.session_state
@@ -67,7 +52,7 @@ def get_questions(topic, count, level="complex"):
     except: return None
 
 def background_load():
-    if len(S.eq) < 25 and not S.is_loading:
+    if len(S.eq) < 5 and not S.is_loading:
         S.is_loading = True
         new_qs = get_questions("דיני מקרקעין ותיווך בישראל", 5, "complex")
         if new_qs: S.eq.extend(new_qs)
@@ -80,42 +65,25 @@ if S.user:
 if S.step == "login":
     u = st.text_input("שם מלא:")
     if st.button("כניסה למערכת"):
-        if u: 
-            S.user, S.step = u, "menu"
-            background_load()
-            st.rerun()
+        if u: S.user, S.step = u, "menu"; background_load(); st.rerun()
 
 elif S.step == "menu":
     st.markdown("<div class='user-sub'>מה נלמד היום?</div>", unsafe_allow_html=True)
     if len(S.eq) < 5: background_load()
     c1, c2 = st.columns(2)
     if c1.button("📚 שיעורים בנושאי הלימוד"):
-        S.step, S.lt, S.qa = "study", "", False
+        S.step, S.lt, S.qa, S.qq = "study", "", False, []
         st.rerun()
     if c2.button("📝 סימולציית מבחן רשמית"):
-        S.step = "exam_lobby"
-        st.rerun()
+        S.step = "exam_lobby"; st.rerun()
 
 elif S.step == "exam_lobby":
-    st.markdown("""
-    <div class='lobby-card'>
-        <h2 style='text-align:center;'>📝 הכנה לסימולציה מלאה</h2>
-        <p>הטיימר ימשיך לרוץ גם אם תצא מהדף.</p>
-        <ul>
-            <li><b>25 שאלות</b> במבנה הרשמי.</li>
-            <li><b>טיימר חי:</b> עקוב אחר ההתקדמות.</li>
-        </ul>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    col1, col2 = st.columns(2)
-    if col1.button("🚀 אני מוכן, התחל מבחן"):
+    st.markdown("<div class='lobby-card'><h2 style='text-align:center;'>📝 הכנה לסימולציה</h2><p>25 שאלות מורכבות המדמות את המבחן האמיתי. הטיימר ירוץ גם אם תצא מהדף.</p></div>", unsafe_allow_html=True)
+    c1, c2 = st.columns(2)
+    if c1.button("🚀 התחל מבחן"):
         S.ei, S.cq, S.start_time = 0, set(), time.time()
-        S.step = "full_exam"
-        st.rerun()
-    if col2.button("🔙 חזרה לתפריט"):
-        S.step = "menu"
-        st.rerun()
+        S.step = "full_exam"; st.rerun()
+    if c2.button("🔙 חזרה"): S.step = "menu"; st.rerun()
 
 elif S.step == "study":
     all_t = ["חוק המתווכים במקרקעין", "חוק המקרקעין", "חוק החוזים", "חוק המכר (דירות)", "חוק הגנת הצרכן", "חוק הגנת הדייר", "חוק תכנון ובנייה", "חוק מיסוי מקרקעין", "חוק ההוצאה לפועל", "חוק הירושה", "חוק העונשין", "אתיקה מקצועית"]
@@ -125,30 +93,25 @@ elif S.step == "study":
         if c1.button("📖 התחל שיעור"):
             genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
             m = genai.GenerativeModel('gemini-2.0-flash')
-            p = f"כתוב שיעור מפורט למבחן המתווכים על {sel}. התחל ישירות בכותרת השיעור."
+            p = f"כתוב שיעור מפורט למבחן המתווכים על {sel}. התחל ישירות בכותרת השיעור ללא פתיחים."
             res = m.generate_content(p, stream=True)
             ph, full = st.empty(), ""
             for ch in res: 
                 full += ch.text
                 ph.markdown(f"<div class='lesson-box'>{full}</div>", unsafe_allow_html=True)
-            S.lt, S.current_topic = full, sel
-            st.rerun()
-        if c2.button("📝 למבחן המלא"):
-            S.step = "exam_lobby"; st.rerun()
-        if c3.button("🏠 תפריט"):
-            S.step = "menu"; st.rerun()
+            S.lt, S.current_topic = full, sel; st.rerun()
+        if c2.button("📝 למבחן"): S.step = "exam_lobby"; st.rerun()
+        if c3.button("🏠 תפריט"): S.step = "menu"; st.rerun()
     else:
-        st.write(f"## {S.current_topic}")
-        st.markdown(f"<div class='lesson-box'>{S.lt}</div>", unsafe_allow_html=True)
         if not S.qa:
+            st.write(f"## {S.current_topic}")
+            st.markdown(f"<div class='lesson-box'>{S.lt}</div>", unsafe_allow_html=True)
             col_q, col_b = st.columns(2)
             if col_q.button(f"✍️ שאלון: {S.current_topic}"):
-                with st.spinner("מכין שאלות..."):
+                with st.spinner("מייצר שאלות..."):
                     d = get_questions(S.current_topic, 10, "simple")
-                    if d: S.qq, S.qa, S.qi, S.cq = d, True, 0, set()
-                    st.rerun()
-            if col_b.button("🏁 חזרה לתפריט"):
-                S.step, S.lt = "menu", ""; st.rerun()
+                    if d: S.qq, S.qa, S.qi, S.cq = d, True, 0, set(); st.rerun()
+            if col_b.button("🏁 חזרה לתפריט"): S.step, S.lt = "menu", ""; st.rerun()
         else:
             it = S.qq[S.qi]
             st.write(f"### שאלה {S.qi+1}/10")
@@ -158,17 +121,15 @@ elif S.step == "study":
                 if c1.button("🔍 בדוק"): S.qans[S.qi] = ans; S.cq.add(S.qi); st.rerun()
             if S.qi in S.cq:
                 is_ok = str(S.qans.get(S.qi)).strip() == str(it['correct']).strip()
-                st.markdown(f"<div class='explanation-box {'success' if is_ok else 'error'}'>{'✅ נכון!' if is_ok else '❌ טעות. הנכונה: '+it['correct']}<br><br>{it['reason']}</div>", unsafe_allow_html=True)
+                st.markdown(f"<div class='explanation-box {'success' if is_ok else 'error'}'>{'✅ נכון!' if is_ok else '❌ טעות'}<br>{it['reason']}</div>", unsafe_allow_html=True)
             if S.qi < 9:
                 if c2.button("➡️ הבא"): S.qi += 1; st.rerun()
             else:
-                st.success("סיימת את השאלון!")
                 if st.button("🏁 סיום וחזרה לתפריט"): S.step, S.lt, S.qa = "menu", "", False; st.rerun()
             if c3.button("🏠 תפריט"): S.step, S.lt, S.qa = "menu", "", False; st.rerun()
 
 elif S.step == "full_exam":
-    if len(S.eq) < 25 and S.ei >= len(S.eq) - 1:
-        background_load()
+    if len(S.eq) < 25 and S.ei >= len(S.eq) - 1: background_load()
     if S.start_time:
         el = int(time.time() - S.start_time)
         mi, se = divmod(el, 60)
@@ -181,11 +142,7 @@ elif S.step == "full_exam":
             if c1.button("🔍 בדוק"): S.eans[S.ei] = ans; S.cq.add(S.ei); st.rerun()
         if S.ei in S.cq:
             is_ok = str(S.eans.get(S.ei)).strip() == str(it['correct']).strip()
-            st.markdown(f"<div class='explanation-box {'success' if is_ok else 'error'}'>{'✅ נכון!' if is_ok else '❌ טעות. הנכונה: '+it['correct']}<br><br>{it['reason']}</div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='explanation-box {'success' if is_ok else 'error'}'>{'✅ נכון!' if is_ok else '❌ טעות'}<br>{it['reason']}</div>", unsafe_allow_html=True)
         if S.ei < 24:
             if c2.button("➡️ הבא"): S.ei += 1; st.rerun()
         else:
-            if c2.button("🏁 סיום"): S.step, S.eq = "menu", []; st.rerun()
-        if c3.button("🏠 תפריט"): S.step, S.eq = "menu", []; st.rerun()
-    else:
-        st.info("מכין את השאלות הבאות..."); time.sleep(2); st.rerun()
