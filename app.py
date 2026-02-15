@@ -10,6 +10,7 @@ st.markdown("""<style>
 .success { background:#e8f5e9; border-color:#4caf50; color:#2e7d32; }
 .error { background:#ffebee; border-color:#f44336; color:#c62828; }
 .timer-box { font-size:18px; font-weight:bold; color:#d32f2f; text-align:center; background:#fff1f1; padding:10px; border-radius:10px; border:1px solid #d32f2f; margin-bottom:15px; }
+div.stButton > button { width: 100%; border-radius: 8px; font-weight: bold; }
 </style>""", unsafe_allow_html=True)
 
 S = st.session_state
@@ -63,23 +64,32 @@ elif S.step == "study":
     else:
         st.markdown(f"<div class='lesson-box'>{S.lt}</div>", unsafe_allow_html=True)
         if not S.qa:
-            # שינוי שם הכפתור לפי הנושא
             if st.button(f"✍️ שאלון: {sel}"):
-                with st.spinner("מייצר שאלות הבנה..."):
-                    d = get_questions(sel, 5, "simple")
+                with st.spinner("מייצר 10 שאלות הבנה..."):
+                    d = get_questions(sel, 10, "simple")
                     if d: S.qq, S.qa, S.qi, S.cq = d, True, 0, set(); st.rerun()
-                    else: st.error("לא הצלחתי לייצר שאלות. נסה שוב.")
         else:
             it = S.qq[S.qi]
-            st.write(f"### שאלה {S.qi+1}/5")
+            st.write(f"### שאלה {S.qi+1}/10")
             ans = st.radio(it['q'], it['options'], key=f"sq{S.qi}", index=None)
+            
+            col1, col2, col3 = st.columns(3)
+            # כפתור בדיקה
             if ans and S.qi not in S.cq:
-                if st.button("🔍 בדוק"): S.qans[S.qi] = ans; S.cq.add(S.qi); st.rerun()
+                if col1.button("🔍 בדוק"): S.qans[S.qi] = ans; S.cq.add(S.qi); st.rerun()
+            
+            # הצגת משוב
             if S.qi in S.cq:
                 is_ok = str(S.qans.get(S.qi)).strip() == str(it['correct']).strip()
                 st.markdown(f"<div class='explanation-box {'success' if is_ok else 'error'}'>{'✅ נכון!' if is_ok else '❌ טעות. הנכונה: '+it['correct']}<br><br>{it['reason']}</div>", unsafe_allow_html=True)
-            if st.button("➡️ הבא") and S.qi < 4: S.qi += 1; st.rerun()
-            if st.button("🏁 חזרה"): S.step = "menu"; st.rerun()
+            
+            # כפתורי ניווט
+            if S.qi < 9:
+                if col2.button("➡️ הבא"): S.qi += 1; st.rerun()
+            else:
+                if col2.button("🏁 סיום"): S.step = "menu"; st.rerun()
+            
+            if col3.button("🏠 תפריט"): S.step = "menu"; st.rerun()
 
 elif S.step == "full_exam":
     if S.start_time:
@@ -88,18 +98,25 @@ elif S.step == "full_exam":
         st.markdown(f"<div class='timer-box'>⏱️ שאלה {S.ei+1}/25 | זמן: {mi:02d}:{se:02d}</div>", unsafe_allow_html=True)
     
     if S.ei >= len(S.eq) and S.ei < 25:
-        with st.spinner(f"טוען שאלות {S.ei+1}-{min(S.ei+5, 25)}..."):
+        with st.spinner(f"טוען בלוק שאלות {S.ei+1}-{min(S.ei+5, 25)}..."):
             new_q = get_questions("כללי - מבחן מתווכים", 5, "complex")
             if new_q: S.eq.extend(new_q); st.rerun()
-            else: st.error("שגיאה בטעינה. נסה שוב.")
 
     if S.ei < len(S.eq):
         it = S.eq[S.ei]
         ans = st.radio(it['q'], it['options'], key=f"ex{S.ei}", index=None)
+        
+        col1, col2, col3 = st.columns(3)
         if ans and S.ei not in S.cq:
-            if st.button("🔍 בדוק"): S.eans[S.ei] = ans; S.cq.add(S.ei); st.rerun()
+            if col1.button("🔍 בדוק"): S.eans[S.ei] = ans; S.cq.add(S.ei); st.rerun()
+        
         if S.ei in S.cq:
             is_ok = str(S.eans.get(S.ei)).strip() == str(it['correct']).strip()
             st.markdown(f"<div class='explanation-box {'success' if is_ok else 'error'}'>{'✅ נכון!' if is_ok else '❌ טעות. הנכונה: '+it['correct']}<br><br>{it['reason']}</div>", unsafe_allow_html=True)
         
-        if st.button("➡️ השאלה הבאה") and S.ei < 24: S.ei += 1; st.rer
+        if S.ei < 24:
+            if col2.button("➡️ השאלה הבאה"): S.ei += 1; st.rerun()
+        else:
+            if col2.button("🏁 סיום מבחן"): S.step = "menu"; st.rerun()
+            
+        if col3.button("🏠 תפריט"): S.step = "menu"; st.rerun()
