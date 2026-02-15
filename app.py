@@ -1,4 +1,4 @@
-# גרסה: 214 | תאריך: 2026-02-15 | שעה: 14:45 (Israel Time - GMT+2)
+# גרסה: 215 | תאריך: 2026-02-15 | שעה: 14:50 (Israel Time - GMT+2)
 
 import streamlit as st
 import google.generativeai as genai
@@ -6,7 +6,7 @@ import json, re, time
 
 st.set_page_config(page_title="מתווך בקליק", layout="centered")
 
-# CSS - תיקון Dark Mode, כותרות מוגדלות ומשוב בולט
+# CSS - עיצוב נקי, תמיכה ב-Dark Mode וסדר אלמנטים נכון
 st.markdown("""<style>
 * { direction: rtl !important; text-align: right !important; }
 .lesson-box { 
@@ -41,7 +41,7 @@ def parse_j(t):
         return json.loads(m.group()) if m else None
     except: return None
 
-def get_questions(topic, count, level="complex"):
+def get_questions(topic, count):
     try:
         genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
         m = genai.GenerativeModel('gemini-2.0-flash')
@@ -54,33 +54,42 @@ def get_questions(topic, count, level="complex"):
 def background_load():
     if len(S.eq) < 5 and not S.is_loading:
         S.is_loading = True
-        new_qs = get_questions("דיני מקרקעין ותיווך בישראל", 5, "complex")
+        new_qs = get_questions("דיני מקרקעין ותיווך בישראל", 5)
         if new_qs: S.eq.extend(new_qs)
         S.is_loading = False
 
 st.title("🏠 מתווך בקליק")
 
+# ניהול שלבי האפליקציה
 if S.step == "login":
     u = st.text_input("שם מלא:")
     if st.button("כניסה למערכת"):
-        if u: S.user, S.step = u, "menu"; background_load(); st.rerun()
+        if u:
+            S.user, S.step = u, "menu"
+            background_load()
+            st.rerun()
 
 elif S.step == "menu":
     st.markdown(f"<div class='user-welcome'>שלום, {S.user}</div>", unsafe_allow_html=True)
     if len(S.eq) < 5: background_load()
     c1, c2 = st.columns(2)
     if c1.button("📚 שיעורים ולימוד"):
-        S.step, S.lt, S.qa = "study", "", False; st.rerun()
+        S.step, S.lt, S.qa = "study", "", False
+        st.rerun()
     if c2.button("📝 סימולציית מבחן מלאה"):
-        S.step = "exam_lobby"; st.rerun()
+        S.step = "exam_lobby"
+        st.rerun()
 
 elif S.step == "exam_lobby":
-    st.markdown("<div class='lobby-card'><h2>📝 הכנה למבחן המלא</h2><p>25 שאלות מורכבות. הטיימר ירוץ גם אם תצא מהדף.</p></div>", unsafe_allow_html=True)
+    st.markdown("<div class='lobby-card'><h2>📝 הכנה למבחן המלא</h2><p>25 שאלות מורכבות המדמות את המבחן האמיתי.</p></div>", unsafe_allow_html=True)
     c1, c2 = st.columns(2)
     if c1.button("🚀 התחל עכשיו"):
         S.ei, S.cq, S.start_time = 0, set(), time.time()
-        S.step = "full_exam"; st.rerun()
-    if c2.button("🔙 חזרה"): S.step = "menu"; st.rerun()
+        S.step = "full_exam"
+        st.rerun()
+    if c2.button("🔙 חזרה"):
+        S.step = "menu"
+        st.rerun()
 
 elif S.step == "study":
     all_t = ["חוק המתווכים", "חוק המקרקעין", "חוק החוזים", "חוק המכר", "הגנת הצרכן", "תכנון ובנייה", "מיסוי מקרקעין"]
@@ -96,74 +105,26 @@ elif S.step == "study":
             for ch in res: 
                 full += ch.text
                 ph.markdown(f"<div class='lesson-box'>{full}</div>", unsafe_allow_html=True)
-            S.lt, S.current_topic = full, sel; st.rerun()
-        if c2.button("🏠 חזרה לתפריט"): S.step = "menu"; st.rerun()
+            S.lt, S.current_topic = full, sel
+            st.rerun()
+        if c2.button("🏠 חזרה לתפריט"):
+            S.step = "menu"
+            st.rerun()
     else:
         if not S.qa:
             st.markdown(f"<div class='lesson-box'>{S.lt}</div>", unsafe_allow_html=True)
             c1, c2 = st.columns(2)
             if c1.button(f"✍️ בחן את עצמך על {S.current_topic}"):
                 with st.spinner("מכין שאלות..."):
-                    d = get_questions(S.current_topic, 10, "simple")
-                    if d: S.qq, S.qa, S.qi, S.cq = d, True, 0, set(); st.rerun()
-            if c2.button("🔙 נושאים אחרים"): S.lt = ""; st.rerun()
+                    d = get_questions(S.current_topic, 10)
+                    if d:
+                        S.qq, S.qa, S.qi, S.cq = d, True, 0, set()
+                        st.rerun()
+            if c2.button("🔙 נושאים אחרים"):
+                S.lt = ""
+                st.rerun()
         else:
+            # שאלון נושאי (10 שאלות)
             it = S.qq[S.qi]
             st.write(f"### שאלה {S.qi+1}/10")
             ans = st.radio(it['q'], it['options'], key=f"sq{S.qi}", index=None)
-            
-            # משוב מעל הכפתורים
-            if S.qi in S.cq:
-                is_ok = str(S.qans.get(S.qi)).strip() == str(it['correct']).strip()
-                st.markdown(f"<div class='explanation-box {'success' if is_ok else 'error'}'>{'✅ נכון' if is_ok else '❌ טעות'}<br><br>{it['reason']}</div>", unsafe_allow_html=True)
-            
-            c1, c2 = st.columns(2)
-            if ans and S.qi not in S.cq:
-                if c1.button("🔍 בדוק תשובה"): 
-                    S.qans[S.qi] = ans
-                    S.cq.add(S.qi)
-                    st.rerun()
-            
-            if S.qi in S.cq:
-                if S.qi < 9:
-                    if c2.button("➡️ השאלה הבאה"): S.qi += 1; st.rerun()
-                else:
-                    st.success("סיימת את השאלון!")
-                    col1, col2 = st.columns(2)
-                    if col1.button("📝 למבחן המלא"): S.step = "exam_lobby"; st.rerun()
-                    if col2.button("🏠 חזרה"): S.step, S.lt, S.qa = "menu", "", False; st.rerun()
-            
-            if st.button("🏠 ביטול וחזרה לתפריט"): S.step, S.lt, S.qa = "menu", "", False; st.rerun()
-
-elif S.step == "full_exam":
-    if len(S.eq) < 25 and S.ei >= len(S.eq) - 1: background_load()
-    if S.start_time:
-        el = int(time.time() - S.start_time)
-        mi, se = divmod(el, 60)
-        st.markdown(f"<div class='timer-box'>⏱️ שאלה {S.ei+1}/25 | זמן: {mi:02d}:{se:02d}</div>", unsafe_allow_html=True)
-    
-    if S.ei < len(S.eq):
-        it = S.eq[S.ei]
-        ans = st.radio(it['q'], it['options'], key=f"ex{S.ei}", index=None)
-        
-        # משוב מעל הכפתורים
-        if S.ei in S.cq:
-            is_ok = str(S.eans.get(S.ei)).strip() == str(it['correct']).strip()
-            st.markdown(f"<div class='explanation-box {'success' if is_ok else 'error'}'>{'✅ נכון' if is_ok else '❌ טעות'}<br><br>{it['reason']}</div>", unsafe_allow_html=True)
-        
-        c1, c2 = st.columns(2)
-        if ans and S.ei not in S.cq:
-            if c1.button("🔍 בדוק תשובה"): 
-                S.eans[S.ei] = ans
-                S.cq.add(S.ei)
-                st.rerun()
-        
-        if S.ei in S.cq:
-            if S.ei < 24:
-                if c2.button("➡️ השאלה הבאה"): S.ei += 1; st.rerun()
-            else:
-                if st.button("🏁 סיום מבחן"): S.step, S.eq = "menu", []; st.rerun()
-        
-        if st.button("🏠 חזרה לתפריט"): S.step, S.eq = "menu", []; st.rerun()
-    else:
-        st.info("טוען שאלות נוספות..."); time.sleep(1); st.rerun()
