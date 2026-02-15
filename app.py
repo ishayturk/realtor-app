@@ -1,4 +1,4 @@
-# גרסה: 1000 | תאריך: 15/02/2026 | שעה: 15:25
+# גרסה: 1001 | תאריך: 15/02/2026 | שעה: 15:35
 import streamlit as st
 import google.generativeai as genai
 import json, re, time
@@ -6,7 +6,7 @@ import json, re, time
 st.set_page_config(page_title="מתווך בקליק", layout="centered")
 
 # כותרת גרסה
-st.markdown("<div style='text-align: left; color: gray; font-size: 10px;'>גרסה: 1000 | 15/02/2026 | 15:25</div>", unsafe_allow_html=True)
+st.markdown("<div style='text-align: left; color: gray; font-size: 10px;'>גרסה: 1001 | 15/02/2026 | 15:35</div>", unsafe_allow_html=True)
 
 # CSS - RTL ועיצוב מקורי
 st.markdown("""<style>
@@ -49,7 +49,7 @@ if S.step == "login":
 
 elif S.step == "menu":
     c1, c2 = st.columns(2)
-    if c1.button("📚 שיעורים בנושאי הלימוד"): S.step = "study"; st.rerun()
+    if c1.button("📚 שיעורים בנושאי המימוד"): S.step = "study"; st.rerun()
     if c2.button("📝 סימולציית מבחן רשמית"): S.step = "exam_lobby"; st.rerun()
 
 elif S.step == "study":
@@ -82,13 +82,19 @@ elif S.step == "study":
             if S.qi in S.cq:
                 is_ok = str(S.qans.get(S.qi)) == str(it['correct'])
                 st.markdown(f"<div class='explanation-box {'success' if is_ok else 'error'}'>{it['reason']}</div>", unsafe_allow_html=True)
+            
             if ans and S.qi not in S.cq:
                 if st.button("🔍 בדוק"): S.qans[S.qi] = ans; S.cq.add(S.qi); st.rerun()
+            
+            # כפתורי ניווט
             if S.qi in S.cq:
                 if S.qi < 9:
                     if st.button("➡️ השאלה הבאה"): S.qi += 1; st.rerun()
                 else:
                     if st.button("🏠 סיום"): S.step, S.lt, S.qa = "menu", "", False; st.rerun()
+            
+            # כפתור חזרה לתפריט - מופיע תמיד בשלב השאלון
+            if st.button("🏁 חזרה לתפריט"): S.step, S.lt, S.qa = "menu", "", False; st.rerun()
 
 elif S.step == "exam_lobby":
     st.write("### סימולציית מבחן מלאה")
