@@ -1,4 +1,4 @@
-# גרסה: 213 | תאריך: 2026-02-15 | שעה: 14:40 (Israel Time - GMT+2)
+# גרסה: 214 | תאריך: 2026-02-15 | שעה: 14:45 (Israel Time - GMT+2)
 
 import streamlit as st
 import google.generativeai as genai
@@ -6,7 +6,7 @@ import json, re, time
 
 st.set_page_config(page_title="מתווך בקליק", layout="centered")
 
-# CSS - שימור כל תיקוני ה-Dark Mode, הכותרות וההסברים
+# CSS - תיקון Dark Mode, כותרות מוגדלות ומשוב בולט
 st.markdown("""<style>
 * { direction: rtl !important; text-align: right !important; }
 .lesson-box { 
@@ -112,14 +112,17 @@ elif S.step == "study":
             st.write(f"### שאלה {S.qi+1}/10")
             ans = st.radio(it['q'], it['options'], key=f"sq{S.qi}", index=None)
             
-            # הצגת משוב מיד מתחת לתשובות (מעל הכפתורים)
+            # משוב מעל הכפתורים
             if S.qi in S.cq:
                 is_ok = str(S.qans.get(S.qi)).strip() == str(it['correct']).strip()
                 st.markdown(f"<div class='explanation-box {'success' if is_ok else 'error'}'>{'✅ נכון' if is_ok else '❌ טעות'}<br><br>{it['reason']}</div>", unsafe_allow_html=True)
             
             c1, c2 = st.columns(2)
             if ans and S.qi not in S.cq:
-                if c1.button("🔍 בדוק תשובה"): S.qans[S.qi] = ans; S.cq.add(S.qi); st.rerun()
+                if c1.button("🔍 בדוק תשובה"): 
+                    S.qans[S.qi] = ans
+                    S.cq.add(S.qi)
+                    st.rerun()
             
             if S.qi in S.cq:
                 if S.qi < 9:
@@ -128,7 +131,7 @@ elif S.step == "study":
                     st.success("סיימת את השאלון!")
                     col1, col2 = st.columns(2)
                     if col1.button("📝 למבחן המלא"): S.step = "exam_lobby"; st.rerun()
-                    if col2.button("🏠 חזרה לתפריט"): S.step, S.lt, S.qa = "menu", "", False; st.rerun()
+                    if col2.button("🏠 חזרה"): S.step, S.lt, S.qa = "menu", "", False; st.rerun()
             
             if st.button("🏠 ביטול וחזרה לתפריט"): S.step, S.lt, S.qa = "menu", "", False; st.rerun()
 
@@ -143,11 +146,24 @@ elif S.step == "full_exam":
         it = S.eq[S.ei]
         ans = st.radio(it['q'], it['options'], key=f"ex{S.ei}", index=None)
         
-        # משוב בין השאלה לכפתורי הניווט
+        # משוב מעל הכפתורים
         if S.ei in S.cq:
             is_ok = str(S.eans.get(S.ei)).strip() == str(it['correct']).strip()
             st.markdown(f"<div class='explanation-box {'success' if is_ok else 'error'}'>{'✅ נכון' if is_ok else '❌ טעות'}<br><br>{it['reason']}</div>", unsafe_allow_html=True)
         
         c1, c2 = st.columns(2)
         if ans and S.ei not in S.cq:
-            if c1.button
+            if c1.button("🔍 בדוק תשובה"): 
+                S.eans[S.ei] = ans
+                S.cq.add(S.ei)
+                st.rerun()
+        
+        if S.ei in S.cq:
+            if S.ei < 24:
+                if c2.button("➡️ השאלה הבאה"): S.ei += 1; st.rerun()
+            else:
+                if st.button("🏁 סיום מבחן"): S.step, S.eq = "menu", []; st.rerun()
+        
+        if st.button("🏠 חזרה לתפריט"): S.step, S.eq = "menu", []; st.rerun()
+    else:
+        st.info("טוען שאלות נוספות..."); time.sleep(1); st.rerun()
