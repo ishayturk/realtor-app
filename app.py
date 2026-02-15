@@ -1,4 +1,4 @@
-# גרסה: 208 | תאריך: 2024-05-23 | שעה: 14:15 (Israel Time - GMT+2)
+# גרסה: 209 | תאריך: 2026-02-15 | שעה: 14:20 (Israel Time - GMT+2)
 
 import streamlit as st
 import google.generativeai as genai
@@ -6,7 +6,7 @@ import json, re, time
 
 st.set_page_config(page_title="מתווך בקליק", layout="centered")
 
-# CSS לתיקון Dark Mode ותצוגה אופטימלית לנייד - דגש על ניגודיות גבוהה
+# CSS לתיקון Dark Mode ותצוגה אופטימלית
 st.markdown("""<style>
 * { direction: rtl !important; text-align: right !important; }
 .lesson-box { 
@@ -23,7 +23,6 @@ st.markdown("""<style>
 .lobby-card { background: #f0f7ff !important; color: #000000 !important; padding: 30px; border-radius: 15px; border: 1px solid #d1e3f8; margin: 20px 0; }
 .timer-box { font-size: 18px; font-weight: bold; color: #d32f2f; text-align:center; background:#fff1f1; padding:10px; border-radius:10px; border:1px solid #d32f2f; margin-bottom:15px; }
 div.stButton > button { width: 100%; border-radius: 8px; font-weight: bold; height: 3em; }
-/* וידוא טקסט שחור בתוך אלמנטים של שיעור */
 .lesson-box h1, .lesson-box h2, .lesson-box h3, .lesson-box p, .lesson-box li, .lesson-box span { color: #000000 !important; }
 </style>""", unsafe_allow_html=True)
 
@@ -78,7 +77,7 @@ elif S.step == "menu":
         S.step = "exam_lobby"; st.rerun()
 
 elif S.step == "exam_lobby":
-    st.markdown("<div class='lobby-card'><h2 style='text-align:center;'>📝 הכנה לסימולציה</h2><p>25 שאלות מורכבות המדמות את המבחן האמיתי. הטיימר ירוץ גם אם תצא מהדף.</p></div>", unsafe_allow_html=True)
+    st.markdown("<div class='lobby-card'><h2 style='text-align:center;'>📝 הכנה לסימולציה</h2><p>25 שאלות מורכבות. הטיימר ירוץ גם אם תצא מהדף.</p></div>", unsafe_allow_html=True)
     c1, c2 = st.columns(2)
     if c1.button("🚀 התחל מבחן"):
         S.ei, S.cq, S.start_time = 0, set(), time.time()
@@ -125,7 +124,8 @@ elif S.step == "study":
             if S.qi < 9:
                 if c2.button("➡️ הבא"): S.qi += 1; st.rerun()
             else:
-                if st.button("🏁 סיום וחזרה לתפריט"): S.step, S.lt, S.qa = "menu", "", False; st.rerun()
+                st.success("סיימת את השאלון!")
+                if st.button("🏁 חזרה לתפריט"): S.step, S.lt, S.qa = "menu", "", False; st.rerun()
             if c3.button("🏠 תפריט"): S.step, S.lt, S.qa = "menu", "", False; st.rerun()
 
 elif S.step == "full_exam":
@@ -146,3 +146,7 @@ elif S.step == "full_exam":
         if S.ei < 24:
             if c2.button("➡️ הבא"): S.ei += 1; st.rerun()
         else:
+            if c2.button("🏁 סיום"): S.step, S.eq = "menu", []; st.rerun()
+        if c3.button("🏠 תפריט"): S.step, S.eq = "menu", []; st.rerun()
+    else:
+        st.info("מכין שאלות..."); time.sleep(2); st.rerun()
