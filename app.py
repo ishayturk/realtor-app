@@ -1,4 +1,4 @@
-# גרסה: 216 | תאריך: 2026-02-15 | שעה: 15:35 (Israel Time - GMT+2)
+# גרסה: 217 | תאריך: 2026-02-15 | שעה: 15:45 (Israel Time - GMT+2)
 
 import streamlit as st
 import google.generativeai as genai
@@ -6,7 +6,7 @@ import json, re, time
 
 st.set_page_config(page_title="מתווך בקליק", layout="centered")
 
-# CSS - עיצוב נקי וסדר אלמנטים נכון
+# CSS - עיצוב יציב ותיקוני Dark Mode
 st.markdown("""<style>
 * { direction: rtl !important; text-align: right !important; }
 .lesson-box { 
@@ -59,14 +59,12 @@ def background_load():
 
 st.title("🏠 מתווך בקליק")
 
-# שלב כניסה - שימוש ב-Form למניעת לחיצה כפולה
 if S.step == "login":
     with st.form("login_form"):
         u = st.text_input("שם מלא:")
         submit = st.form_submit_button("כניסה למערכת")
         if submit and u:
-            S.user = u
-            S.step = "menu"
+            S.user, S.step = u, "menu"
             background_load()
             st.rerun()
 
@@ -82,7 +80,7 @@ elif S.step == "menu":
         st.rerun()
 
 elif S.step == "exam_lobby":
-    st.markdown("### 📝 הכנה למבחן המלא\n25 שאלות מורכבות המדמות את המבחן האמיתי.")
+    st.markdown("### 📝 הכנה למבחן המלא\nסימולציה של 25 שאלות מורכבות.")
     c1, c2 = st.columns(2)
     if c1.button("🚀 התחל עכשיו"):
         S.ei, S.cq, S.start_time = 0, set(), time.time()
@@ -128,18 +126,15 @@ elif S.step == "study":
             it = S.qq[S.qi]
             st.write(f"### שאלה {S.qi+1}/10")
             ans = st.radio(it['q'], it['options'], key=f"sq{S.qi}", index=None)
-            
             if S.qi in S.cq:
                 is_ok = str(S.qans.get(S.qi)).strip() == str(it['correct']).strip()
                 st.markdown(f"<div class='explanation-box {'success' if is_ok else 'error'}'>{'✅ נכון' if is_ok else '❌ טעות'}<br><br>{it['reason']}</div>", unsafe_allow_html=True)
-            
             c1, c2 = st.columns(2)
             if ans and S.qi not in S.cq:
                 if c1.button("🔍 בדוק תשובה"): 
                     S.qans[S.qi] = ans
                     S.cq.add(S.qi)
                     st.rerun()
-            
             if S.qi in S.cq:
                 if S.qi < 9:
                     if c2.button("➡️ השאלה הבאה"):
@@ -147,14 +142,14 @@ elif S.step == "study":
                         st.rerun()
                 else:
                     st.success("סיימת את השאלון!")
-                    if st.button("📝 למבחן המלא"):
+                    col1, col2 = st.columns(2)
+                    if col1.button("📝 למבחן המלא"):
                         S.step = "exam_lobby"
                         st.rerun()
-                    if st.button("🏠 חזרה לתפריט"):
+                    if col2.button("🏠 חזרה לתפריט"):
                         S.step, S.lt, S.qa = "menu", "", False
                         st.rerun()
-            
-            if st.button("🏠 צא לתפריט", key="exit_study"):
+            if st.button("🏠 צא לתפריט", key="exit_study_fixed"):
                 S.step, S.lt, S.qa = "menu", "", False
                 st.rerun()
 
@@ -164,27 +159,31 @@ elif S.step == "full_exam":
         el = int(time.time() - S.start_time)
         mi, se = divmod(el, 60)
         st.markdown(f"<div class='timer-box'>⏱️ שאלה {S.ei+1}/25 | זמן: {mi:02d}:{se:02d}</div>", unsafe_allow_html=True)
-    
     if S.ei < len(S.eq):
         it = S.eq[S.ei]
         ans = st.radio(it['q'], it['options'], key=f"ex{S.ei}", index=None)
-        
         if S.ei in S.cq:
             is_ok = str(S.eans.get(S.ei)).strip() == str(it['correct']).strip()
             st.markdown(f"<div class='explanation-box {'success' if is_ok else 'error'}'>{'✅ נכון' if is_ok else '❌ טעות'}<br><br>{it['reason']}</div>", unsafe_allow_html=True)
-        
         c1, c2 = st.columns(2)
         if ans and S.ei not in S.cq:
-            if c1.button("🔍 בדוק תשובה", key=f"chk_{S.ei}"): 
+            if c1.button("🔍 בדוק תשובה", key=f"chk_f_{S.ei}"): 
                 S.eans[S.ei] = ans
                 S.cq.add(S.ei)
                 st.rerun()
-        
         if S.ei in S.cq:
             if S.ei < 24:
-                if c2.button("➡️ השאלה הבאה", key=f"nxt_{S.ei}"):
+                if c2.button("➡️ השאלה הבאה", key=f"nxt_f_{S.ei}"):
                     S.ei += 1
                     st.rerun()
             else:
                 if st.button("🏁 סיום מבחן"):
-                    S.step, S.eq = "
+                    S.step, S.eq = "menu", []
+                    st.rerun()
+        if st.button("🏠 צא לתפריט", key="exit_exam_fixed"):
+            S.step, S.eq = "menu", []
+            st.rerun()
+    else:
+        st.info("טוען שאלות...")
+        time.sleep(1)
+        st.rerun()
