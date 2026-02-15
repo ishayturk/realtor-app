@@ -51,7 +51,44 @@ elif S.step == "menu":
         S.step = "full_exam"; st.rerun()
 
 elif S.step == "study":
-    # רשימה מלאה של כל נושאי הבחינה
+    # רשימה מלאה של כל נושאי הבחינה - מסודרת ללא שבירות שורה
     all_t = [
-        "חוק המתווכים במקרקעין", "חוק המקרקעין", "חוק החוזים", "חוק המכר (דירות)", 
-        "חוק הגנת הצרכן", "חוק
+        "חוק המתווכים במקרקעין",
+        "חוק המקרקעין",
+        "חוק החוזים",
+        "חוק המכר (דירות)",
+        "חוק הגנת הצרכן",
+        "חוק הגנת הדייר",
+        "חוק תכנון ובנייה",
+        "חוק מיסוי מקרקעין",
+        "חוק ההוצאה לפועל",
+        "חוק הירושה",
+        "חוק העונשין (עבירות רלוונטיות)",
+        "אתיקה מקצועית"
+    ]
+    sel = st.selectbox("בחר נושא ללימוד:", all_t)
+    if not S.lt:
+        if st.button("📖 התחל שיעור"):
+            genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+            m = genai.GenerativeModel('gemini-2.0-flash')
+            res = m.generate_content(f"כתוב שיעור מפורט ומעמיק למבחן המתווכים על {sel}.", stream=True)
+            ph, full = st.empty(), ""
+            for ch in res: full += ch.text; ph.markdown(f"<div class='lesson-box'>{full}</div>", unsafe_allow_html=True)
+            S.lt = full; st.rerun()
+    else:
+        st.markdown(f"<div class='lesson-box'>{S.lt}</div>", unsafe_allow_html=True)
+        if not S.qa:
+            if st.button(f"✍️ שאלון: {sel}"):
+                with st.spinner("מייצר 10 שאלות הבנה..."):
+                    d = get_questions(sel, 10, "simple")
+                    if d: S.qq, S.qa, S.qi, S.cq = d, True, 0, set(); st.rerun()
+        else:
+            it = S.qq[S.qi]
+            st.write(f"### שאלה {S.qi+1}/10")
+            ans = st.radio(it['q'], it['options'], key=f"sq{S.qi}", index=None)
+            
+            col1, col2, col3 = st.columns(3)
+            if ans and S.qi not in S.cq:
+                if col1.button("🔍 בדוק"): S.qans[S.qi] = ans; S.cq.add(S.qi); st.rerun()
+            
+            if S.
