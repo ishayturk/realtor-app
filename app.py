@@ -1,4 +1,4 @@
-# גרסה: 212 | תאריך: 2026-02-15 | שעה: 14:35 (Israel Time - GMT+2)
+# גרסה: 213 | תאריך: 2026-02-15 | שעה: 14:40 (Israel Time - GMT+2)
 
 import streamlit as st
 import google.generativeai as genai
@@ -6,7 +6,7 @@ import json, re, time
 
 st.set_page_config(page_title="מתווך בקליק", layout="centered")
 
-# CSS - שימור כל תיקוני ה-Dark Mode והכפתורים
+# CSS - שימור כל תיקוני ה-Dark Mode, הכותרות וההסברים
 st.markdown("""<style>
 * { direction: rtl !important; text-align: right !important; }
 .lesson-box { 
@@ -75,7 +75,7 @@ elif S.step == "menu":
         S.step = "exam_lobby"; st.rerun()
 
 elif S.step == "exam_lobby":
-    st.markdown("<div class='lobby-card'><h2>📝 הכנה למבחן המלא</h2><p>קח נשימה. 25 שאלות מורכבות לפניך.</p></div>", unsafe_allow_html=True)
+    st.markdown("<div class='lobby-card'><h2>📝 הכנה למבחן המלא</h2><p>25 שאלות מורכבות. הטיימר ירוץ גם אם תצא מהדף.</p></div>", unsafe_allow_html=True)
     c1, c2 = st.columns(2)
     if c1.button("🚀 התחל עכשיו"):
         S.ei, S.cq, S.start_time = 0, set(), time.time()
@@ -95,5 +95,59 @@ elif S.step == "study":
             ph, full = st.empty(), ""
             for ch in res: 
                 full += ch.text
-                ph.markdown(f<div class='lesson-box'>{full}</div>", unsafe_allow_html=True)
-            S.lt, S.
+                ph.markdown(f"<div class='lesson-box'>{full}</div>", unsafe_allow_html=True)
+            S.lt, S.current_topic = full, sel; st.rerun()
+        if c2.button("🏠 חזרה לתפריט"): S.step = "menu"; st.rerun()
+    else:
+        if not S.qa:
+            st.markdown(f"<div class='lesson-box'>{S.lt}</div>", unsafe_allow_html=True)
+            c1, c2 = st.columns(2)
+            if c1.button(f"✍️ בחן את עצמך על {S.current_topic}"):
+                with st.spinner("מכין שאלות..."):
+                    d = get_questions(S.current_topic, 10, "simple")
+                    if d: S.qq, S.qa, S.qi, S.cq = d, True, 0, set(); st.rerun()
+            if c2.button("🔙 נושאים אחרים"): S.lt = ""; st.rerun()
+        else:
+            it = S.qq[S.qi]
+            st.write(f"### שאלה {S.qi+1}/10")
+            ans = st.radio(it['q'], it['options'], key=f"sq{S.qi}", index=None)
+            
+            # הצגת משוב מיד מתחת לתשובות (מעל הכפתורים)
+            if S.qi in S.cq:
+                is_ok = str(S.qans.get(S.qi)).strip() == str(it['correct']).strip()
+                st.markdown(f"<div class='explanation-box {'success' if is_ok else 'error'}'>{'✅ נכון' if is_ok else '❌ טעות'}<br><br>{it['reason']}</div>", unsafe_allow_html=True)
+            
+            c1, c2 = st.columns(2)
+            if ans and S.qi not in S.cq:
+                if c1.button("🔍 בדוק תשובה"): S.qans[S.qi] = ans; S.cq.add(S.qi); st.rerun()
+            
+            if S.qi in S.cq:
+                if S.qi < 9:
+                    if c2.button("➡️ השאלה הבאה"): S.qi += 1; st.rerun()
+                else:
+                    st.success("סיימת את השאלון!")
+                    col1, col2 = st.columns(2)
+                    if col1.button("📝 למבחן המלא"): S.step = "exam_lobby"; st.rerun()
+                    if col2.button("🏠 חזרה לתפריט"): S.step, S.lt, S.qa = "menu", "", False; st.rerun()
+            
+            if st.button("🏠 ביטול וחזרה לתפריט"): S.step, S.lt, S.qa = "menu", "", False; st.rerun()
+
+elif S.step == "full_exam":
+    if len(S.eq) < 25 and S.ei >= len(S.eq) - 1: background_load()
+    if S.start_time:
+        el = int(time.time() - S.start_time)
+        mi, se = divmod(el, 60)
+        st.markdown(f"<div class='timer-box'>⏱️ שאלה {S.ei+1}/25 | זמן: {mi:02d}:{se:02d}</div>", unsafe_allow_html=True)
+    
+    if S.ei < len(S.eq):
+        it = S.eq[S.ei]
+        ans = st.radio(it['q'], it['options'], key=f"ex{S.ei}", index=None)
+        
+        # משוב בין השאלה לכפתורי הניווט
+        if S.ei in S.cq:
+            is_ok = str(S.eans.get(S.ei)).strip() == str(it['correct']).strip()
+            st.markdown(f"<div class='explanation-box {'success' if is_ok else 'error'}'>{'✅ נכון' if is_ok else '❌ טעות'}<br><br>{it['reason']}</div>", unsafe_allow_html=True)
+        
+        c1, c2 = st.columns(2)
+        if ans and S.ei not in S.cq:
+            if c1.button
