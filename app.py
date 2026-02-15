@@ -1,83 +1,84 @@
-# גרסה: 1017 | תאריך: 15/02/2026 | שעה: 23:25
+# גרסה: 1019 | תאריך: 15/02/2026 | שעה: 23:45
 import streamlit as st
 import google.generativeai as genai
 import json, re, time
 
-st.set_page_config(page_title="מתווך בקליק", layout="centered")
+st.set_page_config(page_title="מתווך בקליק - סימולטור רשמי", layout="centered")
 
-# CSS - עיצוב נקי וקבוע
 st.markdown("""
 <style>
     * { direction: rtl !important; text-align: right !important; }
     .lesson-box { background-color: #ffffff; padding: 25px; border-radius: 12px; border-right: 6px solid #1E88E5; line-height: 1.8; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
     .question-card { background-color: #ffffff; padding: 25px; border-radius: 12px; border: 1px solid #e0e0e0; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+    .timer-box { background: #fdf2f2; color: #d32f2f; padding: 15px; border-radius: 10px; text-align: center; font-weight: bold; border: 1px solid #ffcdd2; margin-bottom: 20px; font-size: 22px; }
     .main-header { background: #1E88E5; color: white; padding: 15px; border-radius: 10px; text-align: center; margin-bottom: 15px; font-size: 24px; font-weight: bold; }
-    .timer-box { background: #fdf2f2; color: #d32f2f; padding: 10px; border-radius: 10px; text-align: center; font-weight: bold; margin-bottom: 15px; }
+    div.stButton > button { border-radius: 8px; height: 3.5em; font-weight: bold; }
 </style>
 """, unsafe_allow_html=True)
 
 S = st.session_state
 if 'step' not in S:
-    S.update({'user':'','step':'login','lt':'','qi':0,'qans':{},'qq':[],'total_q':10, 'start_time':0, 'is_loading': False, 'current_topic':'', 'mode': 'study_quiz', 'cq': set()})
+    S.update({'user':'','step':'login','lt':'','qi':0,'qans':{},'qq':[],'total_q':25, 'start_time':0, 'is_loading': False, 'current_topic':'', 'mode': 'exam', 'cq': set()})
 
 def fetch_chunk(topic, count=5):
     try:
         genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
         model = genai.GenerativeModel('gemini-2.0-flash')
-        p = f"צור {count} שאלות אמריקאיות למבחן המתווכים בנושא {topic}. JSON נקי: [{{'q':'','options':['א','ב','ג','ד'],'correct':'טקסט מדויק','reason':''}}]"
+        p = f"צור {count} שאלות אמריקאיות למבחן המתווכים בנושא {topic}. רמה גבוהה. JSON נקי: [{{'q':'','options':['א','ב','ג','ד'],'correct':'טקסט מדויק','reason':''}}]"
         r = model.generate_content(p)
         m = re.search(r'\[.*\]', r.text, re.DOTALL)
         return json.loads(m.group()) if m else []
     except: return []
 
+# --- Header קבוע ---
 st.markdown("<div class='main-header'>🏠 מתווך בקליק</div>", unsafe_allow_html=True)
 if S.user:
-    st.markdown(f"<div style='text-align: center; margin-bottom: 10px;'>שלום, <b>{S.user}</b></div>", unsafe_allow_html=True)
+    st.markdown(f"<div style='text-align: center; margin-bottom: 10px;'>נבחן/ת: <b>{S.user}</b></div>", unsafe_allow_html=True)
 
-# --- דף כניסה ---
 if S.step == "login":
     u = st.text_input("הזן שם מלא:", key="login_input")
-    if st.button("כניסה"):
+    if st.button("כניסה למערכת"):
         if u: S.user = u; S.step = "menu"; st.rerun()
 
-# --- תפריט ראשי ---
 elif S.step == "menu":
     S.update({'qi':0,'qans':{},'qq':[],'lt':'','is_loading':False, 'cq':set()})
     c1, c2 = st.columns(2)
     if c1.button("📚 שיעורים ולימוד"): S.step = "study"; st.rerun()
-    if c2.button("⏱️ סימולציית מבחן"): S.step = "exam_lobby"; st.rerun()
+    if c2.button("⏱️ סימולציית מבחן (90 דק')"): S.step = "exam_lobby"; st.rerun()
 
-# --- לימוד ---
 elif S.step == "study":
     all_t = ["חוק המתווכים במקרקעין", "חוק המקרקעין", "חוק החוזים", "חוק המכר (דירות)", "חוק הגנת הצרכן"]
     if not S.lt:
-        sel = st.selectbox("בחר נושא:", all_t)
-        if st.button("📖 התחל שיעור"):
-            with st.spinner("מייצר שיעור..."):
-                genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-                model = genai.GenerativeModel('gemini-2.0-flash')
-                res = model.generate_content(f"כתוב שיעור מפורט למבחן המתווכים על {sel}")
-                S.lt, S.current_topic = res.text, sel
-                st.rerun()
+        sel = st.selectbox("בחר נושא ללימוד:", all_t)
+        if st.button("📖 התחל שיעור (Streaming)"):
+            genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+            model = genai.GenerativeModel('gemini-2.0-flash')
+            res = model.generate_content(f"כתוב שיעור מפורט למבחן המתווכים על {sel}", stream=True)
+            ph = st.empty()
+            full_text = ""
+            for chunk in res:
+                full_text += chunk.text
+                ph.markdown(f<div class='lesson-box'>{full_text}</div>", unsafe_allow_html=True)
+            S.lt, S.current_topic = full_text, sel; st.rerun()
         if st.button("🏠 חזרה"): S.step = "menu"; st.rerun()
     else:
         st.markdown(f"<div class='lesson-box'>{S.lt}</div>", unsafe_allow_html=True)
         c1, c2 = st.columns(2)
         if c1.button(f"✍️ שאלון תרגול"):
-            with st.spinner("מכין שאלות..."):
+            with st.spinner("מכין 10 שאלות..."):
                 d = fetch_chunk(S.current_topic, 5)
                 if d: S.qq, S.qi, S.total_q, S.mode, S.step = d, 0, 10, 'study_quiz', "quiz_mode"; st.rerun()
         if c2.button("🏁 חזרה לתפריט"): S.lt = ""; S.step = "menu"; st.rerun()
 
-# --- בחינה ---
 elif S.step == "exam_lobby":
-    if st.button("🚀 התחל בחינה"):
-        with st.spinner("טוען שאלות..."):
-            d = fetch_chunk("כללי", 5)
+    st.write("### הנחיות לסימולציה:\n- 25 שאלות\n- 90 דקות\n- ללא משוב במהלך המבחן")
+    if st.button("🚀 צא לדרך"):
+        with st.spinner("מייצר שאלות ראשונות..."):
+            d = fetch_chunk("חוקי מקרקעין ותיווך", 5)
             if d: S.qq, S.qi, S.total_q, S.mode, S.step, S.start_time = d, 0, 25, 'exam', "quiz_mode", time.time(); st.rerun()
 
-# --- מצב שאלון/מבחן ---
 elif S.step == "quiz_mode":
+    # טיימר (רק במבחן)
     if S.mode == 'exam':
         rem = max(0, 5400 - int(time.time() - S.start_time))
         h, r = divmod(rem, 3600); m, s = divmod(r, 60)
@@ -98,7 +99,7 @@ elif S.step == "quiz_mode":
     ans = st.radio("בחר תשובה:", it['options'], key=f"q_{S.qi}_{S.mode}", index=it['options'].index(curr) if curr in it['options'] else None)
     if ans: S.qans[S.qi] = ans
 
-    # הצגת משוב בלימוד
+    # משוב מיידי (רק בתרגול/לימוד)
     if S.mode == 'study_quiz' and S.qi in S.cq:
         if S.qans.get(S.qi) == it['correct'].strip():
             st.success(f"נכון! {it['reason']}")
@@ -111,6 +112,7 @@ elif S.step == "quiz_mode":
         if c1.button("⬅️ הקודם"): S.qi -= 1; st.rerun()
     if c2.button("🏠 תפריט"): S.step = "menu"; st.rerun()
 
+    # כפתור צד שמאל: בדוק (בלימוד) או הבא (במבחן)
     if S.mode == 'study_quiz' and S.qi not in S.cq:
         if c3.button("🔍 בדוק"): S.cq.add(S.qi); st.rerun()
     elif S.qi < S.total_q - 1:
@@ -118,9 +120,11 @@ elif S.step == "quiz_mode":
             if S.qi < len(S.qq) - 1: S.qi += 1; st.rerun()
             else: st.warning("טוען עוד שאלות...")
     else:
-        if c3.button("🏁 סיום"): S.step = "results"; st.rerun()
+        if c3.button("🏁 סיום והגשה"): S.step = "results"; st.rerun()
 
 elif S.step == "results":
     correct = sum(1 for i, q in enumerate(S.qq) if S.qans.get(i) == q['correct'])
-    st.markdown(f"<div class='main-header'>ציון: {int((correct/len(S.qq))*100)}</div>", unsafe_allow_html=True)
-    if st.button("🏠 חזרה"): S.step = "menu"; st.rerun()
+    score = int((correct/len(S.qq))*100)
+    st.balloons()
+    st.markdown(f"<div class='main-header'>ציון סופי: {score}</div>", unsafe_allow_html=True)
+    if st.button("🏠 חזרה לתפריט"): S.step = "menu"; st.rerun()
