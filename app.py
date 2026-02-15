@@ -1,4 +1,4 @@
-# גרסה: 219 | תאריך: 2026-02-15 | שעה: 16:30 (Israel Time - GMT+2)
+# גרסה: 221 | תאריך: 2026-02-15 | שעה: 16:55 (Israel Time - GMT+2)
 
 import streamlit as st
 import google.generativeai as genai
@@ -6,7 +6,7 @@ import json, re, time
 
 st.set_page_config(page_title="מתווך בקליק", layout="centered")
 
-# CSS - עיצוב יציב עם דגש על כותרות מוגדלות ומשוב ברור
+# CSS - עיצוב RTL מלא ושם משתמש בולט למעלה
 st.markdown("""<style>
 * { direction: rtl !important; text-align: right !important; }
 .lesson-box { 
@@ -15,15 +15,15 @@ st.markdown("""<style>
     padding: 25px; border-radius: 12px; border-right: 6px solid #1E88E5; 
     line-height: 1.8; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
 }
-.lesson-box h1 { 
-    color: #1E88E5 !important; font-size: 32px !important; font-weight: 900 !important; 
-    border-bottom: 2px solid #eee; padding-bottom: 10px; margin-bottom: 15px; 
-}
 .explanation-box { padding: 15px; border-radius: 8px; margin: 15px 0; border-right: 5px solid; }
 .success { background-color: #e8f5e9 !important; color: #2e7d32 !important; border-color: #4caf50 !important; }
 .error { background-color: #ffebee !important; color: #c62828 !important; border-color: #f44336 !important; }
 div.stButton > button { width: 100%; border-radius: 8px; font-weight: bold; height: 3em; margin-top: 10px; }
-.user-welcome { font-size: 28px; font-weight: bold; color: #1E88E5; }
+.user-header { 
+    font-size: 22px; font-weight: bold; color: #ffffff; 
+    background: #1E88E5; padding: 10px 20px; border-radius: 10px; 
+    margin-bottom: 25px; text-align: center !important;
+}
 .timer-box { font-size: 18px; font-weight: bold; color: #d32f2f; text-align:center; background:#fff1f1; padding:10px; border-radius:10px; border:1px solid #d32f2f; margin-bottom:15px; }
 </style>""", unsafe_allow_html=True)
 
@@ -31,7 +31,7 @@ S = st.session_state
 if 'step' not in S:
     S.update({
         'user':'','step':'login','lt':'','qa':False,'qi':0,'qans':{},'qq':[],'cq':set(),
-        'ei':0,'eans':{},'eq':[],'start_time':None, 'current_topic':'', 'is_loading': False
+        'ei':0,'eans':{},'eq':[],'start_time':None, 'current_topic':''
     })
 
 def parse_j(t):
@@ -43,26 +43,32 @@ def parse_j(t):
 def get_questions(topic, count):
     try:
         genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+        # המודל המעודכן ביותר שעובד עם ה-API KEY שלך
         m = genai.GenerativeModel('gemini-2.0-flash')
         p = f"צור {count} שאלות למבחן המתווכים בנושא {topic}. החזר JSON נקי בלבד: "
         p += "[{'q':'','options':['א','ב','ג','ד'],'correct':'הטקסט המדויק מהאופציות','reason':''}]"
         r = m.generate_content(p)
         return parse_j(r.text)
-    except: return None
+    except Exception as e:
+        st.error(f"שגיאת תקשורת: {str(e)}")
+        return None
 
 st.title("🏠 מתווך בקליק")
 
-# שלב כניסה - פתרון לחיצה אחת
+# הצגת שם המשתמש באופן קבוע בראש המסך לאחר כניסה
+if S.user:
+    st.markdown(f"<div class='user-header'>שלום, {S.user}</div>", unsafe_allow_html=True)
+
+# ניהול שלבי האפליקציה
 if S.step == "login":
-    u_in = st.text_input("שם מלא:", key="u_name")
-    if st.button("כניסה למערכת", key="u_btn"):
-        if u_in:
-            S.user = u_in
+    u_name = st.text_input("הזן שם מלא לכניסה:", key="main_login_field")
+    if st.button("כניסה למערכת"):
+        if u_name:
+            S.user = u_name
             S.step = "menu"
             st.rerun()
 
 elif S.step == "menu":
-    st.markdown(f"<div class='user-welcome'>שלום, {S.user}</div>", unsafe_allow_html=True)
     c1, c2 = st.columns(2)
     if c1.button("📚 שיעורים בנושאי הלימוד"):
         S.step, S.lt, S.qa = "study", "", False
@@ -119,11 +125,11 @@ elif S.step == "study":
                 S.step, S.lt = "menu", ""
                 st.rerun()
         else:
-            # שאלון נושאי
             it = S.qq[S.qi]
             st.write(f"### שאלה {S.qi+1}/10")
             ans = st.radio(it['q'], it['options'], key=f"sq{S.qi}", index=None)
             
+            # משוב מעל הכפתורים
             if S.qi in S.cq:
                 is_ok = str(S.qans.get(S.qi)).strip() == str(it['correct']).strip()
                 st.markdown(f"<div class='explanation-box {'success' if is_ok else 'error'}'>{'✅ נכון' if is_ok else '❌ טעות'}<br><br>{it['reason']}</div>", unsafe_allow_html=True)
@@ -142,11 +148,7 @@ elif S.step == "study":
                         st.rerun()
                 else:
                     st.success("סיימת את השאלון!")
-                    col1, col2 = st.columns(2)
-                    if col1.button("📝 למבחן המלא"):
-                        S.step = "exam_lobby"
-                        st.rerun()
-                    if col2.button("🏠 חזרה לתפריט"):
+                    if st.button("🏠 חזרה לתפריט הראשי"):
                         S.step, S.lt, S.qa = "menu", "", False
                         st.rerun()
             
@@ -175,17 +177,21 @@ elif S.step == "full_exam":
         
         c1, c2 = st.columns(2)
         if ans and S.ei not in S.cq:
-            if c1.button("🔍 בדוק תשובה", key=f"chk_{S.ei}"): 
+            if c1.button("🔍 בדוק תשובה", key=f"btn_chk_{S.ei}"): 
                 S.eans[S.ei] = ans
                 S.cq.add(S.ei)
                 st.rerun()
         
         if S.ei in S.cq:
             if S.ei < 24:
-                if c2.button("➡️ השאלה הבאה", key=f"nxt_{S.ei}"):
+                if c2.button("➡️ השאלה הבאה", key=f"btn_nxt_{S.ei}"):
                     S.ei += 1
                     st.rerun()
             else:
                 if st.button("🏁 סיום מבחן"):
                     S.step, S.eq = "menu", []
                     st.rerun()
+        
+        if st.button("🏠 צא לתפריט"):
+            S.step, S.eq = "menu", []
+            st.rerun()
