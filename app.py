@@ -45,7 +45,7 @@ elif S.step == "menu":
     c1, c2 = st.columns(2)
     if c1.button("📚 שיעור + שאלון הבנה"):
         S.step, S.lt, S.qa, S.qq = "study", "", False, []; st.rerun()
-    if c2.button("📝 סימולציית מבחן (25 שאלות)"):
+    if c2.button("📝 סימולציית מבחן רשמית (25 שאלות)"):
         S.eq, S.ei, S.cq, S.start_time = [], 0, set(), time.time()
         S.step = "full_exam"; st.rerun()
 
@@ -63,9 +63,12 @@ elif S.step == "study":
     else:
         st.markdown(f"<div class='lesson-box'>{S.lt}</div>", unsafe_allow_html=True)
         if not S.qa:
-            if st.button("✍️ בנה שאלון הבנה"):
-                d = get_questions(sel, 5, "simple")
-                if d: S.qq, S.qa, S.qi, S.cq = d, True, 0, set(); st.rerun()
+            # שינוי שם הכפתור לפי הנושא
+            if st.button(f"✍️ שאלון: {sel}"):
+                with st.spinner("מייצר שאלות הבנה..."):
+                    d = get_questions(sel, 5, "simple")
+                    if d: S.qq, S.qa, S.qi, S.cq = d, True, 0, set(); st.rerun()
+                    else: st.error("לא הצלחתי לייצר שאלות. נסה שוב.")
         else:
             it = S.qq[S.qi]
             st.write(f"### שאלה {S.qi+1}/5")
@@ -84,12 +87,11 @@ elif S.step == "full_exam":
         mi, se = divmod(el, 60)
         st.markdown(f"<div class='timer-box'>⏱️ שאלה {S.ei+1}/25 | זמן: {mi:02d}:{se:02d}</div>", unsafe_allow_html=True)
     
-    # אם הגענו לסוף הבלוק הנוכחי או שאין שאלות בכלל - טען עוד 5
     if S.ei >= len(S.eq) and S.ei < 25:
         with st.spinner(f"טוען שאלות {S.ei+1}-{min(S.ei+5, 25)}..."):
             new_q = get_questions("כללי - מבחן מתווכים", 5, "complex")
             if new_q: S.eq.extend(new_q); st.rerun()
-            else: st.error("שגיאה בטעינה. נסה שוב."); st.button("נסה שוב", on_click=st.rerun)
+            else: st.error("שגיאה בטעינה. נסה שוב.")
 
     if S.ei < len(S.eq):
         it = S.eq[S.ei]
@@ -100,5 +102,4 @@ elif S.step == "full_exam":
             is_ok = str(S.eans.get(S.ei)).strip() == str(it['correct']).strip()
             st.markdown(f"<div class='explanation-box {'success' if is_ok else 'error'}'>{'✅ נכון!' if is_ok else '❌ טעות. הנכונה: '+it['correct']}<br><br>{it['reason']}</div>", unsafe_allow_html=True)
         
-        if st.button("➡️ השאלה הבאה") and S.ei < 24: S.ei += 1; st.rerun()
-        if st.button("🏁 סיום"): S.step = "menu"; st.rerun()
+        if st.button("➡️ השאלה הבאה") and S.ei < 24: S.ei += 1; st.rer
