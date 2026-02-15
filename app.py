@@ -1,21 +1,45 @@
-# גרסה: 204 | תאריך: 2024-05-23 | שעה: 18:45 (GMT+2)
+# גרסה: 205 | תאריך: 2024-05-23 | שעה: 19:10 (GMT+2)
 
 import streamlit as st
 import google.generativeai as genai
 import json, re, time
 
 st.set_page_config(page_title="מתווך בקליק", layout="centered")
+
+# תיקון Dark Mode אגרסיבי לאנדרואיד/כרום
 st.markdown("""<style>
 * { direction: rtl !important; text-align: right !important; }
+/* הבטחת צבעים בתיבת השיעור ללא קשר למצב המכשיר */
+.lesson-box { 
+    background-color: #ffffff !important; 
+    color: #000000 !important; 
+    padding: 20px; 
+    border-radius: 12px; 
+    border-right: 6px solid #1E88E5; 
+    line-height: 1.8; 
+    margin-bottom: 20px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+.explanation-box { 
+    padding: 15px; 
+    border-radius: 8px; 
+    margin-top: 10px; 
+    border-right: 5px solid; 
+}
+/* תיקון צבעים ספציפי למשוב */
+.success { background-color: #e8f5e9 !important; color: #2e7d32 !important; border-color: #4caf50 !important; }
+.error { background-color: #ffebee !important; color: #c62828 !important; border-color: #f44336 !important; }
+
 .user-welcome { font-size: 28px; font-weight: bold; color: #1E88E5; margin-bottom: 5px; }
 .user-sub { font-size: 16px; color: #666; margin-bottom: 20px; border-bottom: 2px solid #eee; padding-bottom: 10px; }
-.lobby-card { background: #f0f7ff; padding: 30px; border-radius: 15px; border: 1px solid #d1e3f8; margin: 20px 0; }
-.lesson-box { background:#fdfdfd; padding:20px; border-radius:12px; border-right:6px solid #1E88E5; line-height:1.8; margin-bottom:20px; }
-.explanation-box { padding:15px; border-radius:8px; margin-top:10px; border-right:5px solid; }
-.success { background:#e8f5e9; border-color:#4caf50; color:#2e7d32; }
-.error { background:#ffebee; border-color:#f44336; color:#c62828; }
-.timer-box { font-size:18px; font-weight:bold; color:#d32f2f; text-align:center; background:#fff1f1; padding:10px; border-radius:10px; border:1px solid #d32f2f; margin-bottom:15px; }
+.lobby-card { background: #f0f7ff !important; color: #000000 !important; padding: 30px; border-radius: 15px; border: 1px solid #d1e3f8; margin: 20px 0; }
+.timer-box { font-size: 18px; font-weight: bold; color: #d32f2f; text-align:center; background:#fff1f1; padding:10px; border-radius:10px; border:1px solid #d32f2f; margin-bottom:15px; }
 div.stButton > button { width: 100%; border-radius: 8px; font-weight: bold; height: 3em; }
+
+/* וידוא שגם כותרות בתוך תיבות יהיו שחורות */
+.lesson-box h1, .lesson-box h2, .lesson-box h3, .lesson-box p, .lesson-box li {
+    color: #000000 !important;
+}
 </style>""", unsafe_allow_html=True)
 
 S = st.session_state
@@ -76,11 +100,10 @@ elif S.step == "exam_lobby":
     st.markdown("""
     <div class='lobby-card'>
         <h2 style='text-align:center;'>📝 הכנה לסימולציה מלאה</h2>
-        <p>קח נשימה עמוקה. הטיימר יתחיל ברגע שתלחץ על הכפתור למטה וימשיך לרוץ גם אם תצא מהדף.</p>
+        <p>הטיימר ימשיך לרוץ גם אם תצא מהדף.</p>
         <ul>
-            <li><b>25 שאלות</b> במבנה המבחן הרשמי.</li>
-            <li><b>טיימר חי:</b> עקוב אחר קצב ההתקדמות שלך.</li>
-            <li><b>חוסן:</b> הזמן נשמר גם אם הדף מתרענן.</li>
+            <li><b>25 שאלות</b> במבנה הרשמי.</li>
+            <li><b>טיימר חי:</b> עקוב אחר ההתקדמות.</li>
         </ul>
     </div>
     """, unsafe_allow_html=True)
@@ -146,13 +169,10 @@ elif S.step == "study":
 elif S.step == "full_exam":
     if len(S.eq) < 25 and S.ei >= len(S.eq) - 1:
         background_load()
-    
-    # חישוב זמן חסין - מבוסס על זמן התחלה אבסולוטי
     if S.start_time:
         el = int(time.time() - S.start_time)
         mi, se = divmod(el, 60)
         st.markdown(f"<div class='timer-box'>⏱️ שאלה {S.ei+1}/25 | זמן: {mi:02d}:{se:02d}</div>", unsafe_allow_html=True)
-        
     if S.ei < len(S.eq):
         it = S.eq[S.ei]
         ans = st.radio(it['q'], it['options'], key=f"ex{S.ei}", index=None)
@@ -168,5 +188,4 @@ elif S.step == "full_exam":
             if c2.button("🏁 סיום"): S.step, S.eq = "menu", []; st.rerun()
         if c3.button("🏠 תפריט"): S.step, S.eq = "menu", []; st.rerun()
     else:
-        st.info("מכין את השאלות הבאות...")
-        time.sleep(2); st.rerun()
+        st.info("מכין את השאלות הבאות..."); time.sleep(2); st.rerun()
