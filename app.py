@@ -1,8 +1,8 @@
 # ==========================================
 # Project: מתווך בקליק
 # File: app.py
-# Version: 1129
-# Last Updated: 2026-02-16 | 19:15
+# Version: 1130
+# Last Updated: 2026-02-16 | 19:35
 # ==========================================
 
 import streamlit as st
@@ -19,20 +19,21 @@ def ask_ai(prompt):
         response = model.generate_content(prompt)
         return response.text
     except Exception as e:
-        if "429" in str(e): st.warning("⚠️ מכסת ה-AI הסתיימה. נסה שוב בעוד דקה.")
+        if "429" in str(e): st.warning("⚠️ עומס במערכת. נסה שוב בעוד דקה.")
         return None
 
 # --- לוגיקה ---
 def fetch_titles(topic):
-    p = f"צור 3 כותרות קצרות (2-3 מילים) לתתי-נושאים בתוך {topic}. החזר JSON בלבד: ['title1', 'title2', 'title3']"
+    # פרומפט קשוח לקבלת כותרות עם משמעות
+    p = f"צור 3 כותרות קצרות מאוד (2-3 מילים) לתתי-נושאים בתוך {topic}. אל תשתמש במילים 'חלק' או 'פרק'. השתמש במושגים משפטיים. החזר JSON בלבד: ['כותרת1', 'כותרת2', 'כותרת3']"
     res = ask_ai(p)
     try:
         match = re.search(r'\[.*\]', res, re.DOTALL)
         return json.loads(match.group())
-    except: return ["חלק א'", "חלק ב'", "חלק ג'"]
+    except: return ["הגדרות וסמכויות", "חובות המתווך", "פסיקה ויישום"]
 
 def fetch_content(main_topic, sub_title):
-    p = f"כתוב שיעור מפורט בפורמט Markdown על '{sub_title}' בתוך '{main_topic}'. כלול סעיפי חוק ודוגמאות."
+    p = f"כתוב שיעור מפורט בפורמט Markdown על '{sub_title}' בתוך '{main_topic}'. כלול סעיפי חוק ודוגמאות מעשיות."
     return ask_ai(p)
 
 def fetch_questions(topic, count=10):
@@ -80,19 +81,22 @@ elif st.session_state.step == 'menu':
 
 elif st.session_state.step == 'study':
     all_topics = [
+        "בחר נושא מהרשימה...",
         "חוק המתווכים במקרקעין", "תקנות המתווכים (פרטי הזמנה)", "תקנות המתווכים (פעולות שיווק)",
         "חוק המקרקעין", "חוק הגנת הדייר", "חוק המכר (דירות)", "חוק החוזים (חלק כללי)",
         "חוק החוזים (תרופות)", "חוק הגנת הצרכן", "חוק עבירות עונשין", "חוק שמאי מקרקעין",
         "חוק התכנון והבנייה", "חוק מיסוי מקרקעין", "חוק הירושה", "חוק הוצאה לפועל", "פקודת הנזיקין"
     ]
-    sel = st.selectbox("בחר נושא:", all_topics)
-    if st.button("טען שיעור"):
-        with st.spinner("מכין ראשי פרקים..."):
-            st.session_state.selected_topic = sel
-            st.session_state.lesson_titles = fetch_titles(sel)
-            st.session_state.current_sub_idx = None
-            st.session_state.lesson_contents = {}
-            st.session_state.step = 'lesson_run'; st.rerun()
+    sel = st.selectbox("נושא לימוד:", all_topics, index=0)
+    
+    if sel != "בחר נושא מהרשימה...":
+        if st.button("טען שיעור"):
+            with st.spinner("מייצר ראשי פרקים..."):
+                st.session_state.selected_topic = sel
+                st.session_state.lesson_titles = fetch_titles(sel)
+                st.session_state.current_sub_idx = None
+                st.session_state.lesson_contents = {}
+                st.session_state.step = 'lesson_run'; st.rerun()
 
 elif st.session_state.step == 'lesson_run':
     st.header(f"📖 {st.session_state.selected_topic}")
