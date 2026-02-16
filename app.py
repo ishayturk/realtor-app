@@ -1,4 +1,4 @@
-# גרסה: 1051 | תיקון שגיאת סינטקס בסיום הקוד | מבוססת על 1030
+# גרסה 1053 | 16/02/2026 | 09:10
 
 import streamlit as st
 import google.generativeai as genai
@@ -21,19 +21,16 @@ S = st.session_state
 if 'step' not in S:
     S.update({'user':'','step':'login','lt':'','qi':0,'qans':{},'qq':[],'current_topic':'','mode':'exam'})
 
-# פונקציה לשליפת שאלות המבוססת על הידע המעודכן ל-2026
+# פונקציה לשליפת שאלות
 def fetch_exam_content(mode='study', topic='כללי'):
     try:
         genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
         model = genai.GenerativeModel('gemini-2.0-flash')
-        
         base_prompt = "התבסס על חומרי הלימוד הרשמיים של רשם המתווכים 2026 (חלק א, ב ותקנות האתיקה)."
-        
         if mode == 'exam':
             p = f"{base_prompt} שלוף 5 שאלות רב-ברירה. JSON נקי בלבד: [{'q':'','options':['א','ב','ג','ד'],'correct':'','reason':''}]"
         else:
             p = f"{base_prompt} צור 10 שאלות תרגול בנושא {topic}. JSON נקי בלבד: [{'q':'','options':['א','ב','ג','ד'],'correct':'','reason':''}]"
-        
         r = model.generate_content(p)
         m = re.search(r'\[.*\]', r.text, re.DOTALL)
         return json.loads(m.group()) if m else []
@@ -41,8 +38,6 @@ def fetch_exam_content(mode='study', topic='כללי'):
         return []
 
 st.markdown("<div class='main-header'>🏠 מתווך בקליק</div>", unsafe_allow_html=True)
-
-# --- ניהול שלבי האפליקציה ---
 
 if S.step == "login":
     u = st.text_input("שם מלא:")
@@ -61,7 +56,6 @@ elif S.step == "menu":
     <b>מומלץ לבחור נושא ללימוד לפני שמתחילים בתרגול. בהצלחה!</b>
     </div>
     """, unsafe_allow_html=True)
-    
     c1, c2 = st.columns(2)
     if c1.button("📚 שיעורים ולימוד", use_container_width=True): 
         S.step = "study"
@@ -78,7 +72,6 @@ elif S.step == "study":
         "חוק הגנת הדייר", "חוק המקרקעין (חיזוק מפני רעידות אדמה)", "פקודת הנזיקין", 
         "חוק הירושה", "חוק מיסוי מקרקעין", "חוק מקרקעי ישראל"
     ]
-    
     if not S.lt:
         sel = st.selectbox("בחר נושא ללימוד:", all_t)
         c1, c2 = st.columns(2)
@@ -91,7 +84,7 @@ elif S.step == "study":
             for chunk in res:
                 if chunk.text:
                     full_text += chunk.text
-                    ph.markdown(f<div class='lesson-box'>{full_text}</div>", unsafe_allow_html=True)
+                    ph.markdown(f"<div class='lesson-box'>{full_text}</div>", unsafe_allow_html=True)
             S.lt, S.current_topic = full_text, sel
             st.rerun()
         if c2.button("🏠 חזרה לתפריט", use_container_width=True): 
@@ -112,4 +105,23 @@ elif S.step == "study":
             st.rerun()
 
 elif S.step == "quiz_mode":
-    if S.
+    if S.qq:
+        it = S.qq[S.qi]
+        st.markdown(f"<div class='question-card'><b>שאלה {S.qi+1}:</b><br>{it['q']}</div>", unsafe_allow_html=True)
+        ans = st.radio("בחר תשובה:", it['options'], key=f"q_{S.qi}")
+        c1, c2 = st.columns(2)
+        if c1.button("🔍 בדוק", use_container_width=True):
+            if ans == it['correct']: st.success(f"נכון! {it.get('reason','')}")
+            else: st.error(f"טעות. התשובה הנכונה היא: {it['correct']}")
+        if c2.button("הבא ➡️", use_container_width=True):
+            if S.qi < len(S.qq)-1: 
+                S.qi += 1
+                st.rerun()
+            else: 
+                S.step = "menu"
+                st.rerun()
+    else:
+        st.error("לא נמצאו שאלות.")
+        if st.button("חזרה לתפריט"):
+            S.step = "menu"
+            st.rerun()
