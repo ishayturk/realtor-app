@@ -1,8 +1,8 @@
 # ==========================================
 # Project: מתווך בקליק
 # File: app.py
-# Version: 1140
-# Last Updated: 2026-02-16 | 22:05
+# Version: 1141
+# Last Updated: 2026-02-16 | 22:15
 # ==========================================
 
 import streamlit as st
@@ -25,18 +25,18 @@ def ask_ai(prompt):
 
 # --- לוגיקה ---
 def fetch_titles(topic):
-    p = f"צור 3 כותרות ספציפיות ומקצועיות לתתי-נושאים בתוך {topic}. אל תשתמש במילים כלליות כמו 'יסודות'. החזר JSON בלבד: ['נושא1', 'נושא2', 'נושא3']"
+    p = f"צור 3 כותרות ספציפיות ומקצועיות לתתי-נושאים בתוך {topic}. אל תשתמש במילים כלליות. החזר JSON בלבד: ['נושא1', 'נושא2', 'נושא3']"
     res = ask_ai(p)
     try:
         match = re.search(r'\[.*\]', res, re.DOTALL)
         return json.loads(match.group())
     except: 
-        return ["הגדרות וסמכויות", "חובות מקצועיות", "הוראות חוק רלוונטיות"]
+        return ["הוראות חוק מרכזיות", "חובות ואיסורים", "פסיקה רלוונטית"]
 
 def fetch_content(main_topic, sub_title):
-    p = f"כתוב שיעור מפורט בפורמט Markdown על '{sub_title}' בתוך '{main_topic}'. כלול סעיפי חוק מדויקים ודוגמאות."
+    p = f"כתוב שיעור מפורט בפורמט Markdown על '{sub_title}' בתוך '{main_topic}'. כלול סעיפי חוק ודוגמאות."
     content = ask_ai(p)
-    return content if content else "⚠️ שגיאה בטעינת התוכן. נסה ללחוץ שוב."
+    return content if content else "⚠️ שגיאה בטעינת התוכן. נסה ללחוץ שוב על כפתור הנושא."
 
 def fetch_single_question(topic):
     p = f"צור שאלה אמריקאית אחת על {topic}. מבנה JSON: {{'q': '...', 'options': ['...','...','...','...'], 'correct': '...'}}"
@@ -70,11 +70,12 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- סדר אלמנטים בראש הדף ---
-st.title("🏠 מתווך בקליק") # כותרת בראש
+# --- כותרות בראש הדף ---
+st.title("🏠 מתווך בקליק")
 if st.session_state.user:
-    st.markdown(f'<div class="user-strip">👤 שלום, {st.session_state.user}</div>', unsafe_allow_html=True) # שם משתמש מתחת
+    st.markdown(f'<div class="user-strip">👤 שלום, {st.session_state.user}</div>', unsafe_allow_html=True)
 
+# --- ניתוב דפים ---
 if st.session_state.step == 'login':
     u_name = st.text_input("הזן שם מלא:")
     if st.button("כניסה"):
@@ -100,29 +101,4 @@ elif st.session_state.step == 'study':
         "חוק התכנון והבנייה", "חוק מיסוי מקרקעין", "חוק הירושה", 
         "חוק הוצאה לפועל", "פקודת הנזיקין"
     ]
-    sel = st.selectbox("נושא לימוד:", all_topics, index=0)
-    if sel != "בחר נושא מהרשימה..." and st.button("טען שיעור"):
-        st.session_state.update({
-            "selected_topic": sel, 
-            "lesson_titles": fetch_titles(sel), 
-            "current_sub_idx": None, 
-            "lesson_contents": {}, 
-            "quiz_active": False, 
-            "step": "lesson_run"
-        })
-        st.rerun()
-
-elif st.session_state.step == 'lesson_run':
-    st.header(f"📖 {st.session_state.selected_topic}")
-    cols = st.columns(3)
-    for i, title in enumerate(st.session_state.lesson_titles):
-        if cols[i].button(title, disabled=(st.session_state.current_sub_idx == i)):
-            st.session_state.current_sub_idx = i
-            if title not in st.session_state.lesson_contents:
-                with st.spinner("טוען תוכן..."):
-                    st.session_state.lesson_contents[title] = fetch_content(st.session_state.selected_topic, title)
-            st.rerun()
-
-    if st.session_state.current_sub_idx is not None:
-        curr_t = st.session_state.lesson_titles[st.session_state.current_sub_idx]
-        st.markdown(st.session_state.lesson
+    sel = st.selectbox("נושא לימוד:", all_topics
