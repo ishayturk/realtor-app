@@ -1,6 +1,6 @@
 # ==========================================
-# Project: מתווך בקליק | Version: 1172
-# Last Updated: 2026-02-16 | 19:15
+# Project: מתווך בקליק | Version: 1173
+# Last Updated: 2026-02-16 | 19:20
 # ==========================================
 
 import streamlit as st
@@ -49,19 +49,4 @@ def fetch_q(topic):
     res = ask_ai(p)
     try:
         m = re.search(r'\{.*\}', res, re.DOTALL)
-        return json.loads(m.group())
-    except: return None
-
-if "step" not in st.session_state:
-    st.session_state.update({
-        "step": "login", "user": None, "selected_topic": None,
-        "lesson_contents": {}, "current_sub_idx": None,
-        "quiz_active": False, "q_counter": 0, "score": 0,
-        "current_q_data": None, "next_q_data": None, "show_feedback": False
-    })
-
-st.title("🏠 מתווך בקליק")
-
-if st.session_state.step == 'login':
-    u = st.text_input("הזן שם מלא:")
-    if st
+        return json.loads
