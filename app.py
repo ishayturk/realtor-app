@@ -1,4 +1,4 @@
-# גרסה: 1082 | תאריך: 16/02/2026 | שעה: 13:10 | סטטוס: רשימת נושאים מלאה (10)
+# גרסה: 1083 | תאריך: 16/02/2026 | שעה: 13:15 | סטטוס: תיקון Syntax בשורה 106
 
 import streamlit as st
 import google.generativeai as genai
@@ -52,7 +52,6 @@ elif S.step == "menu":
         S.current_topic = "מבחן כללי"; S.step = "quiz_prep"; st.rerun()
 
 elif S.step == "study":
-    # רשימת נושאים מלאה כפי שסוכם
     topics = [
         "חוק המתווכים במקרקעין", 
         "חוק המקרקעין", 
@@ -103,7 +102,7 @@ elif S.step == "quiz":
         with col1:
             if st.button("🔍 בדוק"):
                 if ans:
-                    if ans == q['correct']: st.success(f"נכון! {q['reason']}"):
+                    if ans == q['correct']: st.success(f"נכון! {q['reason']}")
                     else: st.error(f"טעות. הנכון: {q['correct']}")
                 else: st.warning("אנא בחר תשובה.")
         with col2:
@@ -116,4 +115,4 @@ elif S.step == "quiz":
             else:
                 st.success("סיימת את השאלון!"); time.sleep(2); S.step = "menu"; S.lt = ""; st.rerun()
 
-st.markdown(f"<div class='version-footer'>גרסה: 1082 | 16/02/2026 13:10</div>", unsafe_allow_html=True)
+st.markdown(f"<div class='version-footer'>גרסה: 1083 | 16/02/2026 13:15</div>", unsafe_allow_html=True)
