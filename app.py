@@ -1,5 +1,5 @@
 # ==========================================
-# Project: מתווך בקליק | Version: 1185
+# Project: מתווך בקליק | Version: 1187
 # ==========================================
 
 import streamlit as st
@@ -16,8 +16,6 @@ st.markdown("""
                border-radius: 8px; font-weight: bold; display: inline-block; color: #333; }
 </style>
 """, unsafe_allow_html=True)
-
-st.markdown('<div id="top"></div>', unsafe_allow_html=True)
 
 SYLLABUS = {
     "חוק המתווכים במקרקעין": [
@@ -56,16 +54,23 @@ def ask_ai(p):
     except: return None
 
 def fetch_content(topic, sub):
-    p = f"כתוב שיעור על '{sub}' בנושא '{topic}'."
+    p = f"כתוב שיעור על '{sub}' בנושא '{topic}' למבחן המתווכים."
     res = ask_ai(p)
-    return res if res else "⚠️ שגיאה."
+    return res if res else "⚠️ שגיאה בטעינה."
 
 def fetch_q(topic):
-    p = f"צור שאלה אמריקאית על {topic}. JSON format."
+    p = f"צור שאלה אמריקאית על {topic}. JSON format: {{'q': '...', 'options': ['...', '...'], 'correct': '...', 'explain': '...'}}"
     res = ask_ai(p)
     try:
-        m = re.search(r'\{.*\}', res, re.DOTALL)
-        return json.loads(m.group()) if m else None
+        # חילוץ JSON נקי
+        match = re.search(r'\{.*\}', res, re.DOTALL)
+        if match:
+            data = json.loads(match.group())
+            # וידוי שכל המפתחות קיימים למניעת KeyError
+            keys = ['q', 'options', 'correct', 'explain']
+            if all(k in data for k in keys):
+                return data
+        return None
     except: return None
 
 if "step" not in st.session_state:
@@ -78,15 +83,14 @@ if "step" not in st.session_state:
 
 st.title("🏠 מתווך בקליק")
 
-step = st.session_state.step
-
-if step == 'login':
+# --- לוגיקת שלבים ---
+if st.session_state.step == 'login':
     u = st.text_input("הזן שם מלא:")
     if st.button("כניסה לאפליקציה") and u:
         st.session_state.update({"user": u, "step": "menu"})
         st.rerun()
 
-elif step == 'menu':
+elif st.session_state.step == 'menu':
     st.write(f"👤 שלום, {st.session_state.user}")
     c1, c2 = st.columns(2)
     if c1.button("📚 לימוד לפי נושאים"):
@@ -95,7 +99,7 @@ elif step == 'menu':
     if c2.button("⏱️ גש/י למבחן"):
         st.info("סימולציית מבחן מלאה תעלה בקרוב.")
 
-elif step == 'study':
+elif st.session_state.step == 'study':
     opts = ["בחר נושא..."] + list(SYLLABUS.keys())
     sel = st.selectbox("בחר נושא לימוד:", opts)
     if sel != "בחר נושא..." and st.button("טען נושא"):
@@ -106,63 +110,73 @@ elif step == 'study':
         })
         st.rerun()
 
-elif step == 'lesson_run':
+elif st.session_state.step == 'lesson_run':
     cur_t = st.session_state.selected_topic
     st.header(f"📖 {cur_t}")
     subs = SYLLABUS.get(cur_t, [])
     
+    # תצוגת תתי-נושאים
     if subs:
         t_cols = st.columns(len(subs))
         for i, t in enumerate(subs):
             if t_cols[i].button(t, key=f"s_{i}"):
-                st.session_state.current_sub_idx = i
-                st.session_state.quiz_active = False
-                with st.spinner("טוען..."):
-                    # פתרון חסין חיתוך: משתנה עזר קצר
-                    res_data = fetch_content(cur_t, t)
-                    st.session_state.lesson_contents[t] = res_data
+                st.session_state.update({"current_sub_idx": i, "quiz_active": False})
+                with st.spinner("טוען שיעור..."):
+                    st.session_state.lesson_contents[t] = fetch_content(cur_t, t)
                 st.rerun()
 
+    # הצגת תוכן השיעור
     if st.session_state.current_sub_idx is not None:
         sub_n = subs[st.session_state.current_sub_idx]
         st.markdown(st.session_state.lesson_contents.get(sub_n, ""))
 
+    # --- שאלון ---
     if st.session_state.quiz_active:
         st.divider()
+        st.subheader(f"📝 שאלון: {cur_t}") # כותרת השאלון כפי שביקשת
+        
         if not st.session_state.current_q_data:
-            st.session_state.current_q_data = fetch_q(cur_t)
+            with st.spinner("מייצר שאלה..."):
+                st.session_state.current_q_data = fetch_q(cur_t)
             st.rerun()
         
         q = st.session_state.current_q_data
-        st.write(f"**שאלה {st.session_state.q_counter}**")
-        q_val = q['q']
-        o_val = q['options']
-        ans = st.radio(q_val, o_val, index=None, key="qr")
-        
-        if st.session_state.show_feedback:
-            if ans == q['correct']: st.success("✅ נכון!")
-            else: st.error(f"❌ טעות. הנכונה: {q['correct']}")
+        if q:
+            st.write(f"**שאלה {st.session_state.q_counter} מתוך 10**")
+            ans = st.radio(q['q'], q['options'], index=None, key=f"q_{st.session_state.q_counter}")
+            
+            if st.session_state.show_feedback:
+                if ans == q['correct']: st.success("✅ נכון מאוד!")
+                else: st.error(f"❌ טעות. התשובה הנכונה: {q['correct']}")
+                st.info(f"**הסבר:** {q['explain']}")
+        else:
+            st.warning("הייתה בעיה ביצירת השאלה. נסה ללחוץ שוב על הבאה.")
 
+    # --- תפריט ניווט תחתון ---
     st.write("---")
-    b_cols = st.columns([2, 1.5, 1.5, 4])
+    b_cols = st.columns([2.5, 1.5, 1.5, 3.5])
     
-    if not st.session_state.quiz_active: l = "📝 התחל שאלון"
-    elif not st.session_state.show_feedback: l = "✅ בדיקה"
-    elif st.session_state.q_counter < 10: l = "➡️ הבאה"
-    else: l = "🔄 מחדש"
+    # ניהול מצבי כפתור
+    if not st.session_state.quiz_active:
+        l, action = f"📝 שאלון: {cur_t}", "start"
+    elif not st.session_state.show_feedback:
+        l, action = "✅ בדיקת תשובה", "check"
+    elif st.session_state.q_counter < 10:
+        l, action = "➡️ שאלה הבאה", "next"
+    else:
+        l, action = "🔄 תרגול מחדש", "start"
 
     with b_cols[0]:
         if st.button(l):
-            if "שאלון" in l or "מחדש" in l:
-                st.session_state.update({"quiz_active": True, "q_counter": 1, 
-                                       "show_feedback": False, "current_q_data": None})
-            elif "בדיקה" in l and ans:
+            if action == "start":
+                st.session_state.update({"quiz_active": True, "q_counter": 1, "show_feedback": False, "current_q_data": None})
+            elif action == "check" and ans:
                 st.session_state.show_feedback = True
+                # הכנת השאלה הבאה מראש
                 st.session_state.next_q_data = fetch_q(cur_t)
-            elif "הבאה" in l:
+            elif action == "next":
                 st.session_state.current_q_data = st.session_state.next_q_data
-                st.session_state.update({"q_counter": st.session_state.q_counter + 1, 
-                                       "show_feedback": False})
+                st.session_state.update({"q_counter": st.session_state.q_counter + 1, "show_feedback": False, "next_q_data": None})
             st.rerun()
 
     with b_cols[1]:
