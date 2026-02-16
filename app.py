@@ -1,6 +1,6 @@
 # ==========================================
-# Project: מתווך בקליק | Version: 1159
-# Last Updated: 2026-02-17 | 01:25
+# Project: מתווך בקליק | Version: 1160
+# Last Updated: 2026-02-17 | 01:40
 # ==========================================
 
 import streamlit as st
@@ -10,7 +10,6 @@ import json, re
 st.set_page_config(page_title="מתווך בקליק", layout="wide")
 st.markdown('<div id="top"></div>', unsafe_allow_html=True)
 
-# --- סילבוס קבוע ---
 SYLLABUS = {
     "חוק המתווכים במקרקעין": ["רישוי והגבלות עיסוק", "חובת הגינות וזהירות", "הזמנת תיווך ובלעדיות"],
     "תקנות המתווכים (פרטי הזמנה)": ["דרישות חובה בטופס", "זיהוי נכס וצדדים", "פירוט דמי התיווך"],
@@ -57,55 +56,5 @@ if "step" not in st.session_state:
         "current_q_data": None, "show_feedback": False
     })
 
-# CSS מעודכן לכפתורים בגודל טבעי
 st.markdown("""
 <style>
-    * { direction: rtl; text-align: right; }
-    .user-strip { margin-top: 40px; margin-bottom: 30px; font-weight: bold; color: #444; }
-    .stButton>button { width: auto; min-width: 120px; border-radius: 8px; font-weight: bold; padding: 5px 20px; }
-    .nav-btn { 
-        background-color: transparent !important; 
-        border: 1px solid #ccc !important; 
-        font-weight: normal !important; 
-        color: #555 !important;
-        padding: 6px 15px;
-        display: inline-block;
-        text-decoration: none;
-        border-radius: 8px;
-    }
-</style>
-""", unsafe_allow_html=True)
-
-st.title("🏠 מתווך בקליק")
-
-if st.session_state.step == 'login':
-    u = st.text_input("הזן שם מלא:")
-    if st.button("כניסה"):
-        if u: st.session_state.update({"user": u, "step": "menu"}); st.rerun()
-
-elif st.session_state.step == 'menu':
-    st.markdown(f'<div class="user-strip">👤 שלום, {st.session_state.user}</div>', unsafe_allow_html=True)
-    c1, c2 = st.columns(2)
-    if c1.button("📚 לימוד לפי נושאים"):
-        st.session_state.step = 'study'; st.rerun()
-    if c2.button("⏱️ סימולציית בחינה"): st.info("בפיתוח...")
-
-elif st.session_state.step == 'study':
-    ts = ["בחר נושא..."] + list(SYLLABUS.keys())
-    sel = st.selectbox("נושא לימוד:", ts)
-    if sel != "בחר נושא..." and st.button("טען שיעור"):
-        st.session_state.update({
-            "selected_topic": sel, "lesson_contents": {}, 
-            "current_sub_idx": None, "quiz_active": False, "step": "lesson_run"
-        })
-        st.rerun()
-
-elif st.session_state.step == 'lesson_run':
-    st.header(f"📖 {st.session_state.selected_topic}")
-    subs = SYLLABUS.get(st.session_state.selected_topic, [])
-    
-    # כפתורי תתי-נושאים בגודל דינמי
-    if subs:
-        cols = st.columns(len(subs))
-        for i, t in enumerate(subs):
-            if cols[i].button(t, key=f"b{
