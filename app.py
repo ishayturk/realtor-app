@@ -1,5 +1,5 @@
 # ==========================================
-# Project: מתווך בקליק | Version: 1204
+# Project: מתווך בקליק | Version: 1205
 # ==========================================
 import streamlit as st
 import google.generativeai as genai
@@ -18,7 +18,6 @@ st.markdown("""
         font-weight: bold; height: 2.8em; line-height: 2.8em;
         background-color: transparent; color: inherit;
     }
-    .block-container { padding-bottom: 1rem; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -35,15 +34,16 @@ SYLLABUS = {
     "חוק העונשין": ["עבירות מרמה וזיוף"]
 }
 
-def fetch_q_direct(topic):
+def fetch_q(topic):
     try:
         genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
         m = genai.GenerativeModel('gemini-2.0-flash')
         p = f"צור שאלה אמריקאית קשה על {topic} למבחן המתווכים. החזר אך ורק JSON: {{'q':'','options':['','','',''],'correct':'','explain':''}}"
         res = m.generate_content(p).text
         match = re.search(r'\{.*\}', res, re.DOTALL)
-        return json.loads(match.group()) if match else None
-    except: return None
+        if match: return json.loads(match.group())
+    except: pass
+    return None
 
 def stream_ai_lesson(p):
     try:
@@ -74,10 +74,9 @@ if st.session_state.step == "login":
 elif st.session_state.step == "menu":
     st.subheader(f"👤 שלום, {st.session_state.user}")
     c1, c2 = st.columns(2)
-    with c1:
-        if st.button("📚 לימוד לפי נושאים"): st.session_state.step = "study"; st.rerun()
-    with c2:
-        if st.button("⏱️ גש/י למבחן"): st.info("בקרוב")
+    if c1.button("📚 לימוד לפי נושאים"):
+        st.session_state.step = "study"
+        st.rerun()
 
 elif st.session_state.step == "study":
     sel = st.selectbox("בחר נושא:", ["בחר..."] + list(SYLLABUS.keys()))
@@ -105,9 +104,9 @@ elif st.session_state.step == "lesson_run":
 
     if st.session_state.quiz_active and st.session_state.q_data:
         st.markdown("---")
-        st.subheader(f"📝 שאלה {st.session_state.q_count}")
         q = st.session_state.q_data
-        ans = st.radio(q['q'], q['options'], index=None, key=f"qr_{st.session_state.q_count}")
+        st.subheader(f"📝 שאלה {st.session_state.q_count}")
+        ans = st.radio(q['q'], q['options'], index=None, key=f"radio_{st.session_state.q_count}")
         if st.session_state.show_ans:
             if ans == q['correct']: st.success("נכון!")
             else: st.error(f"טעות. התשובה: {q['correct']}")
@@ -119,20 +118,21 @@ elif st.session_state.step == "lesson_run":
         if st.session_state.lesson_txt not in ["", "LOADING"]:
             if not st.session_state.quiz_active:
                 if st.button("📝 שאלון לבחינה עצמית"):
-                    with st.spinner("מעלה שאלה... אנא המתן עד 5 שניות"):
-                        st.session_state.q_data = fetch_q_direct(topic)
+                    st.session_state.q_data = fetch_q(topic)
                     st.session_state.update({"quiz_active": True, "q_count": 1, "show_ans": False})
                     st.rerun()
             elif not st.session_state.show_ans:
                 if st.button("✅ בדיקת תשובה"):
-                    st.session_state.show_ans = True; st.rerun()
+                    st.session_state.show_ans = True
+                    st.rerun()
             else:
                 if st.button("➡️ שאלה הבאה"):
-                    with st.spinner("מעלה שאלה... אנא המתן עד 5 שניות"):
-                        st.session_state.q_data = fetch_q_direct(topic)
+                    st.session_state.q_data = fetch_q(topic)
                     st.session_state.update({"q_count": st.session_state.q_count + 1, "show_ans": False})
                     st.rerun()
     with f_cols[1]:
-        if st.button("🏠 לתפריט הראשי"): st.session_state.step = "menu"; st.rerun()
+        if st.button("🏠 לתפריט הראשי"):
+            st.session_state.step = "menu"
+            st.rerun()
     with f_cols[2]:
         st.markdown('<a href="#top" class="top-link">🔝 לראש הדף</a>', unsafe_allow_html=True)
