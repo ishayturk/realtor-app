@@ -1,5 +1,5 @@
 # ==========================================
-# Project: מתווך בקליק | Version: 1210
+# Project: מתווך בקליק | Version: 1211
 # ==========================================
 import streamlit as st
 import google.generativeai as genai
@@ -117,7 +117,10 @@ elif st.session_state.step == "lesson_run":
         st.markdown("---")
         q = st.session_state.q_data
         st.subheader(f"📝 שאלה {st.session_state.q_count} מתוך 10")
-        ans = st.radio(q['q'], q['options'], index=None, key=f"radio_q_{st.session_state.q_count}")
+        
+        # שימוש במפתח ייחודי שמשתנה בכל שאלה כדי למנוע תקיעה
+        ans = st.radio(q['q'], q['options'], index=None, key=f"quiz_radio_{st.session_state.q_count}")
+        
         if st.session_state.show_ans:
             if ans == q['correct']: st.success("נכון!")
             else: st.error(f"טעות. התשובה הנכונה: {q['correct']}")
@@ -142,7 +145,10 @@ elif st.session_state.step == "lesson_run":
                     with st.spinner("מעלה שאלה..."):
                         data = fetch_q(topic)
                         if data:
-                            st.session_state.update({"q_data": data, "q_count": st.session_state.q_count + 1, "show_ans": False})
+                            # עדכון ה-Session State לפני ה-rerun כדי לוודא יציבות
+                            st.session_state.q_data = data
+                            st.session_state.q_count += 1
+                            st.session_state.show_ans = False
                             st.rerun()
     with f_cols[1]:
         if st.button("🏠 לתפריט הראשי"):
@@ -150,4 +156,4 @@ elif st.session_state.step == "lesson_run":
     with f_cols[2]:
         st.markdown('<a href="#top" class="top-link">🔝 לראש הדף</a>', unsafe_allow_html=True)
 
-    st.markdown('<div class="v-footer">Version: 1210</div>', unsafe_allow_html=True)
+    st.markdown('<div class="v-footer">Version: 1211</div>', unsafe_allow_html=True)
