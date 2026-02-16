@@ -1,6 +1,6 @@
 # ==========================================
-# Project: מתווך בקליק | Version: 1166
-# Last Updated: 2026-02-16 | 18:45
+# Project: מתווך בקליק | Version: 1167
+# Last Updated: 2026-02-16 | 18:50
 # ==========================================
 
 import streamlit as st
@@ -31,7 +31,7 @@ def ask_ai(prompt):
 
 def fetch_content(topic, sub):
     p = f"כתוב שיעור מקצועי על '{sub}' בתוך '{topic}'. בלי הקדמות ובלי המילים 'מבחן מתווכים'."
-    return ask_ai(p) or "⚠️ שגיאה בטעינה."
+    return ask_ai(p) or "⚠️ שגיאה בטעינת התוכן. נסה שוב."
 
 def fetch_q(topic):
     p = f"צור שאלה אמריקאית על {topic}. JSON: {{'q':'..','options':['..'],'correct':'..','explain':'..'}}"
@@ -49,13 +49,13 @@ if "step" not in st.session_state:
         "current_q_data": None, "next_q_data": None, "show_feedback": False
     })
 
-# CSS לשיפור המרווחים והצמדת תפריט לימין
+# CSS ליישור לימין, שורה אחת ורווחים
 st.markdown("""
 <style>
     * { direction: rtl; text-align: right; }
-    .stButton>button { width: auto; min-width: 120px; border-radius: 8px; font-weight: bold; background-color: transparent !important; border: 1px solid #888 !important; color: #333 !important; }
-    .nav-btn { background: transparent; border: 1px solid #888; color: #333; padding: 6px 15px; text-decoration: none; border-radius: 8px; display: inline-block; font-size: 14px; font-weight: bold; margin-left: 10px; }
-    div[data-testid="column"] { width: fit-content !important; flex: unset !important; min-width: unset !important; }
+    .stButton>button { width: auto; min-width: 130px; border-radius: 8px; font-weight: bold; background-color: transparent !important; border: 1px solid #888 !important; color: #333 !important; white-space: nowrap !important; }
+    .nav-btn { background: transparent; border: 1px solid #888; color: #333; padding: 6px 15px; text-decoration: none; border-radius: 8px; display: inline-block; font-size: 14px; font-weight: bold; }
+    .bottom-bar { display: flex; flex-direction: row; justify-content: flex-start; gap: 20px; align-items: center; margin-top: 10px; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -97,9 +97,12 @@ elif st.session_state.step == 'lesson_run':
                     st.session_state.lesson_contents[t] = fetch_content(st.session_state.selected_topic, t)
                 st.rerun()
 
-    # הגנה מפני IndexError
-    if st.session_state.current_sub_idx is not None and st.session_state.current_sub_idx < len(subs):
-        st.markdown(st.session_state.lesson_contents.get(subs[st.session_state.current_sub_idx], "⚠️"))
+    # הגנה יצוקה מפני IndexError
+    if st.session_state.current_sub_idx is not None:
+        idx = st.session_state.current_sub_idx
+        if idx < len(subs):
+            content = st.session_state.lesson_contents.get(subs[idx], "")
+            if content: st.markdown(content)
 
     if st.session_state.quiz_active:
         st.divider()
@@ -117,38 +120,21 @@ elif st.session_state.step == 'lesson_run':
             if ans == q['correct']: st.success("✅ נכון!")
             else: st.error(f"❌ טעות. הנכונה: {q['correct']}")
             st.info(f"הסבר: {q['explain']}")
-            if st.session_state.q_counter >= 10:
-                st.success(f"🏁 ציון סופי: {st.session_state.score * 10}")
 
-    # תפריט תחתון צמוד ימין וקומפקטי
-    st.write("") 
-    b_col1, b_col2, b_col3 = st.columns([1, 1, 8]) # יחס שדוחף הכל לימין
+    # תפריט תחתון - בתוך Container אחד כדי להצמיד לימין ולחסוך רווח
+    st.markdown('<div class="bottom-bar">', unsafe_allow_html=True)
+    b_col1, b_col2, b_col3, _ = st.columns([1.5, 1, 1, 6])
 
     # לוגיקת כפתור פעולה דינמי
     btn_label = f"📝 שאלון: {st.session_state.selected_topic}"
     if st.session_state.quiz_active:
-        if not st.session_state.show_feedback: btn_label = "✅ בדיקת תשובה"
-        elif st.session_state.q_counter < 10: btn_label = "➡️ שאלה הבאה"
-        else: btn_label = "🔄 שאלון מחדש"
+        if not st.session_state.show_feedback: btn_label = "✅ בדיקה"
+        elif st.session_state.q_counter < 10: btn_label = "➡️ הבאה"
+        else: btn_label = "🔄 מחדש"
 
     with b_col1:
         if st.button(btn_label):
-            if not st.session_state.quiz_active or btn_label.startswith("🔄"):
+            if not st.session_state.quiz_active or btn_label == "🔄 מחדש":
                 st.session_state.update({"quiz_active": True, "q_counter": 1, "score": 0, "show_feedback": False, "current_q_data": None, "next_q_data": None})
-            elif btn_label == "✅ בדיקת תשובה" and ans:
-                st.session_state.show_feedback = True
-                if ans == q['correct']: st.session_state.score += 1
-                if st.session_state.q_counter < 10:
-                    st.session_state.next_q_data = fetch_q(st.session_state.selected_topic)
-            elif btn_label == "➡️ שאלה הבאה":
-                st.session_state.current_q_data = st.session_state.next_q_data
-                st.session_state.update({"next_q_data": None, "q_counter": st.session_state.q_counter + 1, "show_feedback": False})
-            st.rerun()
-
-    with b_col2:
-        if st.button("🏠 תפריט"):
-            st.session_state.update({"step": "menu", "selected_topic": None, "current_sub_idx": None})
-            st.rerun()
-    
-    with b_col3:
-        st.markdown('<a href="#top" class="nav-btn">🔝 למעלה</a>', unsafe_allow_html=True)
+            elif btn_label == "✅ בדיקה" and ans:
+                st
