@@ -1,6 +1,6 @@
 # ==========================================
 # Project: מתווך בקליק | Version: 1163
-# Last Updated: 2026-02-16 | 18:05
+# Last Updated: 2026-02-16 | 18:15
 # ==========================================
 
 import streamlit as st
@@ -10,13 +10,23 @@ import json, re
 st.set_page_config(page_title="מתווך בקליק", layout="wide")
 st.markdown('<div id="top"></div>', unsafe_allow_html=True)
 
-# סילבוס מובנה - רשימה חלקית למניעת קטיעת קוד
+# סילבוס מלא ומובנה
 SYLLABUS = {
     "חוק המתווכים במקרקעין": ["רישוי והגבלות עיסוק", "חובת הגינות וזהירות", "הזמנת תיווך ובלעדיות"],
+    "תקנות המתווכים (פרטי הזמנה)": ["דרישות חובה בטופס", "זיהוי נכס וצדדים", "פירוט דמי התיווך"],
+    "תקנות המתווכים (פעולות שיווק)": ["פעולות שיווק סטנדרטיות", "הרחבות לבלעדיות", "חובת הוכחת פעילות"],
     "חוק המקרקעין": ["בעלות וזכויות", "בתים משותפים", "עסקאות נוגדות והערות אזהרה"],
+    "חוק הגנת הדייר": ["דיירות מוגנת", "עילות פינוי", "זכויות וחובות דייר"],
     "חוק המכר (דירות)": ["מפרט וחובת גילוי", "בדק ואחריות", "איחור במסירה"],
     "חוק החוזים": ["כריתת חוזה", "פגמים בחוזה", "תרופות בשל הפרה"],
-    "חוק מיסוי מקרקעין": ["מס שבח", "מס רכישה", "פטורים והקלות"]
+    "חוק הגנת הצרכן": ["הטעיה בפרסום", "ביטול עסקה", "חובות גילוי"],
+    "חוק עבירות עונשין": ["מרמה והונאה", "זיוף מסמכים", "אחריות פלילית"],
+    "חוק שמאי מקרקעין": ["תפקיד השמאי", "סמכויות והגדרות", "בסיס השומה"],
+    "חוק התכנון והבנייה": ["היתרי בנייה", "היטל השבחה", "תוכניות מתאר"],
+    "חוק מיסוי מקרקעין": ["מס שבח", "מס רכישה", "פטורים והקלות"],
+    "חוק הירושה": ["ירושה וצוואה", "ניהול עיזבון", "העברת מקרקעין"],
+    "חוק הוצאה לפועל": ["עיקול מקרקעין", "מימוש משכנתאות", "פינוי נכסים"],
+    "פקודת הנזיקין": ["רשלנות מקצועית", "מצג שווא", "חובת זהירות"]
 }
 
 def ask_ai(prompt):
@@ -48,7 +58,6 @@ if "step" not in st.session_state:
         "current_q_data": None, "show_feedback": False
     })
 
-# CSS: כפתורים שקופים עם מסגרת אפורה כהה
 st.markdown("""
 <style>
     * { direction: rtl; text-align: right; }
@@ -72,3 +81,56 @@ elif st.session_state.step == 'menu':
     if c2.button("⏱️ סימולציית בחינה"): st.info("בפיתוח...")
 
 elif st.session_state.step == 'study':
+    ts = ["בחר נושא..."] + list(SYLLABUS.keys())
+    sel = st.selectbox("נושא לימוד:", ts)
+    if sel != "בחר נושא..." and st.button("טען שיעור"):
+        st.session_state.update({"selected_topic": sel, "lesson_contents": {}, "current_sub_idx": None, "quiz_active": False, "step": "lesson_run"})
+        st.rerun()
+
+elif st.session_state.step == 'lesson_run':
+    st.header(f"📖 {st.session_state.selected_topic}")
+    subs = SYLLABUS.get(st.session_state.selected_topic, [])
+    if subs:
+        cols = st.columns(len(subs))
+        for i, t in enumerate(subs):
+            if cols[i].button(t, key=f"sub_{i}", disabled=(st.session_state.current_sub_idx == i)):
+                st.session_state.current_sub_idx = i
+                st.session_state.quiz_active = False 
+                with st.spinner("מכין תוכן..."):
+                    st.session_state.lesson_contents[t] = fetch_content(st.session_state.selected_topic, t)
+                st.rerun()
+
+    if st.session_state.current_sub_idx is not None:
+        st.markdown(st.session_state.lesson_contents.get(subs[st.session_state.current_sub_idx], "⚠️"))
+
+    if st.session_state.quiz_active:
+        st.divider()
+        if not st.session_state.current_q_data:
+            st.session_state.current_q_data = fetch_q(st.session_state.selected_topic)
+            st.rerun()
+        q = st.session_state.current_q_data
+        st.subheader(f"שאלה {st.session_state.q_counter} מתוך 10")
+        ans = st.radio(q['q'], q['options'], index=None, key=f"q_{st.session_state.q_counter}")
+        if not st.session_state.show_feedback:
+            if st.button("בדיקת תשובה"):
+                if ans:
+                    st.session_state.show_feedback = True
+                    if ans == q['correct']: st.session_state.score += 1
+                    st.rerun()
+        else:
+            if ans == q['correct']: st.success("✅ נכון!")
+            else: st.error(f"❌ טעות. הנכונה: {q['correct']}")
+            st.info(f"הסבר: {q['explain']}")
+            if st.session_state.q_counter < 10:
+                if st.button("שאלה הבאה ➡️"):
+                    st.session_state.update({"current_q_data": None, "q_counter": st.session_state.q_counter+1, "show_feedback": False})
+                    st.rerun()
+
+    st.divider()
+    b1, b2, b3 = st.columns([2, 1, 1])
+    if b1.button(f"📝 שאלון: {st.session_state.selected_topic}"):
+        st.session_state.update({"quiz_active": True, "q_counter": 1, "score": 0, "show_feedback": False, "current_q_data": None})
+        st.rerun()
+    if b2.button("🏠 לתפריט"):
+        st.session_state.step = 'menu'; st.rerun()
+    b3.markdown('<a href="#top" class="nav-btn">🔝 לראש הדף</a>', unsafe_allow_html=True)
