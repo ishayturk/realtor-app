@@ -1,4 +1,4 @@
-# גרסה: 1081 | תאריך: 16/02/2026 | שעה: 13:00 | סטטוס: 10 שאלות ומספור X/10
+# גרסה: 1082 | תאריך: 16/02/2026 | שעה: 13:10 | סטטוס: רשימת נושאים מלאה (10)
 
 import streamlit as st
 import google.generativeai as genai
@@ -6,7 +6,6 @@ import json, re, time
 
 st.set_page_config(page_title="מתווך בקליק", layout="centered")
 
-# עיצוב UI
 st.markdown("""
 <style>
     * { direction: rtl !important; text-align: right !important; }
@@ -53,7 +52,19 @@ elif S.step == "menu":
         S.current_topic = "מבחן כללי"; S.step = "quiz_prep"; st.rerun()
 
 elif S.step == "study":
-    topics = ["חוק המתווכים במקרקעין", "חוק המקרקעין", "חוק המכר (דירות)", "חוק הגנת הצרכן", "אתיקה מקצועית", "חוק החוזים", "מיסוי מקרקעין"]
+    # רשימת נושאים מלאה כפי שסוכם
+    topics = [
+        "חוק המתווכים במקרקעין", 
+        "חוק המקרקעין", 
+        "חוק המכר (דירות)", 
+        "חוק הגנת הצרכן", 
+        "אתיקה מקצועית", 
+        "חוק החוזים", 
+        "מיסוי מקרקעין", 
+        "חוק התכנון והבנייה", 
+        "חוק הגנת הדייר", 
+        "חוק הירושה"
+    ]
     sel = st.selectbox("בחר נושא:", topics)
     if st.button("📖 התחל שיעור"):
         with st.spinner("מייצר שיעור..."):
@@ -71,7 +82,6 @@ elif S.step == "study":
 
 elif S.step == "quiz_prep":
     with st.spinner("מייצר 10 שאלות תרגול..."):
-        # עדכון ל-10 שאלות לפי בקשתך
         p = f"צור 10 שאלות אמריקאיות על {S.current_topic}. החזר JSON בלבד: " + "[{'q':'','options':['','','',''],'correct':'','reason':''}]"
         res = fetch_content_with_retry(p)
         match = re.search(r'\[.*\]', res, re.DOTALL)
@@ -84,3 +94,13 @@ elif S.step == "quiz_prep":
 elif S.step == "quiz":
     if S.qq:
         q = S.qq[S.qi]
+        total_q = len(S.qq)
+        st.markdown(f"<div class='q-count'>שאלה {S.qi + 1} מתוך {total_q}</div>", unsafe_allow_html=True)
+        st.markdown(f"<div class='question-card'><b>{q['q']}</b></div>", unsafe_allow_html=True)
+        ans = st.radio("בחר תשובה:", q['options'], key=f"q_{S.qi}", index=None)
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("🔍 בדוק"):
+                if ans:
+                    if ans == q
