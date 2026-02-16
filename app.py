@@ -1,14 +1,13 @@
-# גרסה: 1035 | תאריך: 16/02/2026 | שעה: 08:35
-# סטטוס: Long String Fix & Multi-line HTML Stability
+# גרסה: 1038 | תאריך: 16/02/2026 | שעה: 09:15
+# סטטוס: Original Flow Restored - Stability Fix
 
 import streamlit as st
 import google.generativeai as genai
-import json, re, time, random
+import json, re, time
 from google.api_core import exceptions
 
 st.set_page_config(page_title="מתווך בקליק", layout="centered")
 
-# עיצוב UI - שימוש במחרוזת משולשת למניעת שבירת שורות
 st.markdown("""
 <style>
     * { direction: rtl !important; text-align: right !important; }
@@ -27,13 +26,15 @@ def fetch_exam_content(mode='study', topic='כללי'):
         genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
         model = genai.GenerativeModel('gemini-2.0-flash')
         if mode == 'exam':
-            p = "בחר מועד אקראי של בחינת רשם המתווכים (2020-2025). שלוף 5 שאלות מורכבות מהבחינה המקורית. זהה גרסה והצמד תשובות נכונות מהמפתח הרשמי. JSON נקי: [{'q':'','options':['א','ב','ג','ד'],'correct':'','reason':'','source':''}]"
+            p = "בחר מועד רשמי של בחינת רשם המתווכים. שלוף 5 שאלות מורכבות. JSON נקי בלבד: [{'q':'','options':['א','ב','ג','ד'],'correct':'','reason':''}]"
         else:
-            p = f"צור 10 שאלות תרגול למבחן המתווכים על {topic}. JSON נקי: [{'q':'','options':['א','ב','ג','ד'],'correct':'','reason':''}]"
+            p = f"צור 10 שאלות תרגול למבחן המתווכים בנושא {topic}. JSON נקי בלבד: [{'q':'','options':['א','ב','ג','ד'],'correct':'','reason':''}]"
+        
         r = model.generate_content(p)
         m = re.search(r'\[.*\]', r.text, re.DOTALL)
         return json.loads(m.group()) if m else []
-    except: return []
+    except:
+        return []
 
 st.markdown("<div class='main-header'>🏠 מתווך בקליק</div>", unsafe_allow_html=True)
 
@@ -49,15 +50,16 @@ elif S.step == "menu":
     if c2.button("⏱️ סימולציית מבחן"): S.step = "exam_lobby"; st.rerun()
 
 elif S.step == "study":
-    all_t = ["חוק המתווכים במקרקעין", "תקנות המתווכים (פרטי הזמנה)", "חוק המקרקעין", "חוק המכר (דירות)", "חוק הגנת הצרכן", "חוק החוזים", "חוק העונשין", "חוק שמאי מקרקעין", "חוק התכנון והבנייה", "חוק הגנת הדייר", "חוק המקרקעין (תמ\"א 38)", "פקודת הנזיקין", "חוק הירושה", "חוק מיסוי מקרקעין", "חוק מקרקעי ישראל", "חוק רישום קבלנים"]
+    all_t = ["חוק המתווכים במקרקעין", "תקנות המתווכים (פרטי הזמנה)", "תקנות המתווכים (נושאי בחינה)", "חוק המקרקעין", "חוק המכר (דירות)", "חוק הגנת הצרכן", "חוק החוזים", "חוק העונשין", "חוק שמאי מקרקעין", "חוק התכנון והבנייה", "חוק הגנת הדייר", "חוק המקרקעין (חיזוק מפני רעידות אדמה)", "פקודת הנזיקין", "חוק הירושה", "חוק מיסוי מקרקעין", "חוק מקרקעי ישראל"]
+    
     if not S.lt:
-        sel = st.selectbox("בחר נושא:", all_t)
+        sel = st.selectbox("בחר נושא ללימוד:", all_t)
         c1, c2 = st.columns(2)
         if c1.button("📖 התחל שיעור"):
             try:
                 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
                 model = genai.GenerativeModel('gemini-2.0-flash')
-                res = model.generate_content(f"כתוב שיעור מקיף למבחן המתווכים על {sel}. פרט סעיפי חוק.", stream=True)
+                res = model.generate_content(f"כתוב שיעור מפורט למבחן המתווכים בנושא {sel}. פרט סעיפי חוק ודוגמאות.", stream=True)
                 ph = st.empty()
                 full_text = ""
                 for chunk in res:
@@ -66,22 +68,28 @@ elif S.step == "study":
                         ph.markdown(f"<div class='lesson-box'>{full_text}</div>", unsafe_allow_html=True)
                 S.lt, S.current_topic = full_text, sel
                 st.rerun()
-            except: st.error("נסה שוב בעוד דקה.")
+            except: st.error("שגיאה בטעינה. נסה שוב.")
         if c2.button("🏠 חזרה"): S.step = "menu"; st.rerun()
     else:
+        # הצגת השיעור הקיים
         st.markdown(f"<div class='lesson-box'>{S.lt}</div>", unsafe_allow_html=True)
         c1, c2 = st.columns(2)
-        if c1.button("✍️ עבור לשאלות תרגול"):
-            with st.spinner("טוען שאלות..."):
+        if c1.button("✍️ עבור לשאלון תרגול"):
+            with st.spinner("מכין שאלות..."):
+                # כאן המערכת מחכה ויוצרת את השאלון
                 d = fetch_exam_content(mode='study', topic=S.current_topic)
-                if d: S.qq, S.qi, S.total_q, S.mode, S.step = d, 0, len(d), 'study_quiz', "quiz_mode"; st.rerun()
-        if c2.button("🏁 חזרה"): S.lt = ""; S.step = "menu"; st.rerun()
+                if d:
+                    S.qq, S.qi, S.total_q, S.mode, S.step = d, 0, len(d), 'study_quiz', "quiz_mode"
+                    st.rerun()
+                else:
+                    st.error("גוגל עמוס כרגע. אנא המתן 5 שניות ולחץ שוב.")
+        if c2.button("🏁 חזרה לתפריט"): S.lt = ""; S.step = "menu"; st.rerun()
 
 elif S.step == "exam_lobby":
-    st.info("הבחינה כוללת 25 שאלות ממועדים רשמיים. משך זמן: 90 דקות.")
+    st.info("סימולציה רשמית: 25 שאלות | 90 דקות")
     c1, c2 = st.columns(2)
     if c1.button("🚀 התחל בחינה"):
-        with st.spinner("טוען בחינה רשמית..."):
+        with st.spinner("טוען בחינה..."):
             d = fetch_exam_content(mode='exam')
             if d: S.qq, S.qi, S.total_q, S.mode, S.step, S.start_time = d, 0, 25, 'exam', "quiz_mode", time.time(); st.rerun()
     if c2.button("🏠 חזרה"): S.step = "menu"; st.rerun()
@@ -90,10 +98,7 @@ elif S.step == "quiz_mode":
     if S.mode == 'exam':
         rem = max(0, 5400 - int(time.time() - S.start_time))
         h, r = divmod(rem, 3600); m, s = divmod(r, 60)
-        # שימוש במחרוזת פשוטה למניעת שבירה
-        timer_html = f"<div style='text-align:center; color:red; font-size:20px; font-weight:bold;'>⏳ זמן נותר: {h:02d}:{m:02d}:{s:02d}</div>"
-        st.markdown(timer_html, unsafe_allow_html=True)
-        
+        st.markdown(f"<div style='text-align:center; color:red; font-size:20px; font-weight:bold;'>⏳ זמן נותר: {h:02d}:{m:02d}:{s:02d}</div>", unsafe_allow_html=True)
         if len(S.qq) < S.total_q and S.qi >= len(S.qq) - 2 and not S.is_loading:
             S.is_loading = True
             more = fetch_exam_content(mode='exam')
@@ -102,15 +107,13 @@ elif S.step == "quiz_mode":
 
     st.progress(min((S.qi + 1) / S.total_q, 1.0))
     it = S.qq[S.qi]
-    q_html = f"<div class='question-card'><b>שאלה {S.qi+1}:</b><br>{it['q']}</div>"
-    st.markdown(q_html, unsafe_allow_html=True)
-    
+    st.markdown(f"<div class='question-card'><b>שאלה {S.qi+1}:</b><br>{it['q']}</div>", unsafe_allow_html=True)
     ans = st.radio("בחר תשובה:", it['options'], key=f"q_{S.qi}", index=it['options'].index(S.qans[S.qi]) if S.qi in S.qans else None)
     if ans: S.qans[S.qi] = ans
 
     if S.mode == 'study_quiz' and S.qi in S.cq:
-        if S.qans.get(S.qi) == it['correct']: st.success(f"נכון! {it['reason']}")
-        else: st.error(f"טעות. הנכון: {it['correct']}. {it['reason']}")
+        if S.qans.get(S.qi) == it['correct']: st.success(f"נכון! {it.get('reason','')}")
+        else: st.error(f"טעות. הנכון: {it['correct']}. {it.get('reason','')}")
 
     c1, c2, c3 = st.columns(3)
     if S.qi > 0 and c1.button("⬅️ הקודם"): S.qi -= 1; st.rerun()
@@ -124,6 +127,5 @@ elif S.step == "quiz_mode":
 
 elif S.step == "results":
     correct = sum(1 for i, q in enumerate(S.qq) if S.qans.get(i) == q['correct'])
-    score_html = f"<div class='main-header'>ציון סופי: {int((correct/len(S.qq))*100)}</div>"
-    st.markdown(score_html, unsafe_allow_html=True)
+    st.markdown(f"<div class='main-header'>ציון סופי: {int((correct/len(S.qq))*100)}</div>", unsafe_allow_html=True)
     if st.button("🏠 חזרה"): S.step = "menu"; st.rerun()
