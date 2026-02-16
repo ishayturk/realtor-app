@@ -89,4 +89,8 @@ elif S.step == "quiz_mode":
         ans = st.radio("בחר תשובה:", it['options'], key=f"q_{S.qi}")
         c1, c2 = st.columns(2)
         if c1.button("🔍 בדוק"):
-            if ans
+            if ans == it['correct']: st.success(f"נכון! {it.get('reason','')}")
+            else: st.error(f"טעות. הנכון: {it['correct']}")
+        if c2.button("הבא ➡️"):
+            if S.qi < len(S.qq)-1: S.qi += 1; st.rerun()
+            else: S.step = "menu"; S.qq = []; st.rerun()
