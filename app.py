@@ -1,4 +1,4 @@
-# גרסה 1064 | 16/02/2026 | 10:20
+# גרסה 1065 | 16/02/2026 | 10:25
 
 import streamlit as st
 import google.generativeai as genai
@@ -26,11 +26,13 @@ def fetch_exam_content(topic, mode='study'):
         genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
         model = genai.GenerativeModel('gemini-2.0-flash')
         num = 10 if mode == 'study' else 25
-        p = f"התבסס על חומרי רשם המתווכים 2026. צור {num} שאלות רב-ברירה בנושא {topic}. JSON נקי בלבד: [{'q':'','options':['א','ב','ג','ד'],'correct':'','reason':''}]"
+        p = f"התבסס על חומרי רשם המתווכים 2026. צור {num} שאלות רב-ברירה בנושא {topic}. החזר JSON נקי בלבד: [{'q':'','options':['א','ב','ג','ד'],'correct':'','reason':''}]"
         r = model.generate_content(p)
-        clean_txt = r.text.replace('```json', '').replace('```', '').strip()
-        m = re.search(r'\[.*\]', clean_txt, re.DOTALL)
-        return json.loads(m.group()) if m else []
+        txt = r.text.replace('```json', '').replace('```', '').strip()
+        m = re.search(r'\[.*\]', txt, re.DOTALL)
+        if m:
+            return json.loads(m.group())
+        return []
     except:
         return []
 
@@ -45,12 +47,10 @@ elif S.step == "menu":
     st.markdown(f"### שלום, {S.user} 👋")
     st.markdown("""
     <div class='welcome-box'>
-    <b>ברוכים הבאים למערכת ההכנה המעודכנת לבחינת רשם המתווכים (2026).</b><br>
-    המערכת מסונכרנת מול חומרי הלימוד הרשמיים ומאפשרת למידה ממוקדת לפי נושאים או ביצוע סימולציית בחינה מלאה.<br><br>
-    <i>בחר את מסלול הפעילות הרצוי:</i>
+    <b>ברוכים הבאים למערכת ההכנה המעודכנת (2026).</b><br>
+    המערכת מסונכרנת מול חומרי הלימוד הרשמיים.
     </div>
     """, unsafe_allow_html=True)
-    
     c1, c2 = st.columns(2)
     with c1:
         if st.button("📚 למידה לפי נושאים", use_container_width=True): 
@@ -80,13 +80,18 @@ elif S.step == "study":
             if st.button("🏠 חזרה", use_container_width=True): S.step = "menu"; st.rerun()
     else:
         st.markdown(f"<div class='lesson-box'>{S.lt}</div>", unsafe_allow_html=True)
-        # תיקון הכפתורים בסוף השיעור שיהיו בשורה אחת
         bc1, bc2 = st.columns(2)
         with bc1:
             if st.button("✍️ עבור לשאלון תרגול", use_container_width=True):
                 with st.spinner("מייצר שאלות..."):
-                    d = fetch_exam_content(S.current_topic)
-                    if d: S.qq, S.qi, S.step = d, 0, "quiz_mode"; st.rerun()
+                    q_data = fetch_exam_content(S.current_topic)
+                    if q_data:
+                        S.qq = q_data
+                        S.qi = 0
+                        S.step = "quiz_mode"
+                        st.rerun()
+                    else:
+                        st.error("לא הצלחתי לייצר שאלות. נסה שוב.")
         with bc2:
             if st.button("🏠 חזרה לבחירת נושא", use_container_width=True): S.lt = ""; st.rerun()
 
