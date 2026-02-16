@@ -1,5 +1,5 @@
 # ==========================================
-# Project: מתווך בקליק | Version: 1206
+# Project: מתווך בקליק | Version: 1207
 # ==========================================
 import streamlit as st
 import google.generativeai as genai
@@ -8,6 +8,7 @@ import json, re
 st.set_page_config(page_title="מתווך בקליק", layout="wide")
 st.markdown('<div id="top"></div>', unsafe_allow_html=True)
 
+# CSS מותאם
 st.markdown("""
 <style>
     * { direction: rtl; text-align: right; }
@@ -18,9 +19,11 @@ st.markdown("""
         font-weight: bold; height: 2.8em; line-height: 2.8em;
         background-color: transparent; color: inherit;
     }
-    .version-footer { font-size: 0.8em; opacity: 0.6; margin-top: 20px; }
 </style>
 """, unsafe_allow_html=True)
+
+# הצגת גרסה בסרגל הצד כדי לנקות את התחתית
+st.sidebar.caption("מתווך בקליק | גרסה 1207")
 
 SYLLABUS = {
     "חוק המתווכים": ["רישוי והגבלות", "הגינות וזהירות", "הזמנה ובלעדיות", "פעולות שאינן תיווך"],
@@ -29,7 +32,7 @@ SYLLABUS = {
     "חוק המכר (דירות)": ["מפרט וגילוי", "בדק ואחריות", "איחור במסירה", "הבטחת השקעות"],
     "חוק החוזים": ["כריתת חוזה", "פגמים בחוזה", "תרופות והפרה", "ביטול והשבה"],
     "חוק התכנון והבנייה": ["היתרים ושימוש חורג", "היטל השבחה", "תוכניות מתאר", "מוסדות התכנון"],
-    "חוק מיסוי מקרקעין": ["מס שבח (חישוב ופטורים)", "מס רכישה", "הקלות לדירת מגורים", "שווי שוק"],
+    "חוק מיסוי מקרקעין": ["מס שבח (חישוב ופפורים)", "מס רכישה", "הקלות לדירת מגורים", "שווי שוק"],
     "חוק הגנת הצרכן": ["ביטול עסקה", "הטעיה בפרסום"],
     "דיני ירושה": ["סדר הירושה", "צוואות"],
     "חוק העונשין": ["עבירות מרמה וזיוף"]
@@ -38,12 +41,15 @@ SYLLABUS = {
 def fetch_q(topic):
     try:
         genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-        m = genai.GenerativeModel('gemini-2.0-flash')
-        p = f"צור שאלה אמריקאית קשה על {topic} למבחן המתווכים. החזר אך ורק JSON: {{'q':'','options':['','','',''],'correct':'','explain':''}}"
-        res = m.generate_content(p).text
-        match = re.search(r'\{.*\}', res, re.DOTALL)
-        if match: return json.loads(match.group())
-    except: pass
+        model = genai.GenerativeModel('gemini-2.0-flash')
+        prompt = f"צור שאלה אמריקאית מאתגרת על {topic} למבחן המתווכים. החזר אך ורק פורמט JSON תקני: {{'q':'','options':['','','',''],'correct':'','explain':''}}"
+        response = model.generate_content(prompt)
+        text = response.text
+        match = re.search(r'\{.*\}', text, re.DOTALL)
+        if match:
+            return json.loads(match.group())
+    except Exception as e:
+        st.error(f"שגיאה בטעינת שאלה: {e}")
     return None
 
 def stream_ai_lesson(p):
@@ -61,6 +67,7 @@ def stream_ai_lesson(p):
         return full_text
     except: return "⚠️ תקלה בטעינה."
 
+# אתחול Session State
 if "step" not in st.session_state:
     st.session_state.update({"user": None, "step": "login", "q_count": 0, "quiz_active": False, "show_ans": False, "lesson_txt": "", "q_data": None})
 
@@ -79,7 +86,7 @@ elif st.session_state.step == "menu":
         if st.button("📚 לימוד לפי נושאים"):
             st.session_state.step = "study"; st.rerun()
     with c2:
-        if st.button("⏱️ גש/י למבחן"): st.info("מערכת המבחנים המלאה תעלה בקרוב!")
+        if st.button("⏱️ גש/י למבחן"): st.info("מערכת המבחנים בבנייה.")
 
 elif st.session_state.step == "study":
     sel = st.selectbox("בחר נושא:", ["בחר..."] + list(SYLLABUS.keys()))
@@ -109,10 +116,10 @@ elif st.session_state.step == "lesson_run":
         st.markdown("---")
         q = st.session_state.q_data
         st.subheader(f"📝 שאלה {st.session_state.q_count} מתוך 10")
-        ans = st.radio(q['q'], q['options'], index=None, key=f"radio_{st.session_state.q_count}")
+        ans = st.radio(q['q'], q['options'], index=None, key=f"radio_q_{st.session_state.q_count}")
         if st.session_state.show_ans:
             if ans == q['correct']: st.success("נכון!")
-            else: st.error(f"טעות. התשובה: {q['correct']}")
+            else: st.error(f"טעות. התשובה הנכונה: {q['correct']}")
             st.info(f"הסבר: {q['explain']}")
 
     st.write("")
@@ -122,22 +129,23 @@ elif st.session_state.step == "lesson_run":
             if not st.session_state.quiz_active:
                 if st.button("📝 שאלון לבחינה עצמית"):
                     with st.spinner("מעלה שאלה..."):
-                        st.session_state.q_data = fetch_q(topic)
-                    st.session_state.update({"quiz_active": True, "q_count": 1, "show_ans": False})
-                    st.rerun()
+                        new_q = fetch_q(topic)
+                        if new_q:
+                            st.session_state.update({"q_data": new_q, "quiz_active": True, "q_count": 1, "show_ans": False})
+                            st.rerun()
             elif not st.session_state.show_ans:
                 if st.button("✅ בדיקת תשובה"):
                     st.session_state.show_ans = True; st.rerun()
             else:
                 if st.button("➡️ שאלה הבאה"):
-                    with st.spinner("מעלה שאלה..."):
-                        st.session_state.q_data = fetch_q(topic)
-                    st.session_state.update({"q_count": st.session_state.q_count + 1, "show_ans": False})
-                    st.rerun()
+                    with st.spinner("מעלה שאלה הבאה..."):
+                        new_q = fetch_q(topic)
+                        if new_q:
+                            st.session_state.update({"q_data": new_q, "q_count": st.session_state.q_count + 1, "show_ans": False})
+                            st.rerun()
+
     with f_cols[1]:
         if st.button("🏠 לתפריט הראשי"):
             st.session_state.step = "menu"; st.rerun()
     with f_cols[2]:
         st.markdown('<a href="#top" class="top-link">🔝 לראש הדף</a>', unsafe_allow_html=True)
-
-    st.markdown('<div class="version-footer">Version: 1206</div>', unsafe_allow_html=True)
