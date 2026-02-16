@@ -3,9 +3,9 @@ import google.generativeai as genai
 import json, re, time
 
 # הגדרות דף
-st.set_page_config(page_title="מתווך בקליק", layout="centered")
+st.set_page_config(page_title="מתווך בקליק v1109", layout="centered")
 
-# עיצוב UI - סטריפ שקוף וניקוי שאריות
+# עיצוב UI
 st.markdown("""
 <style>
     * { direction: rtl; text-align: right; }
@@ -14,11 +14,11 @@ st.markdown("""
         line-height: 1.8; margin-top: 10px; border-radius: 5px;
     }
     .stButton>button { width: 100%; }
-    /* שם משתמש שקוף בראש הדף */
     .user-label { 
         font-size: 1rem; color: #666; padding: 5px 0; 
-        border-bottom: 1px solid #eee; margin-bottom: 20px;
+        border-bottom: 1px solid #eee; margin-bottom: 10px;
     }
+    .version-display { font-size: 0.9rem; color: #1E88E5; font-weight: normal; vertical-align: middle; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -40,7 +40,6 @@ def ask_ai(p):
         return r.text if r else None
     except: return None
 
-# פונקציית איפוס זיכרון לניקוי דף הבית
 def reset_to_home():
     S.step = 'menu'
     S.subs = []
@@ -51,7 +50,7 @@ def reset_to_home():
     S.qi = 0
     S.ans_d = False
 
-# מפת נושאים עם שמות מקצועיים ומלאים
+# מפת נושאים מקצועית ומלאה
 T_MAP = {
     "חוק המתווכים": ["דרישת הכתב בחוזה תיווך", "פעולה כגורם יעיל בעסקה", "דמי תיווך ותקופת בלעדיות"],
     "חוק המקרקעין": ["זכויות בעלות ושיתוף", "רישום בפנקסי מקרקעין", "רישום הערות אזהרה במקרקעין"],
@@ -71,13 +70,13 @@ T_MAP = {
     "חוק שמאי מקרקעין": ["חובת רישוי שמאי", "אתיקה מקצועית בשמאות", "כללי עריכת שומת מקרקעין"]
 }
 
-# הצגת שם משתמש בלבד (סטריפ שקוף) - ללא הדפסת S.user או S.step
+# תצוגת שם משתמש שקופה בראש הדף
 if S.user:
     st.markdown(f"<div class='user-label'>👤 תלמיד/ה: {S.user}</div>", unsafe_allow_html=True)
 
-st.title("🏠 מתווך בקליק")
+# כותרת עם מספר גרסה מובנה
+st.markdown("<h1>🏠 מתווך בקליק <span class='version-display'>(גרסה 1109)</span></h1>", unsafe_allow_html=True)
 
-# לוגיקת שלבים
 if S.step == 'login':
     u = st.text_input("הזן שם מלא לכניסה:")
     if st.button("כניסה למערכת"):
@@ -88,4 +87,62 @@ elif S.step == 'menu':
     with c1:
         if st.button("📚 לימוד לפי נושאים"): S.step='study'; st.rerun()
     with c2:
-        if st.button("⏱️ סימולציית בחינה מלאה"): S.topic="כל
+        if st.button("⏱️ סימולציית בחינה מלאה"): S.topic="כללי"; S.step='q_prep'; st.rerun()
+
+elif S.step == 'study':
+    sel = st.selectbox("בחר נושא לימוד מהרשימה:", ["בחר..."] + list(T_MAP.keys()))
+    if sel != "בחר..." and st.button("📖 טען נושא"):
+        S.subs=T_MAP[sel]; S.topic=sel; S.lt=""; S.sub_n=""; st.rerun()
+    
+    if S.subs:
+        st.write("---")
+        st.markdown("### 📖 פרקי הלימוד:")
+        cols = st.columns(len(S.subs))
+        for i, s in enumerate(S.subs):
+            is_active = (S.sub_n == s)
+            if cols[i].button(s, key=f"btn_{i}", disabled=is_active):
+                with st.spinner(f"טוען את השיעור: {s}..."):
+                    res = ask_ai(f"שיעור מפורט על {s} למבחן המתווכים כולל סעיפי חוק.")
+                    if res: S.lt=res; S.sub_n=s; st.rerun()
+    
+    if S.lt:
+        st.markdown(f"## {S.sub_n}")
+        st.markdown(f"<div class='lesson-box'>{S.lt}</div>", unsafe_allow_html=True)
+        if st.button("⬆️ חזרה לראש העמוד"): st.rerun()
+        if st.button("✍️ תרגול שאלות בפרק זה"): S.step='q_prep'; st.rerun()
+    
+    st.write("---")
+    if st.button("🏠 חזרה לתפריט הראשי"): reset_to_home(); st.rerun()
+
+elif S.step == 'q_prep':
+    with st.spinner(f"ה-AI בונה עבורך שאלות תרגול על {S.topic}..."):
+        p = f"צור 10 שאלות על {S.topic}. החזר JSON בלבד: " + "[{'q':'','options':['','','',''],'correct':'','reason':''}]"
+        res = ask_ai(p)
+        if res:
+            try:
+                m = re.search(r'\[.*\]', res, re.DOTALL)
+                if m: 
+                    S.qq=json.loads(m.group()); S.qi=0; S.score=0; S.ans_d=False; S.step='quiz'; st.rerun()
+            except:
+                st.error("תקלה בעיבוד השאלות."); time.sleep(1); st.rerun()
+    st.error("חוסר תגובה מה-AI. חוזר הביתה..."); time.sleep(2); reset_to_home(); st.rerun()
+
+elif S.step == 'quiz':
+    q = S.qq[S.qi]
+    st.info(f"שאלה {S.qi+1}/10: {q['q']}")
+    ans = st.radio("בחר תשובה נכונה:", q['options'], key=f"r{S.qi}", index=None, disabled=S.ans_d)
+    if st.button("🔍 בדוק תשובה", disabled=S.ans_d):
+        if ans: S.ans_d=True; st.rerun()
+    if S.ans_d:
+        if ans == q['correct']:
+            st.success(f"נכון! {q['reason']}")
+            if not hasattr(S, 'l_qi') or S.l_qi != S.qi: S.score += 1; S.l_qi = S.qi
+        else: st.error(f"טעות. התשובה הנכונה: {q['correct']}. {q['reason']}")
+        if st.button("השאלה הבאה ➡️" if S.qi < 9 else "🏁 לסיום וצפייה בציון"):
+            if S.qi < 9: S.qi += 1; S.ans_d = False; st.rerun()
+            else: S.step = 'results'; st.rerun()
+
+elif S.step == 'results':
+    st.balloons()
+    st.metric("ציון סופי", f"{S.score*10}%", f"{S.score}/10")
+    if st.button("🏠 חזרה לתפריט הראשי"): reset_to_home(); st.rerun()
