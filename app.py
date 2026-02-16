@@ -1,8 +1,8 @@
 # ==========================================
 # Project: מתווך בקליק
 # File: app.py
-# Version: 1136
-# Last Updated: 2026-02-16 | 21:15
+# Version: 1137
+# Last Updated: 2026-02-16 | 21:30
 # ==========================================
 
 import streamlit as st
@@ -81,53 +81,6 @@ elif st.session_state.step == 'menu':
     if c2.button("⏱️ סימולציית בחינה"): st.info("בפיתוח..."); 
 
 elif st.session_state.step == 'study':
-    all_topics = ["בחר נושא...", "חוק המתווכים במקרקעין", "חוק המקרקעין", "חוק החוזים", "חוק המכר (דירות)", "חוק הגנת הצרכן", "חוק התכנון והבנייה", "חוק מיסוי מקרקעין"]
-    sel = st.selectbox("נושא לימוד:", all_topics, index=0)
-    if sel != "בחר נושא..." and st.button("טען שיעור"):
-        st.session_state.update({"selected_topic": sel, "lesson_titles": fetch_titles(sel), "current_sub_idx": None, "lesson_contents": {}, "quiz_active": False, "step": "lesson_run"})
-        st.rerun()
-
-elif st.session_state.step == 'lesson_run':
-    st.header(f"📖 {st.session_state.selected_topic}")
-    cols = st.columns(3)
-    for i, title in enumerate(st.session_state.lesson_titles):
-        if cols[i].button(title, disabled=(st.session_state.current_sub_idx == i)):
-            st.session_state.current_sub_idx = i
-            if title not in st.session_state.lesson_contents:
-                with st.spinner("טוען..."): st.session_state.lesson_contents[title] = fetch_content(st.session_state.selected_topic, title)
-            st.rerun()
-
-    if st.session_state.current_sub_idx is not None:
-        st.markdown(st.session_state.lesson_contents.get(st.session_state.lesson_titles[st.session_state.current_sub_idx], ""))
-        st.divider()
-        
-        if not st.session_state.quiz_active:
-            if st.button(f"📝 התחל שאלון - {st.session_state.selected_topic}"):
-                with st.spinner("מכין שאלה..."):
-                    st.session_state.current_q_data = fetch_single_question(st.session_state.selected_topic)
-                    st.session_state.next_q_buffer = fetch_single_question(st.session_state.selected_topic)
-                    st.session_state.quiz_active = True
-                    st.session_state.q_counter = 1
-                    st.session_state.score = 0
-                st.rerun()
-        
-        if st.session_state.quiz_active and st.session_state.current_q_data:
-            st.subheader(f"שאלה {st.session_state.q_counter} מתוך 10")
-            q = st.session_state.current_q_data
-            ans = st.radio(q['q'], q['options'], index=None, key=f"q_{st.session_state.q_counter}")
-            
-            b_cols = st.columns([2, 1, 1])
-            txt = "שאלה הבאה ➡️" if st.session_state.q_counter < 10 else "סיים 🏁"
-            if b_cols[0].button(txt):
-                if ans == q['correct']: st.session_state.score += 1
-                if st.session_state.q_counter < 10:
-                    st.session_state.current_q_data = st.session_state.next_q_buffer
-                    st.session_state.q_counter += 1
-                    st.session_state.next_q_buffer = fetch_single_question(st.session_state.selected_topic)
-                    st.rerun()
-                else:
-                    st.success(f"סיימת! ציון: {st.session_state.score * 10}")
-                    st.session_state.quiz_active = False
-            
-            if b_cols[1].button("🔝 לראש העמוד"): st.rerun()
-            if b_cols[2].button("🏠 לתפריט"): st.session_state.step = 'menu'; st.rerun()
+    all_topics = [
+        "בחר נושא מהרשימה...", "חוק המתווכים במקרקעין", "תקנות המתווכים (פרטי הזמנה)", 
+        "תקנות המתווכים (פעולות שיווק)", "חוק המקרקעין",
