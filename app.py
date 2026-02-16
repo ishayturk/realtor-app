@@ -1,9 +1,10 @@
-# גרסה: 1092 | תאריך: 16/02/2026 | שעה: 15:35 | סטטוס: תיקון SyntaxError במחרוזות
+# גרסה: 1093 | תאריך: 16/02/2026 | שעה: 16:15 | סטטוס: תיקון היעלמות שם משתמש וזרימת לימוד
 
 import streamlit as st
 import google.generativeai as genai
 import json, re, time
 
+# הגדרת עמוד בסיסית
 st.set_page_config(page_title="מתווך בקליק", layout="centered")
 
 # עיצוב UI
@@ -27,13 +28,19 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-S = st.session_state
-def init_state():
-    defaults = {'user': '', 'step': 'login', 'lt': '', 'qi': 0, 'qq': [], 'current_topic': '', 'sub_topics': []}
-    for k, v in defaults.items():
-        if k not in S: S[k] = v
+# אתחול Session State - מוודא ששום דבר לא נעלם
+if 'step' not in st.session_state:
+    st.session_state.step = 'login'
+if 'user' not in st.session_state:
+    st.session_state.user = ''
+if 'sub_topics' not in st.session_state:
+    st.session_state.sub_topics = []
+if 'lt' not in st.session_state:
+    st.session_state.lt = ""
+if 'current_topic' not in st.session_state:
+    st.session_state.current_topic = ""
 
-init_state()
+S = st.session_state
 
 def fetch_content(prompt):
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
@@ -46,22 +53,30 @@ def fetch_content(prompt):
 
 st.title("🏠 מתווך בקליק")
 
+# לוגיקת צעדים
 if S.step == "login":
-    u = st.text_input("שם מלא:")
+    u = st.text_input("שם מלא:", value=S.user)
     if st.button("כניסה"):
-        if u: S.user = u; S.step = "menu"; st.rerun()
+        if u: 
+            S.user = u
+            S.step = "menu"
+            st.rerun()
 
 elif S.step == "menu":
-    st.write(f"### שלום, {S.user}")
+    st.write(f"### שלום, **{S.user}**") # הדגשת שם המשתמש
     col1, col2 = st.columns(2)
     with col1:
-        if st.button("📚 לימוד לפי נושאים"): S.step = "study"; st.rerun()
+        if st.button("📚 לימוד לפי נושאים"):
+            S.step = "study"
+            st.rerun()
     with col2:
         if st.button("⏱️ סימולציית מבחן"):
-            S.current_topic = "כלל נושאי בחינת המתווכים (חוק המתווכים, מקרקעין, מיסוי, חוזים)"; 
-            S.step = "quiz_prep"; st.rerun()
+            S.current_topic = "כלל נושאי בחינת המתווכים"
+            S.step = "quiz_prep"
+            st.rerun()
 
 elif S.step == "study":
+    st.write(f"תלמיד: {S.user}")
     topics = ["חוק המתווכים במקרקעין", "חוק המקרקעין", "חוק המכר (דירות)", "חוק הגנת הצרכן", "אתיקה מקצועית", "חוק החוזים", "מיסוי מקרקעין", "חוק התכנון והבנייה", "חוק הגנת הדייר", "חוק הירושה"]
     sel = st.selectbox("בחר נושא ראשי:", topics)
     
@@ -71,38 +86,47 @@ elif S.step == "study":
             if res:
                 S.sub_topics = [x.strip() for x in res.split(',')]
                 S.current_topic = sel
-                st.rerun()
+                # הסרת ה-st.rerun() כאן כדי שהכפתורים יופיעו מיד למטה
     
     if S.sub_topics:
         st.write("---")
-        st.write("### בחר פרק ללימוד:")
+        st.write(f"### נושאי לימוד ב{S.current_topic}:")
         cols = st.columns(len(S.sub_topics))
         for i, sub in enumerate(S.sub_topics):
-            if cols[i].button(sub):
-                with st.spinner(f"טוען {sub}..."):
-                    content = fetch_content(f"כתוב שיעור מקיף על '{sub}' עבור מבחן המתווכים. כלול סעיפי חוק רלוונטיים ודוגמה אחת.")
-                    if content: S.lt = content; st.rerun()
-    
+            if cols[i].button(sub, key=f"btn_{i}"):
+                with st.spinner(f"טוען את {sub}..."):
+                    content = fetch_content(f"כתוב שיעור מקיף ומקצועי על '{sub}' עבור מבחן המתווכים. כלול סעיפי חוק רלוונטיים ודוגמה אחת.")
+                    if content:
+                        S.lt = content
+
     if S.lt:
         st.markdown(f"<div class='lesson-box'>{S.lt}</div>", unsafe_allow_html=True)
-        if st.button("✍️ תרגול שאלות בנושא זה"): S.step = "quiz_prep"; st.rerun()
+        if st.button("✍️ תרגול שאלות בנושא זה"):
+            S.step = "quiz_prep"
+            st.rerun()
 
     if st.button("🏠 חזרה לתפריט"):
-        S.update({'lt': '', 'step': 'menu', 'sub_topics': []}); st.rerun()
+        S.step = "menu"
+        S.sub_topics = []
+        S.lt = ""
+        st.rerun()
 
 elif S.step == "quiz_prep":
-    # התיקון לשורה שגרמה לשגיאה נמצא כאן:
-    with st.spinner("מייצר 10 שאלות מותאמות..."):
+    with st.spinner("מייצר 10 שאלות..."):
         p = f"צור 10 שאלות אמריקאיות על {S.current_topic}. החזר JSON בלבד: " + "[{'q':'','options':['','','',''],'correct':'','reason':''}]"
         res = fetch_content(p)
         if res:
             match = re.search(r'\[.*\]', res, re.DOTALL)
             if match:
-                S.qq = json.loads(match.group()); S.qi = 0; S.step = "quiz"; st.rerun()
+                S.qq = json.loads(match.group())
+                S.qi = 0
+                S.step = "quiz"
+                st.rerun()
         st.error("תקלה בייצור שאלות."); S.step = "menu"; st.rerun()
 
+# (שאר קוד השאלון נשאר זהה לגרסה 1092)
 elif S.step == "quiz":
-    if S.qq:
+    if 'qq' in S and S.qq:
         q = S.qq[S.qi]
         st.markdown(f"<p style='color:#1E88E5; font-weight:bold;'>שאלה {S.qi + 1} מתוך {len(S.qq)}</p>", unsafe_allow_html=True)
         st.markdown(f"<div class='question-card'><b>{q['q']}</b></div>", unsafe_allow_html=True)
@@ -120,6 +144,6 @@ elif S.step == "quiz":
                 else: st.success("סיימת!"); time.sleep(1); S.step = "menu"; st.rerun()
         with c3:
             if st.button("🏠 חזרה לתפריט"):
-                S.update({'lt': '', 'step': 'menu', 'sub_topics': [], 'qq': []}); st.rerun()
+                S.step = "menu"; S.sub_topics = []; S.lt = ""; st.rerun()
 
-st.markdown(f"<div class='version-footer'>גרסה: 1092 | 16/02/2026 15:35</div>", unsafe_allow_html=True)
+st.markdown(f"<div class='version-footer'>גרסה: 1093 | 16/02/2026 16:15</div>", unsafe_allow_html=True)
