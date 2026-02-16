@@ -1,6 +1,6 @@
 # ==========================================
 # Project: מתווך בקליק
-# Version: 1117
+# Version: 1118
 # Last Updated: 2026-02-16
 # ==========================================
 
@@ -24,8 +24,19 @@ st.markdown("""
         font-size: 1rem; color: #666; padding: 5px 0; 
         border-bottom: 1px solid #eee; margin-bottom: 20px;
     }
+    /* סגנון לכפתור עוגן שייראה כמו כפתור רגיל */
+    .anchor-btn {
+        display: block; width: 100%; padding: 10px;
+        background-color: #f0f2f6; color: #31333F;
+        text-align: center; text-decoration: none;
+        border-radius: 5px; border: 1px solid #dcdfe6;
+        font-size: 0.9rem;
+    }
 </style>
 """, unsafe_allow_html=True)
+
+# נקודת עוגן בראש הדף
+st.markdown("<div id='top'></div>", unsafe_allow_html=True)
 
 # ניהול State
 S = st.session_state
@@ -115,17 +126,20 @@ elif S.step == 'study':
         st.markdown(f"<div class='lesson-box'>{S.lt}</div>", unsafe_allow_html=True)
         
         st.write(" ")
-        bc1, bc2 = st.columns(2)
+        # שלושה כפתורים בשורה אחת בסוף השיעור
+        bc1, bc2, bc3 = st.columns(3)
         with bc1:
-            if st.button("⬆️ חזרה לראש העמוד"): st.rerun()
+            st.markdown('<a href="#top" class="anchor-btn">⬆️ לראש העמוד</a>', unsafe_allow_html=True)
         with bc2:
-            if st.button("✍️ תרגול שאלות בפרק זה"): S.step='q_prep'; st.rerun()
+            if st.button("✍️ תרגול שאלות"): S.step='q_prep'; st.rerun()
+        with bc3:
+            if st.button("🏠 לתפריט"): reset_to_home(); st.rerun()
     
     st.write("---")
-    if st.button("🏠 חזרה לתפריט הראשי"): reset_to_home(); st.rerun()
 
 elif S.step == 'q_prep':
-    with st.spinner(f"ה-AI בונה עבורך שאלות תרגול על {S.topic}..."):
+    # ספינר ברור בזמן הכנת השאלון
+    with st.spinner(f"ה-AI מכין עבורך 10 שאלות תרגול בנושא {S.topic}..."):
         p = f"צור 10 שאלות על {S.topic}. החזר JSON בלבד: " + "[{'q':'','options':['','','',''],'correct':'','reason':''}]"
         res = ask_ai(p)
         if res:
@@ -134,8 +148,9 @@ elif S.step == 'q_prep':
                 if m: 
                     S.qq=json.loads(m.group()); S.qi=0; S.score=0; S.ans_d=False; S.step='quiz'; st.rerun()
             except:
-                st.error("תקלה בעיבוד השאלות."); time.sleep(1); st.rerun()
-    st.error("חוסר תגובה מה-AI. חוזר הביתה..."); time.sleep(2); reset_to_home(); st.rerun()
+                st.error("תקלה בעיבוד השאלות."); time.sleep(1); S.step='study'; st.rerun()
+        else:
+            st.error("לא התקבלו שאלות מהשרת."); time.sleep(1); S.step='study'; st.rerun()
 
 elif S.step == 'quiz':
     q = S.qq[S.qi]
