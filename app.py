@@ -1,8 +1,8 @@
 # ==========================================
 # Project: מתווך בקליק
 # File: app.py
-# Version: 1154
-# Last Updated: 2026-02-16 | 23:59
+# Version: 1155
+# Last Updated: 2026-02-17 | 00:15
 # ==========================================
 
 import streamlit as st
@@ -23,6 +23,11 @@ def ask_ai(prompt):
         return response.text if (response and response.text) else None
     except: return None
 
+def clean_label(text):
+    """מנקה גרשיים וסוגריים מהטקסט לתצוגה נקייה"""
+    if not text: return ""
+    return re.sub(r"[\[\]{}'\"]", "", str(text)).strip()
+
 # --- לוגיקה ---
 def fetch_titles(topic):
     p = f"צור 3 כותרות לתתי-נושאים בתוך {topic}. JSON: ['א','ב','ג']"
@@ -30,14 +35,13 @@ def fetch_titles(topic):
     try:
         match = re.search(r'\[.*\]', res, re.DOTALL)
         titles = json.loads(match.group())
-        return [str(t) for t in titles if t]
+        return [clean_label(t) for t in titles if t]
     except: return ["הוראות חוק", "חובות המתווך", "פסיקה"]
 
 def fetch_content(main_topic, sub_title):
     p = (f"כתוב שיעור Markdown על '{sub_title}' בתוך '{main_topic}'. "
-         "בלי הסברים על המבנה. רק תוכן מקצועי.")
-    content = ask_ai(p)
-    return content if content else "⚠️ שגיאה בטעינה."
+         "בלי הסברים על המבנה. רק תוכן לימודי מקצועי.")
+    return ask_ai(p) or "⚠️ שגיאה בטעינת התוכן."
 
 def fetch_question(topic):
     p = (f"צור שאלה אמריקאית על {topic}. "
@@ -63,14 +67,19 @@ st.markdown("""
     * { direction: rtl; text-align: right; }
     .user-strip { margin-top: 40px; margin-bottom: 30px; font-weight: bold; color: #444; }
     .stButton>button { width: 100%; border-radius: 8px; font-weight: bold; }
+    .nav-btn { 
+        background-color: #f0f2f6 !important; 
+        border: 1px solid #ccc !important; 
+        font-weight: normal !important; 
+        color: black !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
 # --- כותרות ---
 st.title("🏠 מתווך בקליק")
 if st.session_state.user:
-    st.markdown(f'<div class="user-strip">👤 שלום, {st.session_state.user}</div>', 
-                unsafe_allow_html=True)
+    st.markdown(f'<div class="user-strip">👤 שלום, {st.session_state.user}</div>', unsafe_allow_html=True)
 
 # --- ניתוב ---
 if st.session_state.step == 'login':
@@ -87,7 +96,6 @@ elif st.session_state.step == 'menu':
     if c2.button("⏱️ סימולציית בחינה"): st.info("בפיתוח...")
 
 elif st.session_state.step == 'study':
-    # רשימה מלאה ומחולקת למניעת חיתוך
     topics = ["בחר נושא...", "חוק המתווכים במקרקעין", "תקנות המתווכים (פרטי הזמנה)"]
     topics += ["תקנות המתווכים (פעולות שיווק)", "חוק המקרקעין", "חוק הגנת הדייר"]
     topics += ["חוק המכר (דירות)", "חוק החוזים (חלק כללי)", "חוק החוזים (תרופות)"]
@@ -107,40 +115,23 @@ elif st.session_state.step == 'study':
 elif st.session_state.step == 'lesson_run':
     st.header(f"📖 {st.session_state.selected_topic}")
     
+    # כפתורי תתי-נושאים (מנוקים מגרשיים)
     titles = st.session_state.lesson_titles
     if titles:
         cols = st.columns(len(titles))
         for i, title in enumerate(titles):
-            label = str(title) if title else "שיעור"
-            if cols[i].button(label, key=f"btn_{i}", 
-                             disabled=(st.session_state.current_sub_idx == i)):
+            if cols[i].button(title, key=f"btn_{i}", disabled=(st.session_state.current_sub_idx == i)):
                 st.session_state.current_sub_idx = i
                 st.session_state.quiz_active = False 
-                with st.spinner("טוען..."):
-                    st.session_state.lesson_contents[title] = fetch_content(
-                        st.session_state.selected_topic, title)
+                st.session_state.lesson_contents[title] = fetch_content(st.session_state.selected_topic, title)
                 st.rerun()
 
+    # תוכן השיעור
     if st.session_state.current_sub_idx is not None:
         key = st.session_state.lesson_titles[st.session_state.current_sub_idx]
         st.markdown(st.session_state.lesson_contents.get(key, "⚠️ שגיאה"))
-        st.divider()
-
-        b_cols = st.columns(3)
-        if not st.session_state.quiz_active:
-            if b_cols[0].button(f"📝 התחל שאלון"):
-                st.session_state.update({
-                    "quiz_active": True, "q_counter": 1, "score": 0,
-                    "show_feedback": False, "current_q_data": fetch_question(
-                        st.session_state.selected_topic)
-                })
-                st.rerun()
         
-        if b_cols[1].button("🏠 לתפריט"):
-            st.session_state.step = 'menu'; st.rerun()
-            
-        b_cols[2].markdown('<a href="#top" target="_self"><button style="width:100%; height:38px; border-radius:8px; font-weight:bold; cursor:pointer; background-color:#f0f2f6; border:1px solid #ccc;">🔝 לראש הדף</button></a>', unsafe_allow_html=True)
-
+        # --- אזור השאלון (מעל הניווט) ---
         if st.session_state.quiz_active and st.session_state.current_q_data:
             st.divider()
             q = st.session_state.current_q_data
@@ -163,7 +154,28 @@ elif st.session_state.step == 'lesson_run':
                         st.session_state.current_q_data = fetch_question(st.session_state.selected_topic)
                         st.session_state.q_counter += 1; st.session_state.show_feedback = False; st.rerun()
                 else:
-                    score_val = st.session_state.score * 10
-                    st.success(f"🏁 ציון סופי: {score_val}")
+                    final_score = st.session_state.score * 10
+                    st.success(f"🏁 ציון סופי: {final_score}")
                     if st.button("סגור שאלון"):
                         st.session_state.quiz_active = False; st.rerun()
+
+        # --- תפריט ניווט תחתון קבוע (תמיד בסוף הדף) ---
+        st.divider()
+        b_cols = st.columns(3)
+        
+        # כפתור שאלון דינמי
+        q_label = f"📝 שאלון: {st.session_state.selected_topic}"
+        if not st.session_state.quiz_active:
+            if b_cols[0].button(q_label):
+                st.session_state.update({
+                    "quiz_active": True, "q_counter": 1, "score": 0,
+                    "show_feedback": False, "current_q_data": fetch_question(st.session_state.selected_topic)
+                })
+                st.rerun()
+        else:
+            b_cols[0].empty()
+        
+        if b_cols[1].button("🏠 לתפריט"):
+            st.session_state.step = 'menu'; st.rerun()
+            
+        b_cols[2].markdown('<a href="#top" target="_self"><button class="nav-btn" style="width:100%; height:38px; border-radius:8px; cursor:pointer;">🔝 לראש הדף</button></a>', unsafe_allow_html=True)
