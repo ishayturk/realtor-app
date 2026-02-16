@@ -1,12 +1,11 @@
 # ==========================================
 # Project: מתווך בקליק
 # File: exam_manager.py
-# Version: 1122
-# Last Updated: 2026-02-16 | 15:15
+# Version: 1123
+# Last Updated: 2026-02-16 | 17:40
 # ==========================================
 
 import streamlit as st
-import time
 import google.generativeai as genai
 import json, re
 
@@ -18,44 +17,43 @@ def ask_ai(prompt):
         return response.text
     except Exception as e:
         if "429" in str(e) or "ResourceExhausted" in str(e):
-            st.warning("⚠️ מכסת הבקשות ל-AI הסתיימה זמנית (Quota). אנא המתן דקה ונסה שוב.")
+            st.warning("⚠️ מכסת ה-AI הסתיימה זמנית. אנא המתן דקה ונסה שוב.")
         else:
-            st.error(f"שגיאה בתקשורת: {str(e)}")
+            st.error(f"שגיאת תקשורת: {str(e)}")
         return None
 
-def generate_lesson_content(topic):
-    prompt = f"צור שיעור על {topic} למתווכים. חלק ל-3 תתי נושאים. לכל חלק הוסף שאלה אמריקאית אחת. החזר JSON בלבד עם מפתחות: sub_topics (title, content, question (q, options, correct))"
+def get_lesson_titles(topic):
+    """מייצר 3 כותרות לתתי-נושאים"""
+    prompt = f"צור 3 כותרות קצרות ומקצועיות לתתי-נושאים בתוך הנושא: {topic} עבור מתווכי מקרקעין. החזר JSON בלבד: ['כותרת1', 'כותרת2', 'כותרת3']"
     res = ask_ai(prompt)
-    if not res: return None
-    try:
-        match = re.search(r'\{.*\}', res, re.DOTALL)
-        return json.loads(match.group()) if match else None
-    except:
-        return None
-
-def load_exam_chunk(start_idx, count=5):
-    prompt = f"גש ל-https://www.reba.org.il/files/ וחלץ שאלות {start_idx} עד {start_idx+count-1} ממבחן רשמי. החזר JSON בלבד: id, q, options, correct, explanation"
-    res = ask_ai(prompt)
-    if not res: return None
+    if not res: return ["חלק א'", "חלק ב'", "חלק ג'"]
     try:
         match = re.search(r'\[.*\]', res, re.DOTALL)
-        return json.loads(match.group()) if match else None
-    except:
-        return None
+        return json.loads(match.group())
+    except: return ["חלק א'", "חלק ב'", "חלק ג'"]
+
+def get_sub_topic_content(main_topic, sub_title):
+    """מייצר תוכן מפורט לתת-נושא ספציפי"""
+    prompt = f"כתוב תוכן לימודי מקצועי, מעמיק ומפורט בפורמט Markdown על הנושא '{sub_title}' כחלק מהשיעור הכללי על '{main_topic}'. התמקד בחוק ובתקנות הרלוונטיים לישראל."
+    return ask_ai(prompt)
+
+def get_topic_exam_questions(topic):
+    """מייצר 10 שאלות על הנושא הכללי"""
+    prompt = f"צור 10 שאלות אמריקאיות קשות ומאתגרות על {topic}. לכל שאלה: q (השאלה), options (4 אפשרויות), correct (התשובה המדויקת). החזר JSON בלבד."
+    res = ask_ai(prompt)
+    if not res: return []
+    try:
+        match = re.search(r'\[.*\]', res, re.DOTALL)
+        return json.loads(match.group())
+    except: return []
 
 def init_exam_state():
     defaults = {
-        "step": "login", "user": None, "exam_questions": [], 
-        "user_answers": {}, "current_sub_idx": 0, "lesson_data": None,
-        "start_time": None, "exam_idx": 0
+        "step": "login", "user": None, "selected_topic": None,
+        "lesson_titles": [], "lesson_contents": {}, "current_sub_idx": None,
+        "show_topic_exam": False, "topic_exam_questions": [],
+        "exam_questions": [], "user_answers": {}, "current_exam_q_idx": 0,
+        "exam_active": False
     }
     for k, v in defaults.items():
         if k not in st.session_state: st.session_state[k] = v
-
-def get_remaining_time():
-    if "start_time" not in st.session_state or st.session_state.start_time is None:
-        return "90:00"
-    elapsed = time.time() - st.session_state.start_time
-    rem = max(0, 90 * 60 - elapsed)
-    m, s = divmod(int(rem), 60)
-    return f"{m:02d}:{s:02d}"
