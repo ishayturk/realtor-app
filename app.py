@@ -1,4 +1,4 @@
-# גרסה 1065 | 16/02/2026 | 10:25
+# גרסה 1066 | 16/02/2026 | 10:35
 
 import streamlit as st
 import google.generativeai as genai
@@ -6,7 +6,6 @@ import json, re
 
 st.set_page_config(page_title="מתווך בקליק", layout="centered")
 
-# עיצוב UI
 st.markdown("""
 <style>
     * { direction: rtl !important; text-align: right !important; }
@@ -26,14 +25,16 @@ def fetch_exam_content(topic, mode='study'):
         genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
         model = genai.GenerativeModel('gemini-2.0-flash')
         num = 10 if mode == 'study' else 25
-        p = f"התבסס על חומרי רשם המתווכים 2026. צור {num} שאלות רב-ברירה בנושא {topic}. החזר JSON נקי בלבד: [{'q':'','options':['א','ב','ג','ד'],'correct':'','reason':''}]"
+        p = f"חומרי רשם המתווכים 2026. צור {num} שאלות רב-ברירה על {topic}. החזר אך ורק פורמט JSON נקי במבנה: " + "[{'q':'','options':['א','ב','ג','ד'],'correct':'','reason':''}]"
+        
         r = model.generate_content(p)
-        txt = r.text.replace('```json', '').replace('```', '').strip()
-        m = re.search(r'\[.*\]', txt, re.DOTALL)
-        if m:
-            return json.loads(m.group())
+        # ניקוי אגרסיבי של הפלט
+        raw = r.text
+        match = re.search(r'\[.*\]', raw, re.DOTALL)
+        if match:
+            return json.loads(match.group())
         return []
-    except:
+    except Exception:
         return []
 
 st.markdown("<div class='main-header'>🏠 מתווך בקליק</div>", unsafe_allow_html=True)
@@ -45,16 +46,10 @@ if S.step == "login":
 
 elif S.step == "menu":
     st.markdown(f"### שלום, {S.user} 👋")
-    st.markdown("""
-    <div class='welcome-box'>
-    <b>ברוכים הבאים למערכת ההכנה המעודכנת (2026).</b><br>
-    המערכת מסונכרנת מול חומרי הלימוד הרשמיים.
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown("<div class='welcome-box'>ברוכים הבאים למערכת ההכנה המעודכנת (2026).</div>", unsafe_allow_html=True)
     c1, c2 = st.columns(2)
     with c1:
-        if st.button("📚 למידה לפי נושאים", use_container_width=True): 
-            S.step = "study"; st.rerun()
+        if st.button("📚 למידה לפי נושאים", use_container_width=True): S.step = "study"; st.rerun()
     with c2:
         if st.button("⏱️ סימולציית בחינה", use_container_width=True): 
             with st.spinner("מייצר בחינה..."):
@@ -62,22 +57,18 @@ elif S.step == "menu":
                 if d: S.qq, S.qi, S.step = d, 0, "quiz_mode"; st.rerun()
 
 elif S.step == "study":
-    all_t = ["חוק המתווכים במקרקעין", "תקנות המתווכים (פרטי הזמנה)", "אתיקה מקצועית", "חוק המקרקעין", "חוק המכר (דירות)", "חוק הגנת הצרכן", "חוק החוזים", "חוק הירושה", "חוק מיסוי מקרקעין"]
+    all_t = ["חוק המתווכים במקרקעין", "תקנות המתווכים (פרטי הזמנה)", "אתיקה מקצועית", "חוק המקרקעין", "חוק המכר (דירות)", "חוק הגנת הצרכן"]
     if not S.lt:
-        sel = st.selectbox("בחר נושא ללימוד:", all_t)
-        c1, c2 = st.columns(2)
-        with c1:
-            if st.button("📖 צור שיעור", use_container_width=True):
-                genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-                model = genai.GenerativeModel('gemini-2.0-flash')
-                res = model.generate_content(f"כתוב שיעור ל-2026 על {sel}.", stream=True)
-                ph, full_text = st.empty(), ""
-                for chunk in res:
-                    full_text += chunk.text
-                    ph.markdown(f"<div class='lesson-box'>{full_text}</div>", unsafe_allow_html=True)
-                S.lt, S.current_topic = full_text, sel; st.rerun()
-        with c2:
-            if st.button("🏠 חזרה", use_container_width=True): S.step = "menu"; st.rerun()
+        sel = st.selectbox("בחר נושא:", all_t)
+        if st.button("📖 צור שיעור", use_container_width=True):
+            genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+            model = genai.GenerativeModel('gemini-2.0-flash')
+            res = model.generate_content(f"כתוב שיעור ל-2026 על {sel}.", stream=True)
+            ph, full_text = st.empty(), ""
+            for chunk in res:
+                full_text += chunk.text
+                ph.markdown(f"<div class='lesson-box'>{full_text}</div>", unsafe_allow_html=True)
+            S.lt, S.current_topic = full_text, sel; st.rerun()
     else:
         st.markdown(f"<div class='lesson-box'>{S.lt}</div>", unsafe_allow_html=True)
         bc1, bc2 = st.columns(2)
@@ -86,26 +77,20 @@ elif S.step == "study":
                 with st.spinner("מייצר שאלות..."):
                     q_data = fetch_exam_content(S.current_topic)
                     if q_data:
-                        S.qq = q_data
-                        S.qi = 0
-                        S.step = "quiz_mode"
+                        S.qq, S.qi, S.step = q_data, 0, "quiz_mode"
                         st.rerun()
-                    else:
-                        st.error("לא הצלחתי לייצר שאלות. נסה שוב.")
+                    else: st.error("נסה שוב בעוד כמה שניות.")
         with bc2:
-            if st.button("🏠 חזרה לבחירת נושא", use_container_width=True): S.lt = ""; st.rerun()
+            if st.button("🏠 חזרה", use_container_width=True): S.lt = ""; st.rerun()
 
 elif S.step == "quiz_mode":
     if S.qq:
         it = S.qq[S.qi]
-        st.markdown(f"<div class='question-card'><b>שאלה {S.qi+1} מתוך {len(S.qq)}:</b><br>{it['q']}</div>", unsafe_allow_html=True)
-        ans = st.radio("בחר תשובה:", it['options'], key=f"q_{S.qi}")
-        c1, c2 = st.columns(2)
-        with c1:
-            if st.button("🔍 בדוק", use_container_width=True):
-                if ans == it['correct']: st.success(f"נכון! {it.get('reason','')}")
-                else: st.error(f"טעות. הנכון: {it['correct']}")
-        with c2:
-            if st.button("הבא ➡️", use_container_width=True):
-                if S.qi < len(S.qq)-1: S.qi += 1; st.rerun()
-                else: S.step = "menu"; S.qq = []; st.rerun()
+        st.markdown(f"<div class='question-card'><b>שאלה {S.qi+1}:</b><br>{it['q']}</div>", unsafe_allow_html=True)
+        ans = st.radio("תשובה:", it['options'], key=f"q_{S.qi}")
+        if st.button("🔍 בדוק"):
+            if ans == it['correct']: st.success(f"נכון! {it.get('reason','')}")
+            else: st.error(f"טעות. הנכון: {it['correct']}")
+        if st.button("הבא ➡️"):
+            if S.qi < len(S.qq)-1: S.qi += 1; st.rerun()
+            else: S.step = "menu"; S.qq = []; st.rerun()
