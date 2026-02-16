@@ -5,7 +5,6 @@ import re
 
 st.set_page_config(page_title="מתווך בקליק", layout="centered")
 
-# עיצוב בסיסי ונקי
 st.markdown("""
 <style>
     * { direction: rtl !important; text-align: right !important; }
@@ -21,7 +20,8 @@ if 'step' not in S:
 def fetch_content(prompt):
     try:
         genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-        model = genai.GenerativeModel('gemini-pro')
+        # מעבר למודל 2.0 פלאש כפי שביקשת
+        model = genai.GenerativeModel('gemini-2.0-flash')
         r = model.generate_content(prompt)
         return r.text
     except Exception as e:
