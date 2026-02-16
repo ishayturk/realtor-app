@@ -1,21 +1,21 @@
 # ==========================================
-# Project: מתווך בקליק | Version: 1169
-# Last Updated: 2026-02-16 | 18:58
+# Project: מתווך בקליק | Version: 1170
+# Last Updated: 2026-02-16 | 19:05
 # ==========================================
 
 import streamlit as st
 import google.generativeai as genai
 import json, re
 
-# הגדרת דף ראשונה תמיד - מבטיח רוחב מלא
+# הגדרת דף בראש הקוד - מבטיח רוחב מלא
 st.set_page_config(page_title="מתווך בקליק", layout="wide")
 
-# CSS נקי ובטוח למניעת שבירת תצוגה
+# CSS יציב לניהול רווחים ויישור
 st.markdown("""
 <style>
     * { direction: rtl; text-align: right; }
     .stButton>button { width: auto; min-width: 110px; border-radius: 8px; font-weight: bold; background-color: transparent !important; border: 1px solid #888 !important; color: #333 !important; }
-    .nav-link { background: transparent; border: 1px solid #888; color: #333; padding: 6px 12px; text-decoration: none; border-radius: 8px; font-size: 14px; font-weight: bold; }
+    .nav-link { background: transparent; border: 1px solid #888; color: #333; padding: 6px 12px; text-decoration: none; border-radius: 8px; font-size: 14px; font-weight: bold; display: inline-block; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -52,7 +52,6 @@ def fetch_q(topic):
         return json.loads(m.group())
     except: return None
 
-# ניהול מצב האפליקציה
 if "step" not in st.session_state:
     st.session_state.update({
         "step": "login", "user": None, "selected_topic": None,
@@ -91,6 +90,3 @@ elif st.session_state.step == 'lesson_run':
     subs = SYLLABUS.get(st.session_state.selected_topic, [])
     
     if subs:
-        t_cols = st.columns(len(subs))
-        for i, t in enumerate(subs):
-            if t_cols[i].button(t, key=f"sub_{i}", disabled=(st.
