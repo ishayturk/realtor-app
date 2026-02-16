@@ -1,151 +1,155 @@
 # ==========================================
 # Project: מתווך בקליק
 # File: app.py
-# Version: 1123
-# Last Updated: 2026-02-16 | 17:40
+# Version: 1127 (Full Integrated)
+# Last Updated: 2026-02-16 | 18:50
 # ==========================================
 
 import streamlit as st
-from exam_manager import *
+import google.generativeai as genai
+import json, re
 
+# --- הגדרות דף ו-UI ---
 st.set_page_config(page_title="מתווך בקליק", layout="wide")
 
-# עיצוב UI מתקדם
 st.markdown("""
 <style>
     * { direction: rtl; text-align: right; }
+    .user-strip { background-color: rgba(0,0,0,0.05); padding: 8px 15px; border-radius: 8px; margin-bottom: 20px; font-weight: bold; text-align: left; }
     .stButton>button { width: 100%; border-radius: 8px; }
-    .user-strip {
-        background-color: rgba(255, 255, 255, 0.2);
-        padding: 8px 15px; border-radius: 10px;
-        margin-bottom: 25px; font-weight: bold; border: 1px solid #eee;
-        text-align: left;
-    }
     [data-testid="stSidebar"] { direction: rtl; }
-    .stRadio > div { direction: rtl; }
 </style>
 """, unsafe_allow_html=True)
 
-init_exam_state()
+# --- ניהול זיכרון (Session State) ---
+if "step" not in st.session_state:
+    st.session_state.update({
+        "step": "login", "user": None, "selected_topic": None,
+        "lesson_titles": [], "lesson_contents": {}, "current_sub_idx": None,
+        "show_topic_exam": False, "topic_exam_questions": [],
+        "current_exam_q_idx": 0
+    })
 
-# הצגת שם משתמש בסטריפ קבוע (אחרי לוגין)
+# --- מנוע ה-AI (מופרד לוגית) ---
+def ask_ai(prompt):
+    try:
+        genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+        model = genai.GenerativeModel('gemini-2.0-flash')
+        response = model.generate_content(prompt)
+        return response.text
+    except Exception as e:
+        if "429" in str(e): st.warning("⚠️ מכסת ה-AI הסתיימה זמנית. נסה שוב בעוד דקה.")
+        return None
+
+# --- בלוק לוגיקת שיעורים (Study Logic) ---
+def fetch_titles(topic):
+    p = f"צור 3 כותרות מקצועיות לשיעור על {topic} עבור מתווכים. החזר JSON בלבד: ['title1', 'title2', 'title3']"
+    res = ask_ai(p)
+    try:
+        match = re.search(r'\[.*\]', res, re.DOTALL)
+        return json.loads(match.group())
+    except: return ["מבוא", "עיקרי החוק", "היבטים מעשיים"]
+
+def fetch_content(main_topic, sub_title):
+    p = f"כתוב שיעור מפורט בפורמט Markdown על '{sub_title}' בתוך '{main_topic}'. כלול סעיפי חוק ודוגמאות."
+    return ask_ai(p)
+
+# --- בלוק לוגיקת מבחנים (Exam Logic) ---
+def fetch_questions(topic, count=10):
+    p = f"צור {count} שאלות אמריקאיות על {topic}. לכל שאלה: q, options, correct. החזר JSON בלבד."
+    res = ask_ai(p)
+    try:
+        match = re.search(r'\[.*\]', res, re.DOTALL)
+        return json.loads(match.group())
+    except: return []
+
+# --- ממשק משתמש (UI) ---
+
 if st.session_state.user:
     st.markdown(f'<div class="user-strip">👤 שלום, {st.session_state.user}</div>', unsafe_allow_html=True)
 
 st.title("🏠 מתווך בקליק")
 
-# --- ניתוב דפים ---
-
 if st.session_state.step == 'login':
-    u_name = st.text_input("הזן שם מלא לכניסה:")
-    if st.button("כניסה למערכת"):
-        if u_name:
-            st.session_state.user = u_name
-            st.session_state.step = 'menu'; st.rerun()
+    u_name = st.text_input("שם מלא:")
+    if st.button("כניסה"):
+        if u_name: st.session_state.user = u_name; st.session_state.step = 'menu'; st.rerun()
 
 elif st.session_state.step == 'menu':
-    st.subheader("תפריט ראשי")
     c1, c2 = st.columns(2)
-    with c1:
-        if st.button("📚 לימוד לפי נושאים"):
-            st.session_state.step = 'study'; st.rerun()
-    with c2:
-        if st.button("⏱️ סימולציית בחינה"):
-            st.session_state.step = 'exam_init'; st.rerun()
+    if c1.button("📚 לימוד לפי נושאים"): st.session_state.step = 'study'; st.rerun()
+    if c2.button("⏱️ סימולציית בחינה"): st.session_state.step = 'exam_init'; st.rerun()
 
 elif st.session_state.step == 'study':
     all_topics = [
-        "חוק המתווכים במקרקעין", "תקנות המתווכים (פרטי הזמנה)", "חוק המקרקעין", 
-        "חוק הגנת הדייר", "חוק המכר (דירות)", "חוק החוזים", "חוק הגנת הצרכן", 
-        "חוק עבירות עונשין", "חוק התכנון והבנייה", "חוק מיסוי מקרקעין"
+        "חוק המתווכים במקרקעין", "תקנות המתווכים (פרטי הזמנה)", "תקנות המתווכים (פעולות שיווק)",
+        "חוק המקרקעין", "חוק הגנת הדייר", "חוק המכר (דירות)", "חוק החוזים (חלק כללי)",
+        "חוק החוזים (תרופות)", "חוק הגנת הצרכן", "חוק עבירות עונשין", "חוק שמאי מקרקעין",
+        "חוק התכנון והבנייה", "חוק מיסוי מקרקעין", "חוק הירושה", "חוק הוצאה לפועל", "פקודת הנזיקין"
     ]
-    selected = st.selectbox("בחר נושא ללימוד מהרשימה:", all_topics)
+    sel = st.selectbox("בחר נושא:", all_topics)
     if st.button("התחל שיעור"):
-        with st.spinner("מחלץ ראשי פרקים מה-AI..."):
-            st.session_state.selected_topic = selected
-            st.session_state.lesson_titles = get_lesson_titles(selected)
+        with st.spinner("מכין ראשי פרקים..."):
+            st.session_state.selected_topic = sel
+            st.session_state.lesson_titles = fetch_titles(sel)
             st.session_state.current_sub_idx = None
             st.session_state.lesson_contents = {}
-            st.session_state.show_topic_exam = False
             st.session_state.step = 'lesson_run'; st.rerun()
 
 elif st.session_state.step == 'lesson_run':
     st.header(f"📖 {st.session_state.selected_topic}")
     
-    # 3 כפתורי תתי-נושאים עם לוגיקת Disabled
+    # 3 כפתורי תתי-נושאים (Disabled לנבחר)
     cols = st.columns(3)
     for i, title in enumerate(st.session_state.lesson_titles):
-        is_disabled = (st.session_state.current_sub_idx == i)
-        if cols[i].button(title, disabled=is_disabled, key=f"t_{i}"):
+        is_curr = (st.session_state.current_sub_idx == i)
+        if cols[i].button(title, disabled=is_curr):
             st.session_state.current_sub_idx = i
             if title not in st.session_state.lesson_contents:
-                with st.spinner("מייצר תוכן עבורך..."):
-                    st.session_state.lesson_contents[title] = get_sub_topic_content(st.session_state.selected_topic, title)
+                with st.spinner(f"מייצר תוכן על {title}..."):
+                    st.session_state.lesson_contents[title] = fetch_content(st.session_state.selected_topic, title)
             st.rerun()
 
-    # הצגת תוכן השיעור
+    # תצוגת חומר הלימוד
     idx = st.session_state.current_sub_idx
     if idx is not None:
-        curr_title = st.session_state.lesson_titles[idx]
-        st.info(f"חלק {idx+1}: {curr_title}")
-        st.markdown(st.session_state.lesson_contents[curr_title])
+        title = st.session_state.lesson_titles[idx]
+        st.markdown(f"### {title}")
+        st.markdown(st.session_state.lesson_contents.get(title, ""))
         
         st.write("---")
-        # כפתורי תחתית השיעור
         b1, b2, b3 = st.columns(3)
         with b1:
-            if st.button("📝 שאלון בנושא הכללי"):
-                with st.spinner("מכין שאלות תרגול..."):
-                    st.session_state.topic_exam_questions = get_topic_exam_questions(st.session_state.selected_topic)
-                    st.session_state.show_topic_exam = True
-                    st.rerun()
+            if st.button("📝 שאלון 10 שאלות"):
+                st.session_state.topic_exam_questions = fetch_questions(st.session_state.selected_topic)
+                st.session_state.show_topic_exam = True; st.rerun()
         with b2:
-            if st.button("🏠 יציאה לתפריט"):
-                st.session_state.step = 'menu'; st.rerun()
+            if st.button("🏠 תפריט ראשי"): st.session_state.step = 'menu'; st.rerun()
         with b3:
             if st.button("🔝 לראש העמוד"): st.rerun()
 
-    # הצגת שאלון במידה ונבחר (10 שאלות, ללא בחירה מראש)
     if st.session_state.show_topic_exam:
         st.divider()
-        st.subheader(f"📝 שאלון: {st.session_state.selected_topic}")
+        st.subheader(f"שאלון תרגול: {st.session_state.selected_topic}")
         for q_idx, q in enumerate(st.session_state.topic_exam_questions):
             st.radio(f"{q_idx+1}. {q['q']}", q['options'], index=None, key=f"q_{q_idx}")
-        if st.button("סגור שאלון וחזור לשיעור"):
-            st.session_state.show_topic_exam = False; st.rerun()
+        if st.button("סגור שאלון"): st.session_state.show_topic_exam = False; st.rerun()
 
 elif st.session_state.step == 'exam_init':
-    # הכנה למבחן 25 שאלות
-    st.session_state.exam_active = True
     st.session_state.current_exam_q_idx = 0
     st.session_state.step = 'exam_run'; st.rerun()
 
 elif st.session_state.step == 'exam_run':
-    # לוח ניווט בחינה ב-Sidebar (מותאם לנייד)
+    # לוח ניווט בחינה (Sidebar)
     with st.sidebar:
         st.header("📌 ניווט שאלות")
-        # יצירת מטריצה של 5x5 למספרי השאלות
-        for row in range(5):
-            cols = st.columns(5)
-            for col in range(5):
-                q_num = row * 5 + col
-                if cols[col].button(f"{q_num+1}", key=f"nav_{q_num}"):
-                    st.session_state.current_exam_q_idx = q_num
-                    st.rerun()
-        st.write("---")
-        if st.button("🏁 סיום והגשת בחינה"):
-            st.session_state.step = 'menu'; st.rerun()
+        for r in range(5):
+            c_row = st.columns(5)
+            for i in range(5):
+                n = r * 5 + i
+                if c_row[i].button(f"{n+1}", key=f"nav_{n}"):
+                    st.session_state.current_exam_q_idx = n; st.rerun()
+        if st.button("🏁 סיום"): st.session_state.step = 'menu'; st.rerun()
     
-    # הצגת השאלה הנוכחית במבחן
-    st.subheader(f"שאלה {st.session_state.current_exam_q_idx + 1} מתוך 25")
-    st.write("כאן תופיע השאלה מהמאגר הממשלתי (יבוצע בשלב הבא עם טעינת הצ'אנקים)")
-    st.radio("בחר את התשובה הנכונה:", ["אפשרות 1", "אפשרות 2", "אפשרות 3", "אפשרות 4"], index=None)
-    
-    # ניווט פנימי
-    nb1, nb2 = st.columns(2)
-    if st.session_state.current_exam_q_idx > 0:
-        if nb1.button("⬅️ שאלה הקודמת"):
-            st.session_state.current_exam_q_idx -= 1; st.rerun()
-    if st.session_state.current_exam_q_idx < 24:
-        if nb2.button("שאלה הבאה ➡️"):
-            st.session_state.current_exam_q_idx += 1; st.rerun()
+    st.subheader(f"שאלה {st.session_state.current_exam_q_idx + 1}")
+    st.radio("בחר תשובה:", ["אפשרות 1", "אפשרות 2", "אפשרות 3", "אפשרות 4"], index=None)
