@@ -103,4 +103,17 @@ elif S.step == "quiz":
         with col1:
             if st.button("🔍 בדוק"):
                 if ans:
-                    if ans == q
+                    if ans == q['correct']: st.success(f"נכון! {q['reason']}"):
+                    else: st.error(f"טעות. הנכון: {q['correct']}")
+                else: st.warning("אנא בחר תשובה.")
+        with col2:
+            if st.button("🏠 חזרה לתפריט"):
+                S.step = "menu"; S.lt = ""; S.qq = []; st.rerun()
+        
+        if st.button("השאלה הבאה ➡️"):
+            if S.qi < total_q - 1:
+                S.qi += 1; st.rerun()
+            else:
+                st.success("סיימת את השאלון!"); time.sleep(2); S.step = "menu"; S.lt = ""; st.rerun()
+
+st.markdown(f"<div class='version-footer'>גרסה: 1082 | 16/02/2026 13:10</div>", unsafe_allow_html=True)
