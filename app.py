@@ -4,7 +4,8 @@ import json, re
 
 st.set_page_config(page_title="מתווך בקליק", layout="centered")
 
-st.markdown("<style>* {direction: rtl; text-align: right;} .welcome-text {color: #1E88E5; font-size: 2.2rem; font-weight: bold;} .lesson-box {background: #f9f9f9; padding: 25px; border-right: 6px solid #1E88E5; line-height: 1.8;}</style>", unsafe_allow_html=True)
+# עיצוב UI
+st.markdown("<style>* {direction: rtl; text-align: right;} .welcome-text {color: #1E88E5; font-size: 2.2rem; font-weight: bold;} .lesson-box {background: #f9f9f9; padding: 25px; border-right: 6px solid #1E88E5; line-height: 1.8;} .stButton>button {width: 100%;}</style>", unsafe_allow_html=True)
 
 S = st.session_state
 for k in ['step','user','subs','lt','topic','sub_n','qq','qi','score','ans_d']:
@@ -22,14 +23,24 @@ def ask_ai(p):
         return m.generate_content(p).text
     except: return None
 
+# רשימת 16 הנושאים המלאה
 T_MAP = {
-    "חוק המתווכים": ["דרישת הכתב", "פעולה יעילה", "בלעדיות"],
-    "חוק המקרקעין": ["בעלות ושיתוף", "רישום בטאבו", "הערות אזהרה"],
-    "חוק המכר": ["מפרט המכר", "תקופת בדק", "הבטחת השקעות"],
-    "מיסוי": ["מס שבח", "מס רכישה", "פטורים"],
-    "אתיקה": ["הגינות וזהירות", "ניגוד עניינים", "פרסום"],
-    "חוזים": ["כריתת חוזה", "פגמים", "תרופות"],
-    "תכנון ובנייה": ["מוסדות תכנון", "היתרים", "היטל השבחה"]
+    "חוק המתווכים": ["דרישת הכתב", "פעולה יעילה", "דמי תיווך ובלעדיות"],
+    "חוק המקרקעין": ["בעלות ושיתוף", "עסקאות ורישום", "הערות אזהרה"],
+    "חוק המכר (הבטחת השקעות)": ["ליווי בנקאי", "ערבויות", "פנקס שוברים"],
+    "חוק המכר (דירות)": ["מפרט המכר", "תקופת בדק", "אחריות המוכר"],
+    "חוק הגנת הצרכן": ["הטעיה", "ביטול עסקה", "חובת גילוי"],
+    "חוק החוזים (כללי)": ["כריתת חוזה", "פגמים בכריתה", "צורת החוזה"],
+    "חוק החוזים (תרופות)": ["אכיפה", "ביטול", "פיצויים"],
+    "חוק העונשין": ["עבירות שוחד", "קבלת דבר במרמה", "זיוף"],
+    "תמ\"א 38": ["רוב דרוש", "זכויות בנייה", "מיגון וחיזוק"],
+    "תכנון ובנייה": ["מוסדות תכנון", "היתרי בנייה", "היטל השבחה"],
+    "מיסוי מקרקעין": ["מס שבח", "מס רכישה", "פטורים"],
+    "יחסי ממון": ["איזון משאבים", "הסכם ממון", "דירת המגורים"],
+    "חוק הירושה": ["ירושה על פי דין", "צוואות", "מנהל עיזבון"],
+    "הגנת הדייר": ["דיירות מוגנת", "דמי מפתח", "פינוי"],
+    "הוצאה לפועל": ["עיקולים", "כינוס נכסים", "חקירת יכולת"],
+    "שמאי מקרקעין": ["חובת רישוי", "אתיקה", "שומה למקרקעין"]
 }
 
 st.title("🏠 מתווך בקליק")
@@ -41,26 +52,31 @@ if S.step == 'login':
 
 elif S.step == 'menu':
     st.markdown(f"<p class='welcome-text'>שלום, {S.user}</p>", unsafe_allow_html=True)
-    if st.button("📚 לימוד לפי נושאים"): S.step='study'; st.rerun()
-    if st.button("⏱️ סימולציה"): S.topic="כללי"; S.step='q_prep'; st.rerun()
+    c1, c2 = st.columns(2)
+    with c1:
+        if st.button("📚 לימוד לפי נושאים"): S.step='study'; st.rerun()
+    with c2:
+        if st.button("⏱️ סימולציית בחינה מלאה"): S.topic="כללי"; S.step='q_prep'; st.rerun()
 
 elif S.step == 'study':
-    sel = st.selectbox("נושא:", ["בחר..."] + list(T_MAP.keys()))
+    sel = st.selectbox("בחר נושא לימוד:", ["בחר..."] + list(T_MAP.keys()))
     if sel != "בחר..." and st.button("📖 כניסה לשיעור"):
-        S.subs=T_MAP[sel]; S.topic=sel; S.lt=""; st.rerun()
+        S.subs=T_MAP[sel]; S.topic=sel; S.lt=""; S.sub_n=""; st.rerun()
     if S.subs:
         st.write("---")
+        st.markdown("### 📖 פרקי הלימוד בנושא זה:")
         cols = st.columns(len(S.subs))
         for i, s in enumerate(S.subs):
-            if cols[i].button(s, key=f"b{i}"):
+            is_active = (S.sub_n == s)
+            if cols[i].button(s, key=f"b{i}", disabled=is_active):
                 with st.spinner(f"טוען {s}..."):
                     res = ask_ai(f"שיעור מפורט על {s} למבחן המתווכים כולל סעיפי חוק ודוגמה.")
                     if res: S.lt=res; S.sub_n=s; st.rerun()
     if S.lt:
-        st.markdown(f"## {S.sub_n}")
+        st.markdown(f"<h2 style='color:#1E88E5;'>{S.sub_n}</h2>", unsafe_allow_html=True)
         st.markdown(f"<div class='lesson-box'>{S.lt}</div>", unsafe_allow_html=True)
         if st.button("✍️ תרגול שאלות בנושא זה"): S.step='q_prep'; st.rerun()
-    if st.button("🏠 חזרה"): S.step='menu'; S.subs=[]; S.lt=""; st.rerun()
+    if st.button("🏠 חזרה"): S.step='menu'; S.subs=[]; S.lt=""; S.sub_n=""; st.rerun()
 
 elif S.step == 'q_prep':
     with st.spinner(f"מכין שאלות על {S.topic}..."):
@@ -75,18 +91,18 @@ elif S.step == 'quiz':
     q = S.qq[S.qi]
     st.info(f"שאלה {S.qi+1}/10: {q['q']}")
     ans = st.radio("תשובה:", q['options'], key=f"r{S.qi}", index=None, disabled=S.ans_d)
-    if st.button("🔍 בדוק", disabled=S.ans_d):
+    if st.button("🔍 בדוק תשובה", disabled=S.ans_d):
         if ans: S.ans_d=True; st.rerun()
     if S.ans_d:
         if ans == q['correct']:
             st.success(f"נכון! {q['reason']}")
             if not hasattr(S, 'l_qi') or S.l_qi != S.qi: S.score += 1; S.l_qi = S.qi
         else: st.error(f"טעות. הנכון: {q['correct']}. {q['reason']}")
-        if st.button("הבא ➡️" if S.qi < 9 else "סיום"):
+        if st.button("הבא ➡️" if S.qi < 9 else "🏁 סיום"):
             if S.qi < 9: S.qi += 1; S.ans_d = False; st.rerun()
             else: S.step = 'results'; st.rerun()
 
 elif S.step == 'results':
     st.balloons()
-    st.metric("ציון", f"{S.score*10}%", f"{S.score}/10")
-    if st.button("🏠 תפריט"): S.step='menu'; S.qq=[]; st.rerun()
+    st.metric("ציון סופי", f"{S.score*10}%", f"{S.score}/10")
+    if st.button("🏠 חזרה לתפריט"): S.step='menu'; S.qq=[]; st.rerun()
