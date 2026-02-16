@@ -1,4 +1,4 @@
-# גרסה 1071 | 16/02/2026 | 11:30
+# גרסה 1072 | 16/02/2026 | 11:45
 
 import streamlit as st
 import google.generativeai as genai
@@ -22,7 +22,6 @@ if 'step' not in S:
 def fetch_exam_content(topic, num=5):
     try:
         genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-        # חזרה למודל היציב ביותר עבור API Keys ישנים
         model = genai.GenerativeModel('gemini-pro')
         p = f"חומרי רשם המתווכים 2026. צור {num} שאלות רב-ברירה בפורמט JSON על {topic}: " + "[{'q':'','options':['א','ב','ג','ד'],'correct':'','reason':''}]"
         r = model.generate_content(p)
@@ -41,35 +40,51 @@ if S.step == "login":
 
 elif S.step == "menu":
     st.markdown(f"### שלום, {S.user} 👋")
-    c1, c2 = st.columns(2)
+    c1, col2 = st.columns(2)
     with c1:
         if st.button("📚 למידה לפי נושאים", use_container_width=True): S.step = "study"; st.rerun()
-    with c2:
+    with col2:
         if st.button("⏱️ סימולציית בחינה", use_container_width=True): 
             with st.spinner("מייצר בחינה..."):
                 d = fetch_exam_content("כללי", num=10)
                 if d: S.qq, S.qi, S.step = d, 0, "quiz_mode"; st.rerun()
 
 elif S.step == "study":
-    all_t = ["חוק המתווכים במקרקעין", "תקנות המתווכים (פרטי הזמנה)", "אתיקה מקצועית", "חוק המקרקעין", "חוק המכר (דירות)", "חוק הגנת הצרכן"]
+    # הרשימה המלאה הוחזרה
+    all_t = [
+        "חוק המתווכים במקרקעין", 
+        "תקנות המתווכים (פרטי הזמנה)", 
+        "אתיקה מקצועית", 
+        "חוק המקרקעין", 
+        "חוק המכר (דירות)", 
+        "חוק הגנת הצרכן",
+        "חוק החוזים",
+        "חוק הירושה",
+        "חוק מיסוי מקרקעין (שבח ורכישה)",
+        "חוק הגנת הדייר",
+        "חוק התכנון והבנייה"
+    ]
     if not S.lt:
-        sel = st.selectbox("בחר נושא:", all_t)
+        sel = st.selectbox("בחר נושא ללימוד:", all_t)
         if st.button("📖 צור שיעור", use_container_width=True):
             genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
             model = genai.GenerativeModel('gemini-pro')
-            # gemini-pro לא תומך ב-streaming בצורה זהה, נבקש טקסט מלא
-            res = model.generate_content(f"כתוב שיעור מקיף ל-2026 על {sel}.")
+            res = model.generate_content(f"כתוב שיעור מקיף ומקצועי המעודכן לשנת 2026 על {sel}.")
             S.lt, S.current_topic = res.text, sel
             st.rerun()
+        if st.button("🏠 חזרה"): S.step = "menu"; st.rerun()
     else:
         st.markdown(f"<div class='lesson-box'>{S.lt}</div>", unsafe_allow_html=True)
-        if st.button("✍️ עבור לשאלון תרגול", use_container_width=True):
-            with st.spinner("מייצר שאלות..."):
-                q_data = fetch_exam_content(S.current_topic, num=5)
-                if q_data:
-                    S.qq, S.qi, S.step = q_data, 0, "quiz_mode"
-                    st.rerun()
-        if st.button("🏠 חזרה"): S.lt = ""; st.rerun()
+        c1, c2 = st.columns(2)
+        with c1:
+            if st.button("✍️ עבור לשאלון תרגול", use_container_width=True):
+                with st.spinner("מייצר שאלות..."):
+                    q_data = fetch_exam_content(S.current_topic, num=5)
+                    if q_data:
+                        S.qq, S.qi, S.step = q_data, 0, "quiz_mode"
+                        st.rerun()
+        with c2:
+            if st.button("🏠 חזרה לבחירת נושא", use_container_width=True): S.lt = ""; st.rerun()
 
 elif S.step == "quiz_mode":
     if S.qq:
