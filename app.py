@@ -1,8 +1,8 @@
 # ==========================================
 # Project: מתווך בקליק
 # File: app.py
-# Version: 1130
-# Last Updated: 2026-02-16 | 19:35
+# Version: 1133
+# Last Updated: 2026-02-16 | 20:20
 # ==========================================
 
 import streamlit as st
@@ -22,10 +22,9 @@ def ask_ai(prompt):
         if "429" in str(e): st.warning("⚠️ עומס במערכת. נסה שוב בעוד דקה.")
         return None
 
-# --- לוגיקה ---
+# --- לוגיקת תוכן ושאלות ---
 def fetch_titles(topic):
-    # פרומפט קשוח לקבלת כותרות עם משמעות
-    p = f"צור 3 כותרות קצרות מאוד (2-3 מילים) לתתי-נושאים בתוך {topic}. אל תשתמש במילים 'חלק' או 'פרק'. השתמש במושגים משפטיים. החזר JSON בלבד: ['כותרת1', 'כותרת2', 'כותרת3']"
+    p = f"צור 3 כותרות קצרות (2-3 מילים) לתתי-נושאים בתוך {topic}. ללא המילים 'חלק' או 'פרק'. החזר JSON בלבד: ['כותרת1', 'כותרת2', 'כותרת3']"
     res = ask_ai(p)
     try:
         match = re.search(r'\[.*\]', res, re.DOTALL)
@@ -33,24 +32,24 @@ def fetch_titles(topic):
     except: return ["הגדרות וסמכויות", "חובות המתווך", "פסיקה ויישום"]
 
 def fetch_content(main_topic, sub_title):
-    p = f"כתוב שיעור מפורט בפורמט Markdown על '{sub_title}' בתוך '{main_topic}'. כלול סעיפי חוק ודוגמאות מעשיות."
+    p = f"כתוב שיעור מפורט בפורמט Markdown על '{sub_title}' בתוך '{main_topic}'. כלול סעיפי חוק ודוגמאות."
     return ask_ai(p)
 
-def fetch_questions(topic, count=10):
-    p = f"צור {count} שאלות אמריקאיות על {topic}. לכל שאלה: q, options, correct. החזר JSON בלבד."
+def fetch_single_question(topic):
+    p = f"צור שאלה אמריקאית אחת קשה על {topic}. לכל שאלה: q (שאלה), options (רשימת 4 אפשרויות), correct (התשובה המדויקת). החזר JSON בלבד."
     res = ask_ai(p)
     try:
-        match = re.search(r'\[.*\]', res, re.DOTALL)
+        match = re.search(r'\{.*\}', res, re.DOTALL)
         return json.loads(match.group())
-    except: return []
+    except: return None
 
-# --- Session State ---
+# --- ניהול Session State ---
 if "step" not in st.session_state:
     st.session_state.update({
         "step": "login", "user": None, "selected_topic": None,
         "lesson_titles": [], "lesson_contents": {}, "current_sub_idx": None,
-        "show_topic_exam": False, "topic_exam_questions": [],
-        "current_exam_q_idx": 0
+        "quiz_active": False, "current_q_data": None, "next_q_buffer": None,
+        "q_counter": 0, "score": 0, "user_choice": None
     })
 
 # --- CSS ---
@@ -59,15 +58,16 @@ st.markdown("""
     * { direction: rtl; text-align: right; }
     .user-strip { background-color: rgba(255,255,255,0.1); padding: 10px; border-radius: 8px; margin-bottom: 20px; font-weight: bold; text-align: left; border: 1px solid #ddd; }
     .stButton>button { width: 100%; border-radius: 8px; height: 3.5em; font-weight: bold; }
-    [data-testid="stSidebar"] { direction: rtl; }
+    .question-box { background-color: #f9f9f9; padding: 20px; border-radius: 10px; border: 1px solid #eee; margin-top: 20px; }
 </style>
 """, unsafe_allow_html=True)
 
-# --- UI ---
 if st.session_state.user:
     st.markdown(f'<div class="user-strip">👤 שלום, {st.session_state.user}</div>', unsafe_allow_html=True)
 
 st.title("🏠 מתווך בקליק")
+
+# --- ניתוב דפים ---
 
 if st.session_state.step == 'login':
     u_name = st.text_input("הזן שם מלא:")
@@ -77,72 +77,7 @@ if st.session_state.step == 'login':
 elif st.session_state.step == 'menu':
     c1, c2 = st.columns(2)
     if c1.button("📚 לימוד לפי נושאים"): st.session_state.step = 'study'; st.rerun()
-    if c2.button("⏱️ סימולציית בחינה"): st.session_state.step = 'exam_init'; st.rerun()
+    if c2.button("⏱️ סימולציית בחינה"): st.session_state.step = 'exam_run'; st.rerun()
 
 elif st.session_state.step == 'study':
-    all_topics = [
-        "בחר נושא מהרשימה...",
-        "חוק המתווכים במקרקעין", "תקנות המתווכים (פרטי הזמנה)", "תקנות המתווכים (פעולות שיווק)",
-        "חוק המקרקעין", "חוק הגנת הדייר", "חוק המכר (דירות)", "חוק החוזים (חלק כללי)",
-        "חוק החוזים (תרופות)", "חוק הגנת הצרכן", "חוק עבירות עונשין", "חוק שמאי מקרקעין",
-        "חוק התכנון והבנייה", "חוק מיסוי מקרקעין", "חוק הירושה", "חוק הוצאה לפועל", "פקודת הנזיקין"
-    ]
-    sel = st.selectbox("נושא לימוד:", all_topics, index=0)
-    
-    if sel != "בחר נושא מהרשימה...":
-        if st.button("טען שיעור"):
-            with st.spinner("מייצר ראשי פרקים..."):
-                st.session_state.selected_topic = sel
-                st.session_state.lesson_titles = fetch_titles(sel)
-                st.session_state.current_sub_idx = None
-                st.session_state.lesson_contents = {}
-                st.session_state.step = 'lesson_run'; st.rerun()
-
-elif st.session_state.step == 'lesson_run':
-    st.header(f"📖 {st.session_state.selected_topic}")
-    cols = st.columns(3)
-    for i, title in enumerate(st.session_state.lesson_titles):
-        is_curr = (st.session_state.current_sub_idx == i)
-        if cols[i].button(title, disabled=is_curr):
-            st.session_state.current_sub_idx = i
-            if title not in st.session_state.lesson_contents:
-                with st.spinner(f"טוען תוכן על {title}..."):
-                    st.session_state.lesson_contents[title] = fetch_content(st.session_state.selected_topic, title)
-            st.rerun()
-
-    idx = st.session_state.current_sub_idx
-    if idx is not None:
-        title = st.session_state.lesson_titles[idx]
-        st.markdown(f"### {title}")
-        st.markdown(st.session_state.lesson_contents.get(title, ""))
-        st.write("---")
-        b1, b2, b3 = st.columns(3)
-        if b1.button("📝 שאלון 10 שאלות"):
-            st.session_state.topic_exam_questions = fetch_questions(st.session_state.selected_topic)
-            st.session_state.show_topic_exam = True; st.rerun()
-        if b2.button("🏠 תפריט ראשי"): st.session_state.step = 'menu'; st.rerun()
-        if b3.button("🔝 לראש העמוד"): st.rerun()
-
-    if st.session_state.show_topic_exam:
-        st.divider()
-        st.subheader(f"שאלון תרגול: {st.session_state.selected_topic}")
-        for q_idx, q in enumerate(st.session_state.topic_exam_questions):
-            st.radio(f"{q_idx+1}. {q['q']}", q['options'], index=None, key=f"q_{q_idx}")
-        if st.button("סגור שאלון"): st.session_state.show_topic_exam = False; st.rerun()
-
-elif st.session_state.step == 'exam_init':
-    st.session_state.current_exam_q_idx = 0
-    st.session_state.step = 'exam_run'; st.rerun()
-
-elif st.session_state.step == 'exam_run':
-    with st.sidebar:
-        st.header("📌 ניווט שאלות")
-        for r in range(5):
-            c_row = st.columns(5)
-            for i in range(5):
-                n = r * 5 + i
-                if c_row[i].button(f"{n+1}", key=f"nav_{n}"):
-                    st.session_state.current_exam_q_idx = n; st.rerun()
-        if st.button("🏁 סיום"): st.session_state.step = 'menu'; st.rerun()
-    st.subheader(f"שאלה {st.session_state.current_exam_q_idx + 1}")
-    st.radio("בחר תשובה:", ["אפשרות 1", "אפשרות 2", "אפשרות 3", "אפשרות 4"], index=None)
+    all_topics = ["בחר נושא...", "חוק המתווכים במקרקעין", "חוק המקרקעין", "ח
