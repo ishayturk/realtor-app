@@ -1,6 +1,6 @@
 # ==========================================
-# Project: מתווך בקליק | Version: 1171
-# Last Updated: 2026-02-16 | 19:10
+# Project: מתווך בקליק | Version: 1172
+# Last Updated: 2026-02-16 | 19:15
 # ==========================================
 
 import streamlit as st
@@ -64,10 +64,4 @@ st.title("🏠 מתווך בקליק")
 
 if st.session_state.step == 'login':
     u = st.text_input("הזן שם מלא:")
-    if st.button("כניסה"):
-        if u: st.session_state.update({"user": u, "step": "menu"}); st.rerun()
-
-elif st.session_state.step == 'menu':
-    st.write(f"👤 שלום, {st.session_state.user}")
-    c1, c2 = st.columns(2)
-    if c1.button("📚
+    if st
