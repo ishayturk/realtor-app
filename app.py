@@ -1,99 +1,107 @@
-# גרסה 1072 | 16/02/2026 | 11:45
-
 import streamlit as st
 import google.generativeai as genai
-import json, re
+import json
+import re
 
 st.set_page_config(page_title="מתווך בקליק", layout="centered")
 
+# עיצוב בסיסי ונקי
 st.markdown("""
 <style>
     * { direction: rtl !important; text-align: right !important; }
-    .lesson-box { background-color: #fdfdfd; padding: 25px; border-radius: 12px; border-right: 6px solid #1E88E5; line-height: 1.8; margin-bottom: 20px; }
-    .question-card { background-color: #ffffff; padding: 25px; border-radius: 12px; border: 1px solid #e0e0e0; margin-bottom: 20px; }
-    .main-header { background: #1E88E5; color: white; padding: 15px; border-radius: 10px; text-align: center; margin-bottom: 20px; }
+    .lesson-box { background-color: #f0f2f6; padding: 20px; border-radius: 10px; margin-bottom: 20px; }
+    .question-card { background-color: #ffffff; padding: 20px; border-radius: 10px; border: 1px solid #ddd; margin-bottom: 20px; }
 </style>
 """, unsafe_allow_html=True)
 
 S = st.session_state
 if 'step' not in S:
-    S.update({'user':'','step':'login','lt':'','qi':0,'qq':[],'current_topic':''})
+    S.update({'user': '', 'step': 'login', 'lt': '', 'qi': 0, 'qq': [], 'current_topic': ''})
 
-def fetch_exam_content(topic, num=5):
+def fetch_content(prompt):
     try:
         genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
         model = genai.GenerativeModel('gemini-pro')
-        p = f"חומרי רשם המתווכים 2026. צור {num} שאלות רב-ברירה בפורמט JSON על {topic}: " + "[{'q':'','options':['א','ב','ג','ד'],'correct':'','reason':''}]"
-        r = model.generate_content(p)
-        m = re.search(r'\[.*\]', r.text, re.DOTALL)
-        return json.loads(m.group()) if m else []
+        r = model.generate_content(prompt)
+        return r.text
     except Exception as e:
-        st.error(f"שגיאת מודל: {str(e)}")
-        return []
+        st.error(f"שגיאה: {str(e)}")
+        return ""
 
-st.markdown("<div class='main-header'>🏠 מתווך בקליק</div>", unsafe_allow_html=True)
+st.title("🏠 מתווך בקליק")
 
 if S.step == "login":
     u = st.text_input("שם מלא:")
     if st.button("כניסה"):
-        if u: S.user = u; S.step = "menu"; st.rerun()
+        if u:
+            S.user = u
+            S.step = "menu"
+            st.rerun()
 
 elif S.step == "menu":
-    st.markdown(f"### שלום, {S.user} 👋")
-    c1, col2 = st.columns(2)
-    with c1:
-        if st.button("📚 למידה לפי נושאים", use_container_width=True): S.step = "study"; st.rerun()
-    with col2:
-        if st.button("⏱️ סימולציית בחינה", use_container_width=True): 
-            with st.spinner("מייצר בחינה..."):
-                d = fetch_exam_content("כללי", num=10)
-                if d: S.qq, S.qi, S.step = d, 0, "quiz_mode"; st.rerun()
+    st.write(f"### שלום, {S.user}")
+    if st.button("📚 לימוד לפי נושאים", use_container_width=True):
+        S.step = "study"
+        st.rerun()
+    if st.button("⏱️ סימולציית מבחן", use_container_width=True):
+        S.current_topic = "מבחן כללי"
+        S.step = "quiz_prep"
+        st.rerun()
 
 elif S.step == "study":
-    # הרשימה המלאה הוחזרה
-    all_t = [
-        "חוק המתווכים במקרקעין", 
-        "תקנות המתווכים (פרטי הזמנה)", 
-        "אתיקה מקצועית", 
-        "חוק המקרקעין", 
-        "חוק המכר (דירות)", 
-        "חוק הגנת הצרכן",
-        "חוק החוזים",
-        "חוק הירושה",
-        "חוק מיסוי מקרקעין (שבח ורכישה)",
-        "חוק הגנת הדייר",
-        "חוק התכנון והבנייה"
-    ]
-    if not S.lt:
-        sel = st.selectbox("בחר נושא ללימוד:", all_t)
-        if st.button("📖 צור שיעור", use_container_width=True):
-            genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-            model = genai.GenerativeModel('gemini-pro')
-            res = model.generate_content(f"כתוב שיעור מקיף ומקצועי המעודכן לשנת 2026 על {sel}.")
-            S.lt, S.current_topic = res.text, sel
-            st.rerun()
-        if st.button("🏠 חזרה"): S.step = "menu"; st.rerun()
-    else:
+    topics = ["חוק המתווכים במקרקעין", "חוק המקרקעין", "חוק המכר (דירות)", "חוק הגנת הצרכן", "אתיקה מקצועית"]
+    sel = st.selectbox("בחר נושא:", topics)
+    if st.button("📖 התחל שיעור"):
+        with st.spinner("מייצר שיעור..."):
+            res = fetch_content(f"כתוב שיעור קצר וממוקד על {sel} עבור מבחן המתווכים 2026.")
+            if res:
+                S.lt = res
+                S.current_topic = sel
+                st.rerun()
+    
+    if S.lt:
         st.markdown(f"<div class='lesson-box'>{S.lt}</div>", unsafe_allow_html=True)
-        c1, c2 = st.columns(2)
-        with c1:
-            if st.button("✍️ עבור לשאלון תרגול", use_container_width=True):
-                with st.spinner("מייצר שאלות..."):
-                    q_data = fetch_exam_content(S.current_topic, num=5)
-                    if q_data:
-                        S.qq, S.qi, S.step = q_data, 0, "quiz_mode"
-                        st.rerun()
-        with c2:
-            if st.button("🏠 חזרה לבחירת נושא", use_container_width=True): S.lt = ""; st.rerun()
+        if st.button("✍️ עבור לשאלות תרגול"):
+            S.step = "quiz_prep"
+            st.rerun()
+    
+    if st.button("🏠 חזרה לתפריט"):
+        S.lt = ""
+        S.step = "menu"
+        st.rerun()
 
-elif S.step == "quiz_mode":
+elif S.step == "quiz_prep":
+    with st.spinner("מייצר שאלות..."):
+        p = f"צור 5 שאלות אמריקאיות על {S.current_topic}. החזר JSON בלבד במבנה: " + "[{'q':'','options':['','','',''],'correct':'','reason':''}]"
+        res = fetch_content(p)
+        match = re.search(r'\[.*\]', res, re.DOTALL)
+        if match:
+            S.qq = json.loads(match.group())
+            S.qi = 0
+            S.step = "quiz"
+            st.rerun()
+        else:
+            st.error("תקלה בייצור השאלות, נסה שוב.")
+            if st.button("חזרה"): S.step = "menu"; st.rerun()
+
+elif S.step == "quiz":
     if S.qq:
-        it = S.qq[S.qi]
-        st.markdown(f"<div class='question-card'><b>שאלה {S.qi+1}:</b><br>{it['q']}</div>", unsafe_allow_html=True)
-        ans = st.radio("תשובה:", it['options'], key=f"q_{S.qi}")
-        if st.button("🔍 בדוק"):
-            if ans == it['correct']: st.success(f"נכון! {it.get('reason','')}")
-            else: st.error(f"טעות. הנכון: {it['correct']}")
-        if st.button("הבא ➡️"):
-            if S.qi < len(S.qq)-1: S.qi += 1; st.rerun()
-            else: S.step = "menu"; S.qq = []; st.rerun()
+        q = S.qq[S.qi]
+        st.markdown(f"<div class='question-card'><b>שאלה {S.qi+1}:</b><br>{q['q']}</div>", unsafe_allow_html=True)
+        ans = st.radio("בחר תשובה:", q['options'], key=f"q_{S.qi}")
+        if st.button("בדוק"):
+            if ans == q['correct']:
+                st.success(f"נכון! {q['reason']}")
+            else:
+                st.error(f"טעות. התשובה הנכונה היא: {q['correct']}")
+        
+        if st.button("השאלה הבאה ➡️"):
+            if S.qi < len(S.qq) - 1:
+                S.qi += 1
+                st.rerun()
+            else:
+                st.success("סיימת את התרגול!")
+                if st.button("חזרה לתפריט"):
+                    S.step = "menu"
+                    S.lt = ""
+                    st.rerun()
