@@ -1,6 +1,6 @@
 # ==========================================
-# Project: מתווך בקליק | Version: 1158
-# Last Updated: 2026-02-17 | 01:10
+# Project: מתווך בקליק | Version: 1159
+# Last Updated: 2026-02-17 | 01:25
 # ==========================================
 
 import streamlit as st
@@ -10,7 +10,7 @@ import json, re
 st.set_page_config(page_title="מתווך בקליק", layout="wide")
 st.markdown('<div id="top"></div>', unsafe_allow_html=True)
 
-# --- סילבוס קבוע (הטבלה) ---
+# --- סילבוס קבוע ---
 SYLLABUS = {
     "חוק המתווכים במקרקעין": ["רישוי והגבלות עיסוק", "חובת הגינות וזהירות", "הזמנת תיווך ובלעדיות"],
     "תקנות המתווכים (פרטי הזמנה)": ["דרישות חובה בטופס", "זיהוי נכס וצדדים", "פירוט דמי התיווך"],
@@ -38,7 +38,7 @@ def ask_ai(prompt):
     except: return None
 
 def fetch_content(topic, sub):
-    p = f"כתוב שיעור Markdown מקצועי למבחן המתווכים על '{sub}' בתוך '{topic}'. בלי הקדמות."
+    p = f"כתוב שיעור Markdown מקצועי על '{sub}' בתוך '{topic}'. בלי הקדמות ובלי לציין 'מבחן מתווכים'."
     return ask_ai(p) or "⚠️ שגיאה בטעינה."
 
 def fetch_q(topic):
@@ -57,12 +57,22 @@ if "step" not in st.session_state:
         "current_q_data": None, "show_feedback": False
     })
 
+# CSS מעודכן לכפתורים בגודל טבעי
 st.markdown("""
 <style>
     * { direction: rtl; text-align: right; }
     .user-strip { margin-top: 40px; margin-bottom: 30px; font-weight: bold; color: #444; }
-    .stButton>button { width: 100%; border-radius: 8px; font-weight: bold; }
-    .nav-btn { background-color: #f0f2f6 !important; border: 1px solid #ccc !important; font-weight: normal !important; color: black !important; }
+    .stButton>button { width: auto; min-width: 120px; border-radius: 8px; font-weight: bold; padding: 5px 20px; }
+    .nav-btn { 
+        background-color: transparent !important; 
+        border: 1px solid #ccc !important; 
+        font-weight: normal !important; 
+        color: #555 !important;
+        padding: 6px 15px;
+        display: inline-block;
+        text-decoration: none;
+        border-radius: 8px;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -94,56 +104,8 @@ elif st.session_state.step == 'lesson_run':
     st.header(f"📖 {st.session_state.selected_topic}")
     subs = SYLLABUS.get(st.session_state.selected_topic, [])
     
+    # כפתורי תתי-נושאים בגודל דינמי
     if subs:
         cols = st.columns(len(subs))
         for i, t in enumerate(subs):
-            if cols[i].button(t, key=f"b{i}", disabled=(st.session_state.current_sub_idx == i)):
-                st.session_state.current_sub_idx = i
-                st.session_state.quiz_active = False 
-                with st.spinner("מכין שיעור..."):
-                    st.session_state.lesson_contents[t] = fetch_content(st.session_state.selected_topic, t)
-                st.rerun()
-
-    if st.session_state.current_sub_idx is not None:
-        curr_t = subs[st.session_state.current_sub_idx]
-        st.markdown(st.session_state.lesson_contents.get(curr_t, "⚠️"))
-        
-        # אזור השאלון
-        if st.session_state.quiz_active and st.session_state.current_q_data:
-            st.divider()
-            q = st.session_state.current_q_data
-            st.subheader(f"שאלה {st.session_state.q_counter} מתוך 10")
-            ans = st.radio(q['q'], q['options'], index=None, key=f"q{st.session_state.q_counter}")
-            if not st.session_state.show_feedback:
-                if st.button("בדיקת תשובה"):
-                    if ans:
-                        st.session_state.show_feedback = True
-                        if ans == q['correct']: st.session_state.score += 1
-                        st.rerun()
-            else:
-                if ans == q['correct']: st.success("✅ נכון!")
-                else: st.error(f"❌ טעות. הנכונה: {q['correct']}")
-                st.info(f"**הסבר:** {q['explain']}")
-                if st.session_state.q_counter < 10:
-                    if st.button("שאלה הבאה ➡️"):
-                        st.session_state.current_q_data = fetch_q(st.session_state.selected_topic)
-                        st.session_state.q_counter += 1; st.session_state.show_feedback = False; st.rerun()
-                else:
-                    st.success(f"🏁 ציון סופי: {st.session_state.score * 10}")
-                    if st.button("סגור שאלון"):
-                        st.session_state.quiz_active = False; st.rerun()
-
-        # תפריט ניווט תחתון קבוע - מחוץ לתנאי השאלון
-        st.divider()
-        b_cols = st.columns(3)
-        lbl = f"📝 שאלון: {st.session_state.selected_topic}"
-        if not st.session_state.quiz_active:
-            if b_cols[0].button(lbl):
-                st.session_state.update({
-                    "quiz_active": True, "q_counter": 1, "score": 0, "show_feedback": False,
-                    "current_q_data": fetch_q(st.session_state.selected_topic)
-                })
-                st.rerun()
-        if b_cols[1].button("🏠 לתפריט"):
-            st.session_state.step = 'menu'; st.rerun()
-        b_cols[2].markdown('<a href="#top" target="_self"><button class="nav-btn" style="width:100%; height:38px; border-radius:8px; cursor:pointer;">🔝 לראש הדף</button></a>', unsafe_allow_html=True)
+            if cols[i].button(t, key=f"b{
