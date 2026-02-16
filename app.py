@@ -1,4 +1,4 @@
-# גרסה: 1079 | תאריך: 16/02/2026 | שעה: 12:20 | סטטוס: מיוצבת (מודל 2.0)
+# גרסה: 1081 | תאריך: 16/02/2026 | שעה: 13:00 | סטטוס: 10 שאלות ומספור X/10
 
 import streamlit as st
 import google.generativeai as genai
@@ -13,6 +13,7 @@ st.markdown("""
     .lesson-box { background-color: #f0f2f6; padding: 20px; border-radius: 10px; margin-bottom: 20px; }
     .question-card { background-color: #ffffff; padding: 25px; border-radius: 12px; border: 1px solid #ddd; margin-bottom: 20px; }
     .version-footer { color: #888888; font-size: 0.8rem; text-align: center !important; margin-top: 50px; }
+    .q-count { color: #1E88E5; font-weight: bold; margin-bottom: 10px; font-size: 1.1rem; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -69,8 +70,9 @@ elif S.step == "study":
         S.lt = ""; S.step = "menu"; st.rerun()
 
 elif S.step == "quiz_prep":
-    with st.spinner("מייצר שאלות..."):
-        p = f"צור 5 שאלות אמריקאיות על {S.current_topic}. החזר JSON בלבד: " + "[{'q':'','options':['','','',''],'correct':'','reason':''}]"
+    with st.spinner("מייצר 10 שאלות תרגול..."):
+        # עדכון ל-10 שאלות לפי בקשתך
+        p = f"צור 10 שאלות אמריקאיות על {S.current_topic}. החזר JSON בלבד: " + "[{'q':'','options':['','','',''],'correct':'','reason':''}]"
         res = fetch_content_with_retry(p)
         match = re.search(r'\[.*\]', res, re.DOTALL)
         if match:
@@ -82,25 +84,3 @@ elif S.step == "quiz_prep":
 elif S.step == "quiz":
     if S.qq:
         q = S.qq[S.qi]
-        st.markdown(f"<div class='question-card'><b>שאלה {S.qi+1}:</b><br>{q['q']}</div>", unsafe_allow_html=True)
-        ans = st.radio("בחר תשובה:", q['options'], key=f"q_{S.qi}", index=None)
-        
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.button("🔍 בדוק"):
-                if ans:
-                    if ans == q['correct']: st.success(f"נכון! {q['reason']}")
-                    else: st.error(f"טעות. הנכון: {q['correct']}")
-                else: st.warning("אנא בחר תשובה.")
-        with col2:
-            if st.button("🏠 חזרה לתפריט"):
-                S.step = "menu"; S.lt = ""; S.qq = []; st.rerun()
-        
-        if st.button("השאלה הבאה ➡️"):
-            if S.qi < len(S.qq) - 1:
-                S.qi += 1; st.rerun()
-            else:
-                st.success("סיימת את השאלון!"); time.sleep(2); S.step = "menu"; S.lt = ""; st.rerun()
-
-# חותמת גרסה בתחתית
-st.markdown(f"<div class='version-footer'>גרסה: 1079 | 16/02/2026 12:20</div>", unsafe_allow_html=True)
