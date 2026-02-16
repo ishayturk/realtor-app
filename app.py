@@ -1,13 +1,24 @@
 # ==========================================
-# Project: מתווך בקליק | Version: 1167
-# Last Updated: 2026-02-16 | 18:50
+# Project: מתווך בקליק | Version: 1169
+# Last Updated: 2026-02-16 | 18:58
 # ==========================================
 
 import streamlit as st
 import google.generativeai as genai
 import json, re
 
+# הגדרת דף ראשונה תמיד - מבטיח רוחב מלא
 st.set_page_config(page_title="מתווך בקליק", layout="wide")
+
+# CSS נקי ובטוח למניעת שבירת תצוגה
+st.markdown("""
+<style>
+    * { direction: rtl; text-align: right; }
+    .stButton>button { width: auto; min-width: 110px; border-radius: 8px; font-weight: bold; background-color: transparent !important; border: 1px solid #888 !important; color: #333 !important; }
+    .nav-link { background: transparent; border: 1px solid #888; color: #333; padding: 6px 12px; text-decoration: none; border-radius: 8px; font-size: 14px; font-weight: bold; }
+</style>
+""", unsafe_allow_html=True)
+
 st.markdown('<div id="top"></div>', unsafe_allow_html=True)
 
 SYLLABUS = {
@@ -31,7 +42,7 @@ def ask_ai(prompt):
 
 def fetch_content(topic, sub):
     p = f"כתוב שיעור מקצועי על '{sub}' בתוך '{topic}'. בלי הקדמות ובלי המילים 'מבחן מתווכים'."
-    return ask_ai(p) or "⚠️ שגיאה בטעינת התוכן. נסה שוב."
+    return ask_ai(p) or "⚠️ שגיאה בטעינה."
 
 def fetch_q(topic):
     p = f"צור שאלה אמריקאית על {topic}. JSON: {{'q':'..','options':['..'],'correct':'..','explain':'..'}}"
@@ -41,6 +52,7 @@ def fetch_q(topic):
         return json.loads(m.group())
     except: return None
 
+# ניהול מצב האפליקציה
 if "step" not in st.session_state:
     st.session_state.update({
         "step": "login", "user": None, "selected_topic": None,
@@ -48,16 +60,6 @@ if "step" not in st.session_state:
         "quiz_active": False, "q_counter": 0, "score": 0,
         "current_q_data": None, "next_q_data": None, "show_feedback": False
     })
-
-# CSS ליישור לימין, שורה אחת ורווחים
-st.markdown("""
-<style>
-    * { direction: rtl; text-align: right; }
-    .stButton>button { width: auto; min-width: 130px; border-radius: 8px; font-weight: bold; background-color: transparent !important; border: 1px solid #888 !important; color: #333 !important; white-space: nowrap !important; }
-    .nav-btn { background: transparent; border: 1px solid #888; color: #333; padding: 6px 15px; text-decoration: none; border-radius: 8px; display: inline-block; font-size: 14px; font-weight: bold; }
-    .bottom-bar { display: flex; flex-direction: row; justify-content: flex-start; gap: 20px; align-items: center; margin-top: 10px; }
-</style>
-""", unsafe_allow_html=True)
 
 st.title("🏠 מתווך בקליק")
 
@@ -70,7 +72,7 @@ elif st.session_state.step == 'menu':
     st.write(f"👤 שלום, {st.session_state.user}")
     c1, c2 = st.columns(2)
     if c1.button("📚 לימוד לפי נושאים"):
-        st.session_state.update({"step": "study", "selected_topic": None, "current_sub_idx": None})
+        st.session_state.update({"step": "study", "selected_topic": None, "current_sub_idx": None, "quiz_active": False})
         st.rerun()
     if c2.button("⏱️ סימולציית בחינה"): st.info("בפיתוח...")
 
@@ -80,7 +82,7 @@ elif st.session_state.step == 'study':
     if sel != "בחר נושא..." and st.button("טען שיעור"):
         st.session_state.update({
             "selected_topic": sel, "lesson_contents": {}, "current_sub_idx": None, 
-            "quiz_active": False, "step": "lesson_run", "current_q_data": None, "next_q_data": None
+            "quiz_active": False, "step": "lesson_run", "current_q_data": None, "next_q_data": None, "q_counter": 0
         })
         st.rerun()
 
@@ -89,52 +91,6 @@ elif st.session_state.step == 'lesson_run':
     subs = SYLLABUS.get(st.session_state.selected_topic, [])
     
     if subs:
-        cols = st.columns(len(subs))
+        t_cols = st.columns(len(subs))
         for i, t in enumerate(subs):
-            if cols[i].button(t, key=f"sub_{i}", disabled=(st.session_state.current_sub_idx == i)):
-                st.session_state.update({"current_sub_idx": i, "quiz_active": False, "current_q_data": None, "next_q_data": None})
-                with st.spinner("מכין תוכן..."):
-                    st.session_state.lesson_contents[t] = fetch_content(st.session_state.selected_topic, t)
-                st.rerun()
-
-    # הגנה יצוקה מפני IndexError
-    if st.session_state.current_sub_idx is not None:
-        idx = st.session_state.current_sub_idx
-        if idx < len(subs):
-            content = st.session_state.lesson_contents.get(subs[idx], "")
-            if content: st.markdown(content)
-
-    if st.session_state.quiz_active:
-        st.divider()
-        st.subheader(f"📝 שאלון: {st.session_state.selected_topic}")
-        if not st.session_state.current_q_data:
-            with st.spinner("מייצר שאלה..."):
-                st.session_state.current_q_data = fetch_q(st.session_state.selected_topic)
-            st.rerun()
-        
-        q = st.session_state.current_q_data
-        st.write(f"**שאלה {st.session_state.q_counter} מתוך 10**")
-        ans = st.radio(q['q'], q['options'], index=None, key=f"q_{st.session_state.q_counter}")
-        
-        if st.session_state.show_feedback:
-            if ans == q['correct']: st.success("✅ נכון!")
-            else: st.error(f"❌ טעות. הנכונה: {q['correct']}")
-            st.info(f"הסבר: {q['explain']}")
-
-    # תפריט תחתון - בתוך Container אחד כדי להצמיד לימין ולחסוך רווח
-    st.markdown('<div class="bottom-bar">', unsafe_allow_html=True)
-    b_col1, b_col2, b_col3, _ = st.columns([1.5, 1, 1, 6])
-
-    # לוגיקת כפתור פעולה דינמי
-    btn_label = f"📝 שאלון: {st.session_state.selected_topic}"
-    if st.session_state.quiz_active:
-        if not st.session_state.show_feedback: btn_label = "✅ בדיקה"
-        elif st.session_state.q_counter < 10: btn_label = "➡️ הבאה"
-        else: btn_label = "🔄 מחדש"
-
-    with b_col1:
-        if st.button(btn_label):
-            if not st.session_state.quiz_active or btn_label == "🔄 מחדש":
-                st.session_state.update({"quiz_active": True, "q_counter": 1, "score": 0, "show_feedback": False, "current_q_data": None, "next_q_data": None})
-            elif btn_label == "✅ בדיקה" and ans:
-                st
+            if t_cols[i].button(t, key=f"sub_{i}", disabled=(st.
