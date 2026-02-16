@@ -1,8 +1,8 @@
 # ==========================================
 # Project: מתווך בקליק
 # File: app.py
-# Version: 1153
-# Last Updated: 2026-02-16 | 23:58
+# Version: 1154
+# Last Updated: 2026-02-16 | 23:59
 # ==========================================
 
 import streamlit as st
@@ -35,7 +35,7 @@ def fetch_titles(topic):
 
 def fetch_content(main_topic, sub_title):
     p = (f"כתוב שיעור Markdown על '{sub_title}' בתוך '{main_topic}'. "
-         "בלי הסברים על המבנה. רק תוכן לימודי מקצועי.")
+         "בלי הסברים על המבנה. רק תוכן מקצועי.")
     content = ask_ai(p)
     return content if content else "⚠️ שגיאה בטעינה."
 
@@ -87,7 +87,7 @@ elif st.session_state.step == 'menu':
     if c2.button("⏱️ סימולציית בחינה"): st.info("בפיתוח...")
 
 elif st.session_state.step == 'study':
-    # רשימת נושאים מלאה ומחולקת למניעת חיתוך
+    # רשימה מלאה ומחולקת למניעת חיתוך
     topics = ["בחר נושא...", "חוק המתווכים במקרקעין", "תקנות המתווכים (פרטי הזמנה)"]
     topics += ["תקנות המתווכים (פעולות שיווק)", "חוק המקרקעין", "חוק הגנת הדייר"]
     topics += ["חוק המכר (דירות)", "חוק החוזים (חלק כללי)", "חוק החוזים (תרופות)"]
@@ -163,4 +163,7 @@ elif st.session_state.step == 'lesson_run':
                         st.session_state.current_q_data = fetch_question(st.session_state.selected_topic)
                         st.session_state.q_counter += 1; st.session_state.show_feedback = False; st.rerun()
                 else:
-                    st.success(f"🏁 ציון סופי: {st.session_state.score * 10
+                    score_val = st.session_state.score * 10
+                    st.success(f"🏁 ציון סופי: {score_val}")
+                    if st.button("סגור שאלון"):
+                        st.session_state.quiz_active = False; st.rerun()
