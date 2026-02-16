@@ -1,6 +1,6 @@
 # ==========================================
-# Project: מתווך בקליק | Version: 1164
-# Last Updated: 2026-02-16 | 18:25
+# Project: מתווך בקליק | Version: 1165
+# Last Updated: 2026-02-16 | 18:35
 # ==========================================
 
 import streamlit as st
@@ -15,17 +15,10 @@ SYLLABUS = {
     "תקנות המתווכים (פרטי הזמנה)": ["דרישות חובה בטופס", "זיהוי נכס וצדדים", "פירוט דמי התיווך"],
     "תקנות המתווכים (פעולות שיווק)": ["פעולות שיווק", "הרחבות לבלעדיות", "חובת הוכחת פעילות"],
     "חוק המקרקעין": ["בעלות וזכויות", "בתים משותפים", "עסקאות נוגדות והערות אזהרה"],
-    "חוק הגנת הדייר": ["דיירות מוגנת", "עילות פינוי", "זכויות וחובות דייר"],
     "חוק המכר (דירות)": ["מפרט וחובת גילוי", "בדק ואחריות", "איחור במסירה"],
     "חוק החוזים": ["כריתת חוזה", "פגמים בחוזה", "תרופות בשל הפרה"],
-    "חוק הגנת הצרכן": ["הטעיה בפרסום", "ביטול עסקה", "חובות גילוי"],
-    "חוק עבירות עונשין": ["מרמה והונאה", "זיוף מסמכים", "אחריות פלילית"],
-    "חוק שמאי מקרקעין": ["תפקיד השמאי", "סמכויות והגדרות", "בסיס השומה"],
     "חוק התכנון והבנייה": ["היתרי בנייה", "היטל השבחה", "תוכניות מתאר"],
-    "חוק מיסוי מקרקעין": ["מס שבח", "מס רכישה", "פטורים והקלות"],
-    "חוק הירושה": ["ירושה וצוואה", "ניהול עיזבון", "העברת מקרקעין"],
-    "חוק הוצאה לפועל": ["עיקול מקרקעין", "מימוש משכנתאות", "פינוי נכסים"],
-    "פקודת הנזיקין": ["רשלנות מקצועית", "מצג שווא", "חובת זהירות"]
+    "חוק מיסוי מקרקעין": ["מס שבח", "מס רכישה", "פטורים והקלות"]
 }
 
 def ask_ai(prompt):
@@ -38,8 +31,7 @@ def ask_ai(prompt):
 
 def fetch_content(topic, sub):
     p = f"כתוב שיעור מקצועי על '{sub}' בתוך '{topic}'. בלי הקדמות ובלי המילים 'מבחן מתווכים'."
-    res = ask_ai(p)
-    return res if res else "⚠️ שגיאה בטעינה."
+    return ask_ai(p) or "⚠️ שגיאה בטעינה."
 
 def fetch_q(topic):
     p = f"צור שאלה אמריקאית על {topic}. JSON: {{'q':'..','options':['..'],'correct':'..','explain':'..'}}"
@@ -54,14 +46,16 @@ if "step" not in st.session_state:
         "step": "login", "user": None, "selected_topic": None,
         "lesson_contents": {}, "current_sub_idx": None,
         "quiz_active": False, "q_counter": 0, "score": 0,
-        "current_q_data": None, "show_feedback": False
+        "current_q_data": None, "next_q_data": None, "show_feedback": False
     })
 
+# CSS לשיפור המרווחים והצמדת תפריט לימין
 st.markdown("""
 <style>
     * { direction: rtl; text-align: right; }
-    .stButton>button { width: auto; min-width: 100px; border-radius: 8px; font-weight: bold; background-color: transparent !important; border: 1px solid #888 !important; color: #333 !important; }
-    .nav-btn { background: transparent; border: 1px solid #888; color: #333; padding: 6px 15px; text-decoration: none; border-radius: 8px; display: inline-block; font-size: 14px; font-weight: bold; }
+    .stButton>button { width: auto; min-width: 100px; border-radius: 8px; font-weight: bold; background-color: transparent !important; border: 1px solid #888 !important; color: #333 !important; margin-left: 15px !important; }
+    .nav-btn { background: transparent; border: 1px solid #888; color: #333; padding: 6px 15px; text-decoration: none; border-radius: 8px; display: inline-block; font-size: 14px; font-weight: bold; margin-left: 15px; }
+    .bottom-nav { margin-top: -10px; display: flex; justify-content: flex-start; gap: 10px; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -94,7 +88,7 @@ elif st.session_state.step == 'lesson_run':
         cols = st.columns(len(subs))
         for i, t in enumerate(subs):
             if cols[i].button(t, key=f"sub_{i}", disabled=(st.session_state.current_sub_idx == i)):
-                st.session_state.update({"current_sub_idx": i, "quiz_active": False, "current_q_data": None})
+                st.session_state.update({"current_sub_idx": i, "quiz_active": False, "current_q_data": None, "next_q_data": None})
                 with st.spinner("מכין תוכן..."):
                     st.session_state.lesson_contents[t] = fetch_content(st.session_state.selected_topic, t)
                 st.rerun()
@@ -103,14 +97,16 @@ elif st.session_state.step == 'lesson_run':
         st.markdown(st.session_state.lesson_contents.get(subs[st.session_state.current_sub_idx], "⚠️"))
 
     if st.session_state.quiz_active:
-        st.divider()
         st.subheader(f"📝 שאלון: {st.session_state.selected_topic}")
         if not st.session_state.current_q_data:
-            st.session_state.current_q_data = fetch_q(st.session_state.selected_topic)
+            with st.spinner("טוען שאלה..."):
+                st.session_state.current_q_data = fetch_q(st.session_state.selected_topic)
             st.rerun()
+        
         q = st.session_state.current_q_data
         st.write(f"**שאלה {st.session_state.q_counter} מתוך 10**")
         ans = st.radio(q['q'], q['options'], index=None, key=f"q_{st.session_state.q_counter}")
+        
         if st.session_state.show_feedback:
             if ans == q['correct']: st.success("✅ נכון!")
             else: st.error(f"❌ טעות. הנכונה: {q['correct']}")
@@ -118,26 +114,36 @@ elif st.session_state.step == 'lesson_run':
             if st.session_state.q_counter >= 10:
                 st.success(f"🏁 ציון סופי: {st.session_state.score * 10}")
 
-    st.divider()
-    b1, b2, b3 = st.columns([2, 1, 1])
-    
+    # תפריט תחתון צמוד ימין
+    st.write("") # רווח של שורה אחת
+    cont = st.container()
+    b_start, b_menu, b_up = cont.columns([6, 1, 1]) # יחס שמעדיף את הימין
+
     # לוגיקת כפתור פעולה דינמי
-    btn_label = f"📝 התחל שאלון: {st.session_state.selected_topic}"
+    btn_label = f"📝 שאלון: {st.session_state.selected_topic}"
     if st.session_state.quiz_active:
         if not st.session_state.show_feedback: btn_label = "✅ בדיקת תשובה"
         elif st.session_state.q_counter < 10: btn_label = "➡️ שאלה הבאה"
-        else: btn_label = "🔄 התחל שאלון מחדש"
+        else: btn_label = "🔄 שאלון מחדש"
 
-    if b1.button(btn_label):
-        if not st.session_state.quiz_active or btn_label.startswith("🔄"):
-            st.session_state.update({"quiz_active": True, "q_counter": 1, "score": 0, "show_feedback": False, "current_q_data": None})
-        elif btn_label == "✅ בדיקת תשובה" and ans:
-            st.session_state.show_feedback = True
-            if ans == q['correct']: st.session_state.score += 1
-        elif btn_label == "➡️ שאלה הבאה":
-            st.session_state.update({"current_q_data": None, "q_counter": st.session_state.q_counter + 1, "show_feedback": False})
-        st.rerun()
+    with b_start:
+        if st.button(btn_label):
+            if not st.session_state.quiz_active or btn_label.startswith("🔄"):
+                st.session_state.update({"quiz_active": True, "q_counter": 1, "score": 0, "show_feedback": False, "current_q_data": None, "next_q_data": None})
+            elif btn_label == "✅ בדיקת תשובה" and ans:
+                st.session_state.show_feedback = True
+                if ans == q['correct']: st.session_state.score += 1
+                # טעינה מראש של השאלה הבאה ברקע
+                if st.session_state.q_counter < 10:
+                    st.session_state.next_q_data = fetch_q(st.session_state.selected_topic)
+            elif btn_label == "➡️ שאלה הבאה":
+                st.session_state.current_q_data = st.session_state.next_q_data
+                st.session_state.update({"next_q_data": None, "q_counter": st.session_state.q_counter + 1, "show_feedback": False})
+            st.rerun()
 
-    if b2.button("🏠 לתפריט"):
-        st.session_state.step = 'menu'; st.rerun()
-    b3.markdown('<a href="#top" class="nav-btn">🔝 לראש הדף</a>', unsafe_allow_html=True)
+    with b_menu:
+        if st.button("🏠 תפריט"):
+            st.session_state.step = 'menu'; st.rerun()
+    
+    with b_up:
+        st.markdown('<a href="#top" class="nav-btn">🔝 למעלה</a>', unsafe_allow_html=True)
