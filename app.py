@@ -1,4 +1,4 @@
-# גרסה: 1094 | תאריך: 16/02/2026 | שעה: 16:40 | סטטוס: תיקון לוגיקת הצגת שיעור יציבה
+# גרסה: 1096 | תאריך: 16/02/2026 | שעה: 10:50 | סטטוס: מפת נושאים סטטית למהירות + כותרות שיעור
 
 import streamlit as st
 import google.generativeai as genai
@@ -11,24 +11,35 @@ st.markdown("""
 <style>
     * { direction: rtl !important; text-align: right !important; }
     .stApp { background-color: #ffffff; }
+    .welcome-text { color: #1E88E5; font-weight: bold; margin-bottom: 20px; }
+    .lesson-title { color: #1E88E5; border-bottom: 2px solid #1E88E5; padding-bottom: 10px; margin-bottom: 20px; }
     .lesson-box { 
-        background-color: #ffffff; padding: 30px; 
+        background-color: #f9f9f9; padding: 30px; 
         border-right: 6px solid #1E88E5; border-radius: 4px; 
-        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-        margin-top: 20px; line-height: 1.8; font-size: 1.1rem;
+        line-height: 1.8; font-size: 1.1rem;
     }
     .stButton>button { width: auto; min-width: 140px; }
     .version-footer { color: #bbbbbb; font-size: 0.7rem; text-align: center !important; margin-top: 50px; }
 </style>
 """, unsafe_allow_html=True)
 
-# אתחול Session State
-for key in ['user', 'step', 'sub_topics', 'lt', 'current_topic', 'qq', 'qi']:
-    if key not in st.session_state:
-        st.session_state[key] = '' if key != 'sub_topics' and key != 'qq' else []
-if not st.session_state.step: st.session_state.step = 'login'
+# מפת נושאים סטטית לחיסכון בזמן טעינה (מונע פנייה ל-AI בשלב הזה)
+TOPIC_MAP = {
+    "חוק המתווכים במקרקעין": ["דרישת הכתב ופעולה יעילה", "איסור פעולות משפטיות", "דמי תיווך ובלעדיות"],
+    "חוק המקרקעין": ["סוגי בעלות ושיתוף", "עסקאות ורישום בטאבו", "הערות אזהרה"],
+    "חוק המכר (דירות)": ["מפרט המכר", "תקופת בדק ואחריות", "חובת גילוי של המוכר"],
+    "אתיקה מקצועית": ["חובת הגינות וזהירות", "ניגוד עניינים", "פרסום והתנהגות מקצועית"],
+    "חוק החוזים": ["הצעה וקיבול", "טעות והטעיה", "תרופות בשל הפרת חוזה"],
+    "מיסוי מקרקעין": ["מס שבח", "מס רכישה", "פטורים לדירה יחידה"]
+}
 
 S = st.session_state
+for key in ['user', 'step', 'sub_topics', 'lt', 'current_topic', 'current_sub', 'qq', 'qi', 'score', 'answered']:
+    if key not in S:
+        if key in ['score', 'qi']: S[key] = 0
+        elif key == 'answered': S[key] = False
+        elif key in ['sub_topics', 'qq']: S[key] = []
+        else: S[key] = ''
 
 def fetch_content(prompt):
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
@@ -46,74 +57,87 @@ if S.step == "login":
         if u: S.user = u; S.step = "menu"; st.rerun()
 
 elif S.step == "menu":
-    st.write(f"### שלום, {S.user}")
+    st.markdown(f"<h2 class='welcome-text'>שלום, {S.user}</h2>", unsafe_allow_html=True)
     col1, col2 = st.columns(2)
     with col1:
         if st.button("📚 לימוד לפי נושאים"): S.step = "study"; st.rerun()
     with col2:
         if st.button("⏱️ סימולציית מבחן"):
-            S.current_topic = "כלל נושאי בחינת המתווכים"; S.step = "quiz_prep"; st.rerun()
+            S.update({'current_topic': "מבחן כללי", 'step': "quiz_prep", 'score': 0, 'qi': 0}); st.rerun()
 
 elif S.step == "study":
-    topics = ["חוק המתווכים במקרקעין", "חוק המקרקעין", "חוק המכר (דירות)", "חוק הגנת הצרכן", "אתיקה מקצועית", "חוק החוזים", "מיסוי מקרקעין", "חוק התכנון והבנייה", "חוק הגנת הדייר", "חוק הירושה"]
+    st.markdown(f"### תלמיד: {S.user}")
+    topics = ["בחר נושא...", "חוק המתווכים במקרקעין", "חוק המקרקעין", "חוק המכר (דירות)", "אתיקה מקצועית", "חוק החוזים", "מיסוי מקרקעין"]
     sel = st.selectbox("בחר נושא ראשי:", topics)
     
-    if st.button("📖 כניסה לשיעור"):
-        with st.spinner("מנתח נושא..."):
-            res = fetch_content(f"עבור {sel}, החזר רשימה של 3 תתי-נושאים קריטיים בלבד (מופרדים בפסיק).")
-            if res:
-                S.sub_topics = [x.strip() for x in res.split(',')]
-                S.current_topic = sel
-                S.lt = "" # איפוס טקסט ישן כשנכנסים לנושא חדש
-                st.rerun()
+    if sel != "בחר נושא..." and st.button("📖 כניסה לשיעור"):
+        # טעינה מיידית מהמפה ללא פנייה ל-AI
+        S.sub_topics = TOPIC_MAP.get(sel, ["נושא כללי 1", "נושא כללי 2", "נושא כללי 3"])
+        S.current_topic = sel
+        S.lt = ""
+        st.rerun()
     
-    # הצגת תתי הנושאים אם הם קיימים ב-State
     if S.sub_topics:
         st.write("---")
         st.write(f"### פרקים ב{S.current_topic}:")
         cols = st.columns(len(S.sub_topics))
         for i, sub in enumerate(S.sub_topics):
-            if cols[i].button(sub, key=f"btn_{sub}_{i}"):
-                with st.spinner(f"טוען את {sub}..."):
-                    content = fetch_content(f"כתוב שיעור מקיף ומקצועי על '{sub}' עבור מבחן המתווכים. כלול סעיפי חוק רלוונטיים ודוגמה אחת.")
-                    if content:
+            if cols[i].button(sub, key=f"sub_{i}"):
+                with st.spinner(f"מכין את {sub}..."):
+                    content = fetch_content(f"כתוב שיעור ממוקד על '{sub}' עבור מבחן המתווכים. סעיף חוק ודוגמה.")
+                    if content: 
                         S.lt = content
+                        S.current_sub = sub # שמירת שם הפרק לכותרת
                         st.rerun()
 
     if S.lt:
+        # הצגת כותרת הנושא לפני המלל
+        st.markdown(f"<h2 class='lesson-title'>{S.current_sub}</h2>", unsafe_allow_html=True)
         st.markdown(f"<div class='lesson-box'>{S.lt}</div>", unsafe_allow_html=True)
-        if st.button("✍️ תרגול שאלות בנושא זה"):
-            S.step = "quiz_prep"; st.rerun()
+        if st.button("✍️ סיימתי ללמוד, עבור לתרגול"):
+            S.update({'step': "quiz_prep", 'score': 0, 'qi': 0}); st.rerun()
 
-    if st.button("🏠 חזרה לתפריט"):
-        S.step = "menu"; S.sub_topics = []; S.lt = ""; st.rerun()
+    if st.button("🏠 חזרה"):
+        S.update({'step': "menu", 'sub_topics': [], 'lt': ""}); st.rerun()
 
 elif S.step == "quiz_prep":
-    with st.spinner("מייצר שאלות..."):
+    with st.spinner("מייצר שאלון..."):
         p = f"צור 10 שאלות אמריקאיות על {S.current_topic}. החזר JSON בלבד: " + "[{'q':'','options':['','','',''],'correct':'','reason':''}]"
         res = fetch_content(p)
         if res:
             match = re.search(r'\[.*\]', res, re.DOTALL)
             if match:
-                S.qq = json.loads(match.group()); S.qi = 0; S.step = "quiz"; st.rerun()
+                S.qq = json.loads(match.group()); S.qi = 0; S.score = 0; S.step = "quiz"; S.answered = False; st.rerun()
     S.step = "menu"; st.rerun()
 
 elif S.step == "quiz":
     q = S.qq[S.qi]
     st.markdown(f"**שאלה {S.qi + 1} מתוך {len(S.qq)}**")
     st.markdown(f"<div class='question-card'>{q['q']}</div>", unsafe_allow_html=True)
-    ans = st.radio("בחר תשובה:", q['options'], key=f"q_{S.qi}", index=None)
+    ans = st.radio("בחר תשובה:", q['options'], key=f"q_{S.qi}", index=None, disabled=S.answered)
     
     c1, c2, c3 = st.columns(3)
-    with c1:
-        if st.button("🔍 בדוק"):
-            if ans == q['correct']: st.success(f"נכון! {q['reason']}")
-            else: st.error(f"טעות. הנכון: {q['correct']}")
-    with c2:
-        if st.button("השאלה הבאה ➡️"):
-            if S.qi < len(S.qq)-1: S.qi += 1; st.rerun()
-            else: st.success("סיימת!"); time.sleep(1); S.step = "menu"; st.rerun()
-    with c3:
-        if st.button("🏠 חזרה"): S.step = "menu"; st.rerun()
+    if c1.button("🔍 בדוק תשובה", disabled=S.answered):
+        if ans: S.answered = True; st.rerun()
+    
+    if S.answered:
+        if ans == q['correct']:
+            st.success(f"**נכון!** {q['reason']}")
+            if 'last_qi' not in S or S.last_qi != S.qi: S.score += 1; S.last_qi = S.qi
+        else:
+            st.error(f"**טעות.** התשובה הנכונה: {q['correct']}. \n\n {q['reason']}")
+        
+        btn_label = "לשאלה הבאה ➡️" if S.qi < len(S.qq) - 1 else "🏁 סיום"
+        if st.button(btn_label):
+            if S.qi < len(S.qq) - 1: S.qi += 1; S.answered = False; st.rerun()
+            else: S.step = "results"; st.rerun()
 
-st.markdown(f"<div class='version-footer'>גרסה: 1094 | 16/02/2026 16:40</div>", unsafe_allow_html=True)
+    if c3.button("🏠 חזרה"): S.step = "menu"; st.rerun()
+
+elif S.step == "results":
+    st.balloons()
+    st.markdown(f"## {S.user}, הנה התוצאות:")
+    st.metric("ציון סופי", f"{int((S.score/len(S.qq))*100)}", f"{S.score}/{len(S.qq)}")
+    if st.button("🏠 חזרה לתפריט"): S.update({'step': "menu", 'qq': []}); st.rerun()
+
+st.markdown(f"<div class='version-footer'>גרסה: 1096 | 16/02/2026 10:50</div>", unsafe_allow_html=True)
