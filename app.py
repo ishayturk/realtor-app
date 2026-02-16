@@ -1,4 +1,4 @@
-# גרסה: 1091 | תאריך: 16/02/2026 | שעה: 15:10 | סטטוס: שינוי נוסח כפתור ותיקון לוגיקה
+# גרסה: 1092 | תאריך: 16/02/2026 | שעה: 15:35 | סטטוס: תיקון SyntaxError במחרוזות
 
 import streamlit as st
 import google.generativeai as genai
@@ -6,7 +6,7 @@ import json, re, time
 
 st.set_page_config(page_title="מתווך בקליק", layout="centered")
 
-# עיצוב UI נקי
+# עיצוב UI
 st.markdown("""
 <style>
     * { direction: rtl !important; text-align: right !important; }
@@ -58,13 +58,13 @@ elif S.step == "menu":
         if st.button("📚 לימוד לפי נושאים"): S.step = "study"; st.rerun()
     with col2:
         if st.button("⏱️ סימולציית מבחן"):
-            S.current_topic = "כלל נושאי בחינת המתווכים"; S.step = "quiz_prep"; st.rerun()
+            S.current_topic = "כלל נושאי בחינת המתווכים (חוק המתווכים, מקרקעין, מיסוי, חוזים)"; 
+            S.step = "quiz_prep"; st.rerun()
 
 elif S.step == "study":
     topics = ["חוק המתווכים במקרקעין", "חוק המקרקעין", "חוק המכר (דירות)", "חוק הגנת הצרכן", "אתיקה מקצועית", "חוק החוזים", "מיסוי מקרקעין", "חוק התכנון והבנייה", "חוק הגנת הדייר", "חוק הירושה"]
     sel = st.selectbox("בחר נושא ראשי:", topics)
     
-    # שינוי נוסח הכפתור לפי בקשתך
     if st.button("📖 כניסה לשיעור"):
         with st.spinner("מנתח נושא ומכין תתי-נושאים..."):
             res = fetch_content(f"עבור {sel}, החזר רשימה של 3 תתי-נושאים קריטיים בלבד (מופרדים בפסיק).")
@@ -91,4 +91,35 @@ elif S.step == "study":
         S.update({'lt': '', 'step': 'menu', 'sub_topics': []}); st.rerun()
 
 elif S.step == "quiz_prep":
-    with st.spinner("מייצר
+    # התיקון לשורה שגרמה לשגיאה נמצא כאן:
+    with st.spinner("מייצר 10 שאלות מותאמות..."):
+        p = f"צור 10 שאלות אמריקאיות על {S.current_topic}. החזר JSON בלבד: " + "[{'q':'','options':['','','',''],'correct':'','reason':''}]"
+        res = fetch_content(p)
+        if res:
+            match = re.search(r'\[.*\]', res, re.DOTALL)
+            if match:
+                S.qq = json.loads(match.group()); S.qi = 0; S.step = "quiz"; st.rerun()
+        st.error("תקלה בייצור שאלות."); S.step = "menu"; st.rerun()
+
+elif S.step == "quiz":
+    if S.qq:
+        q = S.qq[S.qi]
+        st.markdown(f"<p style='color:#1E88E5; font-weight:bold;'>שאלה {S.qi + 1} מתוך {len(S.qq)}</p>", unsafe_allow_html=True)
+        st.markdown(f"<div class='question-card'><b>{q['q']}</b></div>", unsafe_allow_html=True)
+        ans = st.radio("בחר תשובה:", q['options'], key=f"q_{S.qi}", index=None)
+        
+        c1, c2, c3 = st.columns([1, 1, 1])
+        with c1:
+            if st.button("🔍 בדוק"):
+                if ans:
+                    if ans == q['correct']: st.success(f"נכון! {q['reason']}")
+                    else: st.error(f"טעות. הנכון: {q['correct']}")
+        with c2:
+            if st.button("השאלה הבאה ➡️"):
+                if S.qi < len(S.qq) - 1: S.qi += 1; st.rerun()
+                else: st.success("סיימת!"); time.sleep(1); S.step = "menu"; st.rerun()
+        with c3:
+            if st.button("🏠 חזרה לתפריט"):
+                S.update({'lt': '', 'step': 'menu', 'sub_topics': [], 'qq': []}); st.rerun()
+
+st.markdown(f"<div class='version-footer'>גרסה: 1092 | 16/02/2026 15:35</div>", unsafe_allow_html=True)
