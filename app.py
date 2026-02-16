@@ -1,8 +1,8 @@
 # ==========================================
 # Project: מתווך בקליק
 # File: app.py
-# Version: 1155
-# Last Updated: 2026-02-17 | 00:15
+# Version: 1156
+# Last Updated: 2026-02-17 | 00:30
 # ==========================================
 
 import streamlit as st
@@ -24,7 +24,6 @@ def ask_ai(prompt):
     except: return None
 
 def clean_label(text):
-    """מנקה גרשיים וסוגריים מהטקסט לתצוגה נקייה"""
     if not text: return ""
     return re.sub(r"[\[\]{}'\"]", "", str(text)).strip()
 
@@ -115,7 +114,6 @@ elif st.session_state.step == 'study':
 elif st.session_state.step == 'lesson_run':
     st.header(f"📖 {st.session_state.selected_topic}")
     
-    # כפתורי תתי-נושאים (מנוקים מגרשיים)
     titles = st.session_state.lesson_titles
     if titles:
         cols = st.columns(len(titles))
@@ -123,15 +121,15 @@ elif st.session_state.step == 'lesson_run':
             if cols[i].button(title, key=f"btn_{i}", disabled=(st.session_state.current_sub_idx == i)):
                 st.session_state.current_sub_idx = i
                 st.session_state.quiz_active = False 
-                st.session_state.lesson_contents[title] = fetch_content(st.session_state.selected_topic, title)
+                # החזרת הספינר לטעינת התוכן
+                with st.spinner("מכין את השיעור..."):
+                    st.session_state.lesson_contents[title] = fetch_content(st.session_state.selected_topic, title)
                 st.rerun()
 
-    # תוכן השיעור
     if st.session_state.current_sub_idx is not None:
         key = st.session_state.lesson_titles[st.session_state.current_sub_idx]
         st.markdown(st.session_state.lesson_contents.get(key, "⚠️ שגיאה"))
         
-        # --- אזור השאלון (מעל הניווט) ---
         if st.session_state.quiz_active and st.session_state.current_q_data:
             st.divider()
             q = st.session_state.current_q_data
@@ -159,23 +157,5 @@ elif st.session_state.step == 'lesson_run':
                     if st.button("סגור שאלון"):
                         st.session_state.quiz_active = False; st.rerun()
 
-        # --- תפריט ניווט תחתון קבוע (תמיד בסוף הדף) ---
         st.divider()
-        b_cols = st.columns(3)
-        
-        # כפתור שאלון דינמי
-        q_label = f"📝 שאלון: {st.session_state.selected_topic}"
-        if not st.session_state.quiz_active:
-            if b_cols[0].button(q_label):
-                st.session_state.update({
-                    "quiz_active": True, "q_counter": 1, "score": 0,
-                    "show_feedback": False, "current_q_data": fetch_question(st.session_state.selected_topic)
-                })
-                st.rerun()
-        else:
-            b_cols[0].empty()
-        
-        if b_cols[1].button("🏠 לתפריט"):
-            st.session_state.step = 'menu'; st.rerun()
-            
-        b_cols[2].markdown('<a href="#top" target="_self"><button class="nav-btn" style="width:100%; height:38px; border-radius:8px; cursor:pointer;">🔝 לראש הדף</button></a>', unsafe_allow_html=True)
+        b_cols = st.columns(3
