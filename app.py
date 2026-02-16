@@ -1,6 +1,6 @@
 # ==========================================
-# Project: מתווך בקליק | Version: 1170
-# Last Updated: 2026-02-16 | 19:05
+# Project: מתווך בקליק | Version: 1171
+# Last Updated: 2026-02-16 | 19:10
 # ==========================================
 
 import streamlit as st
@@ -70,23 +70,4 @@ if st.session_state.step == 'login':
 elif st.session_state.step == 'menu':
     st.write(f"👤 שלום, {st.session_state.user}")
     c1, c2 = st.columns(2)
-    if c1.button("📚 לימוד לפי נושאים"):
-        st.session_state.update({"step": "study", "selected_topic": None, "current_sub_idx": None, "quiz_active": False})
-        st.rerun()
-    if c2.button("⏱️ סימולציית בחינה"): st.info("בפיתוח...")
-
-elif st.session_state.step == 'study':
-    ts = ["בחר נושא..."] + list(SYLLABUS.keys())
-    sel = st.selectbox("נושא לימוד:", ts)
-    if sel != "בחר נושא..." and st.button("טען שיעור"):
-        st.session_state.update({
-            "selected_topic": sel, "lesson_contents": {}, "current_sub_idx": None, 
-            "quiz_active": False, "step": "lesson_run", "current_q_data": None, "next_q_data": None, "q_counter": 0
-        })
-        st.rerun()
-
-elif st.session_state.step == 'lesson_run':
-    st.header(f"📖 {st.session_state.selected_topic}")
-    subs = SYLLABUS.get(st.session_state.selected_topic, [])
-    
-    if subs:
+    if c1.button("📚
