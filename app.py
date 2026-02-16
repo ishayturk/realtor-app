@@ -1,5 +1,5 @@
 # ==========================================
-# Project: מתווך בקליק | Version: 1196
+# Project: מתווך בקליק | Version: 1197
 # ==========================================
 import streamlit as st
 import google.generativeai as genai
@@ -7,7 +7,21 @@ import json, re
 
 st.set_page_config(page_title="מתווך בקליק", layout="wide")
 st.markdown('<div id="top"></div>', unsafe_allow_html=True)
-st.markdown("""<style> * { direction: rtl; text-align: right; } .stButton>button { width: 100%; border-radius: 8px; font-weight: bold; } .top-btn { border: 1px solid #ccc; padding: 10px; border-radius: 8px; text-align: center; text-decoration: none; display: block; color: black; background: #f0f2f6; }</style>""", unsafe_allow_html=True)
+
+# עיצוב CSS ממוקד לתפריט תחתון וישור ימין
+st.markdown("""
+<style>
+    * { direction: rtl; text-align: right; }
+    .stButton>button { width: 100%; border-radius: 8px; font-weight: bold; height: 3em; }
+    /* עיצוב כפתור למעלה ככפתור סטנדרטי */
+    .top-link { 
+        display: inline-block; width: 100%; background-color: #f0f2f6; 
+        color: black; text-align: center; padding: 0.5em 0; 
+        border-radius: 8px; text-decoration: none; border: 1px solid #d1d5db;
+        font-weight: bold; height: 1.8em; line-height: 1.8em;
+    }
+</style>
+""", unsafe_allow_html=True)
 
 SYLLABUS = {
     "חוק המתווכים": ["רישוי והגבלות", "הגינות וזהירות", "הזמנה ובלעדיות", "פעולות שאינן תיווך"],
@@ -26,13 +40,13 @@ def ask_ai(p, is_lesson=True):
     try:
         genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
         m = genai.GenerativeModel('gemini-2.0-flash')
-        prompt = p + " כתוב שיעור ארוך מאוד, מעמיק, עם סעיפי חוק מדויקים ומספרים. ללא כותרות." if is_lesson else p
+        prompt = p + " כתוב שיעור ארוך מאוד, מעמיק, עם סעיפי חוק ומספרים. ללא כותרות." if is_lesson else p
         r = m.generate_content(prompt)
         return r.text if r else None
-    except: return "⚠️ תקלה זמנית, נסה שוב."
+    except: return "⚠️ תקלה זמנית."
 
 def fetch_q(topic):
-    p = f"שאלה אמריקאית על {topic}. החזר רק JSON: {{'q':'','options':['','','',''],'correct':'','explain':''}}"
+    p = f"שאלה אמריקאית על {topic}. JSON: {{'q':'','options':['','','',''],'correct':'','explain':''}}"
     res = ask_ai(p, is_lesson=False)
     try:
         data = json.loads(re.search(r'\{.*\}', res, re.DOTALL).group())
@@ -40,7 +54,7 @@ def fetch_q(topic):
     except: return None
 
 if "step" not in st.session_state:
-    st.session_state.update({"user": None, "step": "login", "q_count": 0, "quiz_active": False})
+    st.session_state.update({"user": None, "step": "login", "q_count": 0, "quiz_active": False, "show_ans": False})
 
 st.title("🏠 מתווך בקליק")
 
@@ -53,10 +67,12 @@ if st.session_state.step == "login":
 elif st.session_state.step == "menu":
     st.subheader(f"👤 שלום, {st.session_state.user}")
     c1, c2 = st.columns(2)
-    if c1.button("📚 לימוד לפי נושאים"):
-        st.session_state.step = "study"
-        st.rerun()
-    if c2.button("⏱️ גש/י למבחן"): st.info("בקרוב")
+    with c1:
+        if st.button("📚 לימוד לפי נושאים"):
+            st.session_state.step = "study"
+            st.rerun()
+    with c2:
+        if st.button("⏱️ גש/י למבחן"): st.info("בקרוב")
 
 elif st.session_state.step == "study":
     sel = st.selectbox("בחר נושא:", ["בחר..."] + list(SYLLABUS.keys()))
@@ -72,8 +88,8 @@ elif st.session_state.step == "lesson_run":
     for i, s in enumerate(subs):
         if cols[i].button(s, key=f"btn_{i}"):
             st.session_state.current_sub = s
-            with st.spinner("מייצר תוכן מעמיק..."):
-                st.session_state.lesson_txt = ask_ai(f"שיעור מפורט למבחן המתווכים על {s} בחוק {topic}")
+            with st.spinner("מייצר תוכן..."):
+                st.session_state.lesson_txt = ask_ai(f"שיעור מפורט על {s} בחוק {topic}")
             st.rerun()
 
     if st.session_state.get("lesson_txt"):
@@ -82,31 +98,39 @@ elif st.session_state.step == "lesson_run":
 
     if st.session_state.quiz_active:
         st.divider()
-        st.subheader(f"📝 שאלון: {topic}")
-        st.write(f"**שאלה {st.session_state.q_count}**")
+        st.subheader(f"📝 שאלון: {topic} (שאלה {st.session_state.q_count})")
         q = st.session_state.get("q_data")
         if q:
-            ans = st.radio(q['q'], q['options'], index=None, key=f"quiz_{st.session_state.q_count}")
-            if st.button("בדיקה"):
+            ans = st.radio(q['q'], q['options'], index=None, key=f"q_{st.session_state.q_count}")
+            if st.session_state.show_ans:
                 if ans == q['correct']: st.success("נכון!")
                 else: st.error(f"טעות. התשובה: {q['correct']}")
                 st.info(q['explain'])
-        if st.button("שאלה הבאה ➡️"):
-            st.session_state.q_count += 1
-            st.session_state.q_data = fetch_q(topic)
-            st.rerun()
 
+    # תפריט תחתון מאוחד בשורה אחת
     st.write("---")
-    b1, b2, b3 = st.columns([2.5, 1.5, 6])
-    with b1:
+    foot_cols = st.columns([1.5, 1.5, 1.5, 1.5, 4]) # חלוקה ל-5 עמודות לישור ימין
+    
+    with foot_cols[0]: # כפתור שאלון דינמי
         if not st.session_state.quiz_active:
-            if st.button(f"📝 שאלון: {topic}"):
-                st.session_state.update({"quiz_active": True, "q_count": 1, "q_data": fetch_q(topic)})
+            if st.button(f"📝 שאלון"):
+                st.session_state.update({"quiz_active": True, "q_count": 1, "q_data": fetch_q(topic), "show_ans": False})
                 st.rerun()
-    with b2:
+        elif not st.session_state.show_ans:
+            if st.button("✅ בדיקה"):
+                st.session_state.show_ans = True
+                st.rerun()
+        else:
+            if st.button("➡️ הבאה"):
+                st.session_state.update({"q_count": st.session_state.q_count + 1, "q_data": fetch_q(topic), "show_ans": False})
+                st.rerun()
+
+    with foot_cols[1]:
         if st.button("🏠 תפריט"):
             st.session_state.step = "menu"
             st.rerun()
+
+    with foot_cols[2]:
+        st.markdown('<a href="#top" class="top-link">🔝 למעלה</a>', unsafe_allow_html=True)
     
-    st.markdown('<a href="#top" class="top-btn">🔝 למעלה</a>', unsafe_allow_html=True)
-    st.caption("Version: 1196") # מזהה גרסה בתחתית
+    st.caption(f"Version: 1197 | User: {st.session_state.user}")
