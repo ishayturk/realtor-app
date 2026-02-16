@@ -1,33 +1,20 @@
-# גרסה: 1100 | תאריך: 16/02/2026 | שעה: 12:00 | סטטוס: קוד שלם ללא חיתוכים
-
 import streamlit as st
 import google.generativeai as genai
-import json, re, time
+import json, re
 
 st.set_page_config(page_title="מתווך בקליק", layout="centered")
 
-st.markdown("""
-<style>
-    * { direction: rtl !important; text-align: right !important; }
-    .stApp { background-color: #ffffff; }
-    .welcome-text { color: #1E88E5; font-weight: bold; margin-bottom: 10px; font-size: 2rem; }
-    .lesson-title { color: #1E88E5; border-bottom: 2px solid #1E88E5; padding-bottom: 10px; margin-bottom: 20px; font-size: 1.8rem; }
-    .lesson-box { 
-        background-color: #f9f9f9; padding: 30px; border-right: 6px solid #1E88E5; 
-        border-radius: 4px; line-height: 1.8; font-size: 1.1rem;
-    }
-    .question-card { background-color: #ffffff; padding: 25px; border: 1px solid #e0e0e0; border-radius: 12px; margin-bottom: 20px; }
-    .stButton>button { width: auto; min-width: 150px; }
-    .version-footer { color: #bbbbbb; font-size: 0.7rem; text-align: center !important; margin-top: 50px; }
-</style>
-""", unsafe_allow_html=True)
+# עיצוב בסיסי
+st.markdown("<style>* {direction: rtl; text-align: right;} .welcome-text {color: #1E88E5; font-size: 2rem; font-weight: bold;} .lesson-box {background: #f9f9f9; padding: 20px; border-right: 5px solid #1E88E5;}</style>", unsafe_allow_html=True)
 
+# אתחול
 S = st.session_state
-for k in ['step','user','sub_topics','lt','current_topic','current_sub','qq','qi','score','ans_done']:
+keys = ['step','user','subs','lt','topic','sub_n','qq','qi','score','ans_d']
+for k in keys:
     if k not in S:
         if k in ['score','qi']: S[k]=0
-        elif k=='ans_done': S[k]=False
-        elif k in ['sub_topics','qq']: S[k]=[]
+        elif k=='ans_d': S[k]=False
+        elif k in ['subs','qq']: S[k]=[]
         elif k=='step': S[k]='login'
         else: S[k]=''
 
@@ -35,52 +22,63 @@ def ask_ai(p):
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
     m = genai.GenerativeModel('gemini-2.0-flash')
     try:
-        r = m.generate_content(p)
-        return r.text
+        return m.generate_content(p).text
     except: return None
 
 T_MAP = {
-    "חוק המתווכים": ["דרישת הכתב ופעולה יעילה", "איסור פעולות משפטיות", "דמי תיווך ובלעדיות"],
-    "חוק המקרקעין": ["סוגי בעלות ושיתוף", "עסקאות ורישום בטאבו", "הערות אזהרה"],
-    "חוק המכר (דירות)": ["מפרט המכר וחובות המוכר", "תקופת בדק ואחריות", "הבטחת השקעות"],
-    "חוק הגנת הצרכן": ["הטעיה וניצול מצוקה", "ביטול עסקה", "חובת גילוי"],
-    "אתיקה מקצועית": ["חובת הגינות וזהירות", "ניגוד עניינים", "פרסום והתנהגות"],
-    "חוק החוזים": ["כריתת חוזה", "פגמים בכריתה", "תרופות בשל הפרה"],
-    "מיסוי מקרקעין": ["מס שבח", "מס רכישה", "פטורים לדירה יחידה"],
-    "חוק התכנון והבנייה": ["מוסדות התכנון", "היתרי בנייה", "היטל השבחה"],
-    "חוק הגנת הדייר": ["דיירות מוגנת", "עילות פינוי", "זכויות דייר ממשיך"],
-    "חוק הירושה": ["ירושה על פי דין", "צוואות", "ניהול עיזבון"]
+    "חוק המתווכים": ["דרישת הכתב", "פעולה יעילה", "בלעדיות"],
+    "חוק המקרקעין": ["בעלות ושיתוף", "רישום בטאבו", "הערות אזהרה"],
+    "חוק המכר": ["מפרט המכר", "תקופת בדק", "הבטחת השקעות"],
+    "מיסוי": ["מס שבח", "מס רכישה", "פטורים"],
+    "אתיקה": ["הגינות וזהירות", "ניגוד עניינים", "פרסום"]
 }
 
 st.title("🏠 מתווך בקליק")
 
-if S.step == "login":
-    u_in = st.text_input("שם מלא:")
+if S.step == 'login':
+    u = st.text_input("שם מלא:")
     if st.button("כניסה"):
-        if u_in: S.user=u_in; S.step="menu"; st.rerun()
+        if u: S.user=u; S.step='menu'; st.rerun()
 
-elif S.step == "menu":
-    st.markdown(f"<h2 class='welcome-text'>שלום, {S.user}</h2>", unsafe_allow_html=True)
-    c1, c2 = st.columns(2)
-    if c1.button("📚 לימוד לפי נושאים"): S.step="study"; st.rerun()
-    if c2.button("⏱️ סימולציית מבחן"):
-        S.update({'current_topic':"מבחן כללי",'step':"q_prep",'score':0,'qi':0}); st.rerun()
+elif S.step == 'menu':
+    st.markdown(f"<p class='welcome-text'>שלום, {S.user}</p>", unsafe_allow_html=True)
+    if st.button("📚 לימוד לפי נושאים"): S.step='study'; st.rerun()
+    if st.button("⏱️ סימולציה"): S.topic="מבחן כללי"; S.step='q_prep'; st.rerun()
 
-elif S.step == "study":
-    st.write(f"**תלמיד:** {S.user}")
-    sel = st.selectbox("בחר נושא:", ["בחר..."] + list(T_MAP.keys()))
-    if sel != "בחר..." and st.button("📖 כניסה לשיעור"):
-        S.update({'sub_topics':T_MAP[sel],'current_topic':sel,'lt':""}); st.rerun()
-    if S.sub_topics:
-        st.write("---")
-        cols = st.columns(len(S.sub_topics))
-        for i, sub in enumerate(S.sub_topics):
-            if cols[i].button(sub, key=f"btn_{i}"):
-                with st.spinner(f"טוען {sub}..."):
-                    res = ask_ai(f"כתוב שיעור מקיף על '{sub}' למבחן המתווכים. כלול סעיפי חוק ודוגמה.")
-                    if res: S.lt=res; S.current_sub=sub; st.rerun()
+elif S.step == 'study':
+    sel = st.selectbox("נושא:", ["בחר..."] + list(T_MAP.keys()))
+    if sel != "בחר..." and st.button("כניסה לשיעור"):
+        S.subs=T_MAP[sel]; S.topic=sel; S.lt=""; st.rerun()
+    if S.subs:
+        cols = st.columns(len(S.subs))
+        for i, s in enumerate(S.subs):
+            if cols[i].button(s, key=f"b{i}"):
+                with st.spinner("טוען..."):
+                    res = ask_ai(f"שיעור מקיף על {s} למבחן המתווכים כולל חוק ודוגמה.")
+                    if res: S.lt=res; S.sub_n=s; st.rerun()
     if S.lt:
-        st.markdown(f"<h2 class='lesson-title'>{S.current_sub}</h2>", unsafe_allow_html=True)
+        st.markdown(f"## {S.sub_n}")
         st.markdown(f"<div class='lesson-box'>{S.lt}</div>", unsafe_allow_html=True)
-        if st.button("✍️ תרגול שאלות בנושא זה"):
-            S.update({'step
+        if st.button("✍️ תרגול שאלות בנושא זה"): S.step='q_prep'; st.rerun()
+    if st.button("🏠 חזרה"): S.step='menu'; S.subs=[]; S.lt=""; st.rerun()
+
+elif S.step == 'q_prep':
+    with st.spinner(f"מייצר שאלות על {S.topic}..."):
+        p = f"צור 10 שאלות על {S.topic}. החזר JSON: " + "[{'q':'','options':['','','',''],'correct':'','reason':''}]"
+        res = ask_ai(p)
+        if res:
+            m = re.search(r'\[.*\]', res, re.DOTALL)
+            if m: S.qq=json.loads(m.group()); S.qi=0; S.score=0; S.ans_d=False; S.step='quiz'; st.rerun()
+    S.step='menu'; st.rerun()
+
+elif S.step == 'quiz':
+    q = S.qq[S.qi]
+    st.write(f"שאלה {S.qi+1}/10")
+    st.info(q['q'])
+    ans = st.radio("תשובה:", q['options'], key=f"r{S.qi}", index=None, disabled=S.ans_d)
+    if st.button("🔍 בדוק", disabled=S.ans_d):
+        if ans: S.ans_d=True; st.rerun()
+    if S.ans_d:
+        if ans == q['correct']:
+            st.success(f"נכון! {q['reason']}")
+            if 'l_qi' not in S or S.l_qi != S.qi:
