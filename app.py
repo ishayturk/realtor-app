@@ -1,11 +1,17 @@
+# ==========================================
+# Project: מתווך בקליק
+# Version: 1114
+# Last Updated: 2026-02-16
+# ==========================================
+
 import streamlit as st
 import google.generativeai as genai
 import json, re, time
 
 # הגדרות דף
-st.set_page_config(page_title="מתווך בקליק v1109", layout="centered")
+st.set_page_config(page_title="מתווך בקליק", layout="centered")
 
-# עיצוב UI
+# עיצוב UI בסיסי
 st.markdown("""
 <style>
     * { direction: rtl; text-align: right; }
@@ -16,9 +22,8 @@ st.markdown("""
     .stButton>button { width: 100%; }
     .user-label { 
         font-size: 1rem; color: #666; padding: 5px 0; 
-        border-bottom: 1px solid #eee; margin-bottom: 10px;
+        border-bottom: 1px solid #eee; margin-bottom: 20px;
     }
-    .version-display { font-size: 0.9rem; color: #1E88E5; font-weight: normal; vertical-align: middle; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -35,10 +40,13 @@ for k in ['step','user','subs','lt','topic','sub_n','qq','qi','score','ans_d','l
 def ask_ai(p):
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
     m = genai.GenerativeModel('gemini-2.0-flash')
-    try:
-        r = m.generate_content(p)
-        return r.text if r else None
-    except: return None
+    for attempt in range(2):
+        try:
+            r = m.generate_content(p)
+            if r and r.text: return r.text
+        except:
+            time.sleep(1)
+    return None
 
 def reset_to_home():
     S.step = 'menu'
@@ -50,7 +58,7 @@ def reset_to_home():
     S.qi = 0
     S.ans_d = False
 
-# מפת נושאים מקצועית ומלאה
+# מפת נושאים
 T_MAP = {
     "חוק המתווכים": ["דרישת הכתב בחוזה תיווך", "פעולה כגורם יעיל בעסקה", "דמי תיווך ותקופת בלעדיות"],
     "חוק המקרקעין": ["זכויות בעלות ושיתוף", "רישום בפנקסי מקרקעין", "רישום הערות אזהרה במקרקעין"],
@@ -70,12 +78,10 @@ T_MAP = {
     "חוק שמאי מקרקעין": ["חובת רישוי שמאי", "אתיקה מקצועית בשמאות", "כללי עריכת שומת מקרקעין"]
 }
 
-# תצוגת שם משתמש שקופה בראש הדף
 if S.user:
     st.markdown(f"<div class='user-label'>👤 תלמיד/ה: {S.user}</div>", unsafe_allow_html=True)
 
-# כותרת עם מספר גרסה מובנה
-st.markdown("<h1>🏠 מתווך בקליק <span class='version-display'>(גרסה 1109)</span></h1>", unsafe_allow_html=True)
+st.title("🏠 מתווך בקליק")
 
 if S.step == 'login':
     u = st.text_input("הזן שם מלא לכניסה:")
@@ -96,11 +102,10 @@ elif S.step == 'study':
     
     if S.subs:
         st.write("---")
-        st.markdown("### 📖 פרקי הלימוד:")
+        st.markdown(f"### 📖 נושא הלימוד: {S.topic} - פרקי הלימוד:")
         cols = st.columns(len(S.subs))
         for i, s in enumerate(S.subs):
-            is_active = (S.sub_n == s)
-            if cols[i].button(s, key=f"btn_{i}", disabled=is_active):
+            if cols[i].button(s, key=f"btn_{i}"):
                 with st.spinner(f"טוען את השיעור: {s}..."):
                     res = ask_ai(f"שיעור מפורט על {s} למבחן המתווכים כולל סעיפי חוק.")
                     if res: S.lt=res; S.sub_n=s; st.rerun()
@@ -108,8 +113,14 @@ elif S.step == 'study':
     if S.lt:
         st.markdown(f"## {S.sub_n}")
         st.markdown(f"<div class='lesson-box'>{S.lt}</div>", unsafe_allow_html=True)
-        if st.button("⬆️ חזרה לראש העמוד"): st.rerun()
-        if st.button("✍️ תרגול שאלות בפרק זה"): S.step='q_prep'; st.rerun()
+        
+        # כפתורים בשורה אחת בסוף השיעור
+        st.write(" ")
+        bc1, bc2 = st.columns(2)
+        with bc1:
+            if st.button("⬆️ חזרה לראש העמוד"): st.rerun()
+        with bc2:
+            if st.button("✍️ תרגול שאלות בפרק זה"): S.step='q_prep'; st.rerun()
     
     st.write("---")
     if st.button("🏠 חזרה לתפריט הראשי"): reset_to_home(); st.rerun()
@@ -130,15 +141,15 @@ elif S.step == 'q_prep':
 elif S.step == 'quiz':
     q = S.qq[S.qi]
     st.info(f"שאלה {S.qi+1}/10: {q['q']}")
-    ans = st.radio("בחר תשובה נכונה:", q['options'], key=f"r{S.qi}", index=None, disabled=S.ans_d)
+    ans = st.radio("בחר תשובה:", q['options'], key=f"r{S.qi}", index=None, disabled=S.ans_d)
     if st.button("🔍 בדוק תשובה", disabled=S.ans_d):
         if ans: S.ans_d=True; st.rerun()
     if S.ans_d:
         if ans == q['correct']:
             st.success(f"נכון! {q['reason']}")
             if not hasattr(S, 'l_qi') or S.l_qi != S.qi: S.score += 1; S.l_qi = S.qi
-        else: st.error(f"טעות. התשובה הנכונה: {q['correct']}. {q['reason']}")
-        if st.button("השאלה הבאה ➡️" if S.qi < 9 else "🏁 לסיום וצפייה בציון"):
+        else: st.error(f"טעות. הנכון: {q['correct']}. {q['reason']}")
+        if st.button("הבא ➡️" if S.qi < 9 else "🏁 סיום"):
             if S.qi < 9: S.qi += 1; S.ans_d = False; st.rerun()
             else: S.step = 'results'; st.rerun()
 
