@@ -1,4 +1,4 @@
-# גרסה: 1084 | תאריך: 16/02/2026 | שעה: 13:25 | סטטוס: הזרמת תוכן ושיעור מפורט
+# גרסה: 1087 | תאריך: 16/02/2026 | שעה: 14:15 | סטטוס: החזרת Spinner לשאלון
 
 import streamlit as st
 import google.generativeai as genai
@@ -9,10 +9,25 @@ st.set_page_config(page_title="מתווך בקליק", layout="centered")
 st.markdown("""
 <style>
     * { direction: rtl !important; text-align: right !important; }
-    .lesson-box { background-color: #f0f2f6; padding: 20px; border-radius: 10px; margin-bottom: 20px; white-space: pre-wrap; }
-    .question-card { background-color: #ffffff; padding: 25px; border-radius: 12px; border: 1px solid #ddd; margin-bottom: 20px; }
-    .version-footer { color: #888888; font-size: 0.8rem; text-align: center !important; margin-top: 50px; }
-    .q-count { color: #1E88E5; font-weight: bold; margin-bottom: 10px; font-size: 1.1rem; }
+    .stApp { background-color: #ffffff; }
+    .lesson-box { 
+        background-color: #ffffff; 
+        padding: 30px; 
+        border-right: 6px solid #1E88E5; 
+        border-radius: 4px; 
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        margin-bottom: 25px; 
+        line-height: 1.8;
+        font-size: 1.1rem;
+    }
+    .question-card { 
+        background-color: #ffffff; 
+        padding: 25px; 
+        border: 1px solid #e0e0e0; 
+        border-radius: 12px; 
+        margin-bottom: 20px; 
+    }
+    .version-footer { color: #bbbbbb; font-size: 0.7rem; text-align: center !important; margin-top: 50px; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -20,15 +35,11 @@ S = st.session_state
 if 'step' not in S:
     S.update({'user': '', 'step': 'login', 'lt': '', 'qi': 0, 'qq': [], 'current_topic': ''})
 
-def fetch_content_with_retry(prompt, is_stream=False):
+def fetch_content_stream(prompt):
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
     model = genai.GenerativeModel('gemini-2.0-flash')
     try:
-        if is_stream:
-            return model.generate_content(prompt, stream=True)
-        else:
-            r = model.generate_content(prompt)
-            return r.text
+        return model.generate_content(prompt, stream=True)
     except Exception as e:
         st.error(f"שגיאת תקשורת: {str(e)}")
         return None
@@ -51,22 +62,25 @@ elif S.step == "study":
     topics = ["חוק המתווכים במקרקעין", "חוק המקרקעין", "חוק המכר (דירות)", "חוק הגנת הצרכן", "אתיקה מקצועית", "חוק החוזים", "מיסוי מקרקעין", "חוק התכנון והבנייה", "חוק הגנת הדייר", "חוק הירושה"]
     sel = st.selectbox("בחר נושא:", topics)
     
-    if st.button("📖 התחל שיעור"):
-        S.lt = "" # איפוס שיעור קודם
+    if st.button("📖 התחל שיעור מקיף"):
+        S.lt = ""
         placeholder = st.empty()
-        full_response = ""
-        
-        # הנחיה מורחבת לשיעור מעמיק
-        prompt = f"כתוב שיעור מקיף, מעמיק ומפורט על {sel} עבור מבחן המתווכים. כלול סעיפי חוק רלוונטיים, דוגמאות מעשיות, ודגשים חשובים למבחן הממשלתי."
-        
-        with st.spinner("מתחבר למודל..."):
-            stream = fetch_content_with_retry(prompt, is_stream=True)
+        full_text = ""
+        parts = [
+            f"חלק 1: כתוב מבוא מפורט וסעיפי חוק יסודיים עבור {sel} עבור מבחן המתווכים.",
+            f"חלק 2: עבור {sel}, כתוב על חובות המתווך, איסורים, פסיקה רלוונטית ומקרים מיוחדים.",
+            f"חלק 3: סיכום עבור {sel} - דגשים קריטיים למבחן, מוקשים וצ'ק-ליסט לשינון."
+        ]
+        for i, p in enumerate(parts):
+            stream = fetch_content_stream(p)
             if stream:
+                if i > 0: full_text += "\n\n---\n"
                 for chunk in stream:
-                    full_response += chunk.text
-                    placeholder.markdown(f"<div class='lesson-box'>{full_response}</div>", unsafe_allow_html=True)
-                S.lt = full_response
-                S.current_topic = sel
+                    full_text += chunk.text
+                    placeholder.markdown(f"<div class='lesson-box'>{full_text}</div>", unsafe_allow_html=True)
+                time.sleep(1)
+        S.lt = full_text
+        S.current_topic = sel
 
     if S.lt:
         if st.button("✍️ עבור לשאלות תרגול"):
@@ -76,21 +90,24 @@ elif S.step == "study":
         S.lt = ""; S.step = "menu"; st.rerun()
 
 elif S.step == "quiz_prep":
-    with st.spinner("מייצר 10 שאלות תרגול..."):
+    # החזרת החיווי הויזואלי כאן
+    with st.spinner("מייצר 10 שאלות מותאמות אישית... אנא המתן"):
         p = f"צור 10 שאלות אמריקאיות על {S.current_topic}. החזר JSON בלבד: " + "[{'q':'','options':['','','',''],'correct':'','reason':''}]"
-        res = fetch_content_with_retry(p)
-        if res:
+        genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+        model = genai.GenerativeModel('gemini-2.0-flash')
+        try:
+            res = model.generate_content(p).text
             match = re.search(r'\[.*\]', res, re.DOTALL)
             if match:
                 S.qq = json.loads(match.group())
                 S.qi = 0; S.step = "quiz"; st.rerun()
-        st.error("תקלה בייצור השאלות."); S.step = "menu"; st.rerun()
+        except:
+            st.error("עומס זמני ביצירת השאלות. חוזר לתפריט..."); time.sleep(2); S.step = "menu"; st.rerun()
 
 elif S.step == "quiz":
     if S.qq:
         q = S.qq[S.qi]
-        total_q = len(S.qq)
-        st.markdown(f"<div class='q-count'>שאלה {S.qi + 1} מתוך {total_q}</div>", unsafe_allow_html=True)
+        st.markdown(f"<p style='color:#1E88E5; font-weight:bold;'>שאלה {S.qi + 1} מתוך {len(S.qq)}</p>", unsafe_allow_html=True)
         st.markdown(f"<div class='question-card'><b>{q['q']}</b></div>", unsafe_allow_html=True)
         ans = st.radio("בחר תשובה:", q['options'], key=f"q_{S.qi}", index=None)
         
@@ -106,9 +123,9 @@ elif S.step == "quiz":
                 S.step = "menu"; S.lt = ""; S.qq = []; st.rerun()
         
         if st.button("השאלה הבאה ➡️"):
-            if S.qi < total_q - 1:
+            if S.qi < len(S.qq) - 1:
                 S.qi += 1; st.rerun()
             else:
                 st.success("סיימת את השאלון!"); time.sleep(2); S.step = "menu"; S.lt = ""; st.rerun()
 
-st.markdown(f"<div class='version-footer'>גרסה: 1084 | 16/02/2026 13:25</div>", unsafe_allow_html=True)
+st.markdown(f"<div class='version-footer'>גרסה: 1087 | 16/02/2026 14:15</div>", unsafe_allow_html=True)
