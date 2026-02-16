@@ -1,4 +1,4 @@
-# גרסה: 1050 | מבוססת על 1030 | עדכון: שם משתמש, נחיתה רכה, נושאים מלאים וכפתור חזרה
+# גרסה: 1051 | תיקון שגיאת סינטקס בסיום הקוד | מבוססת על 1030
 
 import streamlit as st
 import google.generativeai as genai
@@ -27,7 +27,6 @@ def fetch_exam_content(mode='study', topic='כללי'):
         genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
         model = genai.GenerativeModel('gemini-2.0-flash')
         
-        # הנחיה המשלבת את חומרי משרד המשפטים שסונכרנו
         base_prompt = "התבסס על חומרי הלימוד הרשמיים של רשם המתווכים 2026 (חלק א, ב ותקנות האתיקה)."
         
         if mode == 'exam':
@@ -55,7 +54,6 @@ if S.step == "login":
 
 elif S.step == "menu":
     st.markdown(f"### שלום, {S.user} 👋")
-    # "הבלם האנושי" - הסבר קצר ליצירת השהיה ותיאום ציפיות
     st.markdown("""
     <div class='welcome-box'>
     ברוכים הבאים למערכת ההכנה המעודכנת לבחינת רשם המתווכים (2026).<br>
@@ -73,7 +71,6 @@ elif S.step == "menu":
         st.rerun()
 
 elif S.step == "study":
-    # רשימת נושאים מלאה לפי רשם המתווכים
     all_t = [
         "חוק המתווכים במקרקעין", "תקנות המתווכים (פרטי הזמנה)", "תקנות המתווכים (נושאי בחינה)", 
         "אתיקה מקצועית", "חוק המקרקעין", "חוק המכר (דירות)", "חוק הגנת הצרכן", 
@@ -94,7 +91,7 @@ elif S.step == "study":
             for chunk in res:
                 if chunk.text:
                     full_text += chunk.text
-                    ph.markdown(f"<div class='lesson-box'>{full_text}</div>", unsafe_allow_html=True)
+                    ph.markdown(f<div class='lesson-box'>{full_text}</div>", unsafe_allow_html=True)
             S.lt, S.current_topic = full_text, sel
             st.rerun()
         if c2.button("🏠 חזרה לתפריט", use_container_width=True): 
@@ -115,20 +112,4 @@ elif S.step == "study":
             st.rerun()
 
 elif S.step == "quiz_mode":
-    if S.qq:
-        it = S.qq[S.qi]
-        st.markdown(f"<div class='question-card'><b>שאלה {S.qi+1}:</b><br>{it['q']}</div>", unsafe_allow_html=True)
-        ans = st.radio("בחר תשובה:", it['options'], key=f"q_{S.qi}")
-        c1, c2 = st.columns(2)
-        if c1.button("🔍 בדוק", use_container_width=True):
-            if ans == it['correct']: st.success(f"נכון! {it.get('reason','')}")
-            else: st.error(f"טעות. התשובה הנכונה היא: {it['correct']}")
-        if c2.button("הבא ➡️", use_container_width=True):
-            if S.qi < len(S.qq)-1: 
-                S.qi += 1
-                st.rerun()
-            else: 
-                S.step = "menu"
-                st.rerun()
-    else:
-        st.error("לא נמצאו שאל
+    if S.
