@@ -1,47 +1,64 @@
 # ==========================================
-# Project: מתווך בקליק | Version: 1187
+# Project: מתווך בקליק | Version: 1191
 # ==========================================
 
 import streamlit as st
 import google.generativeai as genai
 import json, re
+import streamlit.components.v1 as components
 
 st.set_page_config(page_title="מתווך בקליק", layout="wide")
+
+def scroll_to_top():
+    components.html(
+        "<script>window.parent.document.querySelector('section.main').scrollTo(0, 0);</script>",
+        height=0
+    )
 
 st.markdown("""
 <style>
     * { direction: rtl; text-align: right; }
-    .stButton>button { width: auto; min-width: 150px; border-radius: 8px; font-weight: bold; }
-    .nav-btn { border: 1px solid #888; padding: 8px 16px; text-decoration: none; 
-               border-radius: 8px; font-weight: bold; display: inline-block; color: #333; }
+    .stButton>button { width: 100%; border-radius: 8px; font-weight: bold; }
 </style>
 """, unsafe_allow_html=True)
 
+# סילבוס מקצועי ומלא - מבנה מופרד למניעת חיתוך
 SYLLABUS = {
     "חוק המתווכים במקרקעין": [
         "רישוי והגבלות עיסוק", "חובת הגינות וזהירות", 
         "הזמנת תיווך ובלעדיות", "פעולות שאינן תיווך"
     ],
-    "תקנות המתווכים (פרטי הזמנה)": [
-        "דרישות חובה בטופס", "זיהוי נכס וצדדים", "פירוט דמי התיווך"
-    ],
-    "תקנות המתווכים (פעולות שיווק)": [
-        "פעולות שיווק", "הרחבות לבלעדיות", "חובת הוכחת פעילות"
+    "תקנות המתווכים": [
+        "פרטי הזמנה (תקנות 1997)", "פעולות שיווק (תקנות 2004)", 
+        "דמי תיווך וזכאות"
     ],
     "חוק המקרקעין": [
-        "בעלות וזכויות", "בתים משותפים", "עסקאות נוגדות", "הערות אזהרה"
+        "בעלות וזכויות במקרקעין", "בתים משותפים וניהולם", 
+        "עסקאות נוגדות", "הערות אזהרה", "שכירות, שאילה וזיקת הנאה"
     ],
     "חוק המכר (דירות)": [
-        "מפרט וחובת גילוי", "בדק ואחריות", "איחור במסירה", "הבטחת השקעות"
+        "מפרט וחובת גילוי", "תקופת בדק ואחריות", 
+        "פיצוי בשל איחור במסירה", "חוק המכר (הבטחת השקעות)"
     ],
     "חוק החוזים": [
-        "כריתת חוזה", "פגמים בחוזה", "תרופות בשל הפרה", "ביטול והשבה"
+        "כריתת חוזה (הצעה וקיבול)", "פגמים בחוזה (טעות, הטעיה, עושק)", 
+        "תרופות בשל הפרת חוזה", "ביטול, השבה ופיצויים"
     ],
     "חוק התכנון והבנייה": [
-        "היתרי בנייה", "היטל השבחה", "תוכניות מתאר", "שימוש חורג"
+        "היתרי בנייה ושימוש חורג", "היטל השבחה", 
+        "תוכניות מתאר (ארצית, מחוזית, מקומית)", "מוסדות התכנון"
     ],
     "חוק מיסוי מקרקעין": [
-        "מס שבח", "מס רכישה", "פטורים והקלות", "שווי שוק"
+        "מס שבח", "מס רכישה", "פטורים והקלות לדירת מגורים", "חישוב שווי השוק"
+    ],
+    "חוק הגנת הצרכן": [
+        "ביטול עסקת מכר מרחוק", "הטעיה בפרסום וניצול מצוקה"
+    ],
+    "חוק הירושה": [
+        "סדר הירושה על פי דין", "סוגי צוואות ותוקפן"
+    ],
+    "חוק העונשין": [
+        "עבירות מרמה וזיוף", "קבלת דבר במרמה בנסיבות מחמירות"
     ]
 }
 
@@ -49,140 +66,97 @@ def ask_ai(p):
     try:
         genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
         m = genai.GenerativeModel('gemini-2.0-flash')
-        r = m.generate_content(p)
+        # דרישה לתוכן מקצועי ומפורט להצלחה בבחינה
+        r = m.generate_content(p + " כתוב שיעור מעמיק, מקצועי ומפורט מאוד שיכין את התלמיד למבחן המתווכים בצורה הטובה ביותר.")
         return r.text if r else None
-    except: return None
-
-def fetch_content(topic, sub):
-    p = f"כתוב שיעור על '{sub}' בנושא '{topic}' למבחן המתווכים."
-    res = ask_ai(p)
-    return res if res else "⚠️ שגיאה בטעינה."
+    except Exception as e:
+        return f"⚠️ שגיאה: {str(e)}"
 
 def fetch_q(topic):
-    p = f"צור שאלה אמריקאית על {topic}. JSON format: {{'q': '...', 'options': ['...', '...'], 'correct': '...', 'explain': '...'}}"
+    p = f"צור שאלה אמריקאית מאתגרת ברמת מבחן המתווכים על {topic}. JSON format: {{'q':'','options':[],'correct':'','explain':''}}"
     res = ask_ai(p)
     try:
-        # חילוץ JSON נקי
         match = re.search(r'\{.*\}', res, re.DOTALL)
-        if match:
-            data = json.loads(match.group())
-            # וידוי שכל המפתחות קיימים למניעת KeyError
-            keys = ['q', 'options', 'correct', 'explain']
-            if all(k in data for k in keys):
-                return data
-        return None
+        return json.loads(match.group()) if match else None
     except: return None
 
-if "step" not in st.session_state:
-    st.session_state.update({
-        "step": "login", "user": None, "selected_topic": None,
-        "lesson_contents": {}, "current_sub_idx": None,
-        "quiz_active": False, "q_counter": 0, "current_q_data": None,
-        "next_q_data": None, "show_feedback": False
-    })
+# ניהול מצב
+if "user" not in st.session_state: st.session_state.user = None
+if "step" not in st.session_state: st.session_state.step = "login"
+if "quiz_active" not in st.session_state: st.session_state.quiz_active = False
 
 st.title("🏠 מתווך בקליק")
 
-# --- לוגיקת שלבים ---
-if st.session_state.step == 'login':
+if st.session_state.step == "login":
     u = st.text_input("הזן שם מלא:")
-    if st.button("כניסה לאפליקציה") and u:
-        st.session_state.update({"user": u, "step": "menu"})
+    if st.button("כניסה") and u:
+        st.session_state.user = u
+        st.session_state.step = "menu"
         st.rerun()
 
-elif st.session_state.step == 'menu':
-    st.write(f"👤 שלום, {st.session_state.user}")
-    c1, c2 = st.columns(2)
-    if c1.button("📚 לימוד לפי נושאים"):
-        st.session_state.step = 'study'
-        st.rerun()
-    if c2.button("⏱️ גש/י למבחן"):
-        st.info("סימולציית מבחן מלאה תעלה בקרוב.")
-
-elif st.session_state.step == 'study':
-    opts = ["בחר נושא..."] + list(SYLLABUS.keys())
-    sel = st.selectbox("בחר נושא לימוד:", opts)
-    if sel != "בחר נושא..." and st.button("טען נושא"):
-        st.session_state.update({
-            "selected_topic": sel, "lesson_contents": {},
-            "current_sub_idx": None, "quiz_active": False,
-            "step": "lesson_run", "q_counter": 0
-        })
+elif st.session_state.step == "menu":
+    st.subheader(f"👤 שלום, {st.session_state.user}")
+    if st.button("📚 לימוד לפי נושאים"):
+        st.session_state.step = "study"
         st.rerun()
 
-elif st.session_state.step == 'lesson_run':
-    cur_t = st.session_state.selected_topic
-    st.header(f"📖 {cur_t}")
-    subs = SYLLABUS.get(cur_t, [])
+elif st.session_state.step == "study":
+    st.write(f"👤 משתמש: {st.session_state.user}")
+    sel = st.selectbox("בחר נושא לימוד:", list(SYLLABUS.keys()))
+    if st.button("טען נושא"):
+        st.session_state.update({"selected_topic": sel, "step": "lesson_run", "quiz_active": False, "lesson_txt": ""})
+        st.rerun()
+
+elif st.session_state.step == "lesson_run":
+    topic = st.session_state.selected_topic
+    st.header(f"📖 {topic}")
+    st.write(f"👤 תלמיד: {st.session_state.user}")
     
-    # תצוגת תתי-נושאים
-    if subs:
-        t_cols = st.columns(len(subs))
-        for i, t in enumerate(subs):
-            if t_cols[i].button(t, key=f"s_{i}"):
-                st.session_state.update({"current_sub_idx": i, "quiz_active": False})
-                with st.spinner("טוען שיעור..."):
-                    st.session_state.lesson_contents[t] = fetch_content(cur_t, t)
-                st.rerun()
+    subs = SYLLABUS.get(topic, [])
+    t_cols = st.columns(len(subs))
+    for i, s in enumerate(subs):
+        if t_cols[i].button(s, key=f"s_{i}"):
+            with st.spinner(f"טוען חומר מפורט על {s}..."):
+                st.session_state.lesson_txt = ask_ai(f"שיעור מלא על {s} בתוך {topic}")
+            st.rerun()
+            
+    if st.session_state.get("lesson_txt"):
+        st.markdown(st.session_state.lesson_txt)
 
-    # הצגת תוכן השיעור
-    if st.session_state.current_sub_idx is not None:
-        sub_n = subs[st.session_state.current_sub_idx]
-        st.markdown(st.session_state.lesson_contents.get(sub_n, ""))
-
-    # --- שאלון ---
+    # שאלון דינמי
     if st.session_state.quiz_active:
         st.divider()
-        st.subheader(f"📝 שאלון: {cur_t}") # כותרת השאלון כפי שביקשת
-        
-        if not st.session_state.current_q_data:
-            with st.spinner("מייצר שאלה..."):
-                st.session_state.current_q_data = fetch_q(cur_t)
+        st.subheader(f"📝 שאלון: {topic}")
+        if "q_data" not in st.session_state or st.session_state.q_data is None:
+            st.session_state.q_data = fetch_q(topic)
             st.rerun()
         
-        q = st.session_state.current_q_data
+        q = st.session_state.q_data
         if q:
-            st.write(f"**שאלה {st.session_state.q_counter} מתוך 10**")
-            ans = st.radio(q['q'], q['options'], index=None, key=f"q_{st.session_state.q_counter}")
-            
-            if st.session_state.show_feedback:
-                if ans == q['correct']: st.success("✅ נכון מאוד!")
-                else: st.error(f"❌ טעות. התשובה הנכונה: {q['correct']}")
-                st.info(f"**הסבר:** {q['explain']}")
-        else:
-            st.warning("הייתה בעיה ביצירת השאלה. נסה ללחוץ שוב על הבאה.")
+            ans = st.radio(q['q'], q['options'], index=None)
+            if st.button("בדוק תשובה"):
+                if ans == q['correct']: st.success("נכון!")
+                else: st.error(f"טעות. התשובה הנכונה היא: {q['correct']}")
+                st.info(f"הסבר מקצועי: {q['explain']}")
 
-    # --- תפריט ניווט תחתון ---
     st.write("---")
-    b_cols = st.columns([2.5, 1.5, 1.5, 3.5])
+    b_cols = st.columns([2.5, 1.5, 1.5, 4])
     
-    # ניהול מצבי כפתור
-    if not st.session_state.quiz_active:
-        l, action = f"📝 שאלון: {cur_t}", "start"
-    elif not st.session_state.show_feedback:
-        l, action = "✅ בדיקת תשובה", "check"
-    elif st.session_state.q_counter < 10:
-        l, action = "➡️ שאלה הבאה", "next"
-    else:
-        l, action = "🔄 תרגול מחדש", "start"
-
     with b_cols[0]:
-        if st.button(l):
-            if action == "start":
-                st.session_state.update({"quiz_active": True, "q_counter": 1, "show_feedback": False, "current_q_data": None})
-            elif action == "check" and ans:
-                st.session_state.show_feedback = True
-                # הכנת השאלה הבאה מראש
-                st.session_state.next_q_data = fetch_q(cur_t)
-            elif action == "next":
-                st.session_state.current_q_data = st.session_state.next_q_data
-                st.session_state.update({"q_counter": st.session_state.q_counter + 1, "show_feedback": False, "next_q_data": None})
-            st.rerun()
+        if not st.session_state.quiz_active:
+            if st.button(f"📝 שאלון: {topic}"):
+                st.session_state.quiz_active = True
+                st.session_state.q_data = fetch_q(topic)
+                st.rerun()
+        else:
+            if st.button("➡️ שאלה הבאה"):
+                st.session_state.q_data = fetch_q(topic)
+                st.rerun()
 
     with b_cols[1]:
         if st.button("🏠 תפריט"):
-            st.session_state.step = 'menu'
+            st.session_state.step = "menu"
             st.rerun()
-    
+            
     with b_cols[2]:
-        st.markdown('<a href="#top" class="nav-btn">🔝 למעלה</a>', unsafe_allow_html=True)
+        if st.button("🔝 למעלה"): scroll_to_top()
