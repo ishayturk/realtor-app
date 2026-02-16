@@ -1,4 +1,4 @@
-# גרסה 1063 | 16/02/2026 | 10:10
+# גרסה 1064 | 16/02/2026 | 10:20
 
 import streamlit as st
 import google.generativeai as genai
@@ -51,7 +51,6 @@ elif S.step == "menu":
     </div>
     """, unsafe_allow_html=True)
     
-    # סידור הכפתורים בשורה אחת
     c1, c2 = st.columns(2)
     with c1:
         if st.button("📚 למידה לפי נושאים", use_container_width=True): 
@@ -67,23 +66,29 @@ elif S.step == "study":
     if not S.lt:
         sel = st.selectbox("בחר נושא ללימוד:", all_t)
         c1, c2 = st.columns(2)
-        if c1.button("📖 צור שיעור", use_container_width=True):
-            genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-            model = genai.GenerativeModel('gemini-2.0-flash')
-            res = model.generate_content(f"כתוב שיעור ל-2026 על {sel}.", stream=True)
-            ph, full_text = st.empty(), ""
-            for chunk in res:
-                full_text += chunk.text
-                ph.markdown(f"<div class='lesson-box'>{full_text}</div>", unsafe_allow_html=True)
-            S.lt, S.current_topic = full_text, sel; st.rerun()
-        if c2.button("🏠 חזרה", use_container_width=True): S.step = "menu"; st.rerun()
+        with c1:
+            if st.button("📖 צור שיעור", use_container_width=True):
+                genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+                model = genai.GenerativeModel('gemini-2.0-flash')
+                res = model.generate_content(f"כתוב שיעור ל-2026 על {sel}.", stream=True)
+                ph, full_text = st.empty(), ""
+                for chunk in res:
+                    full_text += chunk.text
+                    ph.markdown(f"<div class='lesson-box'>{full_text}</div>", unsafe_allow_html=True)
+                S.lt, S.current_topic = full_text, sel; st.rerun()
+        with c2:
+            if st.button("🏠 חזרה", use_container_width=True): S.step = "menu"; st.rerun()
     else:
         st.markdown(f"<div class='lesson-box'>{S.lt}</div>", unsafe_allow_html=True)
-        if st.button("✍️ עבור לשאלון תרגול (10 שאלות)", use_container_width=True):
-            with st.spinner("מייצר שאלות..."):
-                d = fetch_exam_content(S.current_topic)
-                if d: S.qq, S.qi, S.step = d, 0, "quiz_mode"; st.rerun()
-        if st.button("🏠 חזרה לבחירת נושא"): S.lt = ""; st.rerun()
+        # תיקון הכפתורים בסוף השיעור שיהיו בשורה אחת
+        bc1, bc2 = st.columns(2)
+        with bc1:
+            if st.button("✍️ עבור לשאלון תרגול", use_container_width=True):
+                with st.spinner("מייצר שאלות..."):
+                    d = fetch_exam_content(S.current_topic)
+                    if d: S.qq, S.qi, S.step = d, 0, "quiz_mode"; st.rerun()
+        with bc2:
+            if st.button("🏠 חזרה לבחירת נושא", use_container_width=True): S.lt = ""; st.rerun()
 
 elif S.step == "quiz_mode":
     if S.qq:
@@ -91,9 +96,11 @@ elif S.step == "quiz_mode":
         st.markdown(f"<div class='question-card'><b>שאלה {S.qi+1} מתוך {len(S.qq)}:</b><br>{it['q']}</div>", unsafe_allow_html=True)
         ans = st.radio("בחר תשובה:", it['options'], key=f"q_{S.qi}")
         c1, c2 = st.columns(2)
-        if c1.button("🔍 בדוק"):
-            if ans == it['correct']: st.success(f"נכון! {it.get('reason','')}")
-            else: st.error(f"טעות. הנכון: {it['correct']}")
-        if c2.button("הבא ➡️"):
-            if S.qi < len(S.qq)-1: S.qi += 1; st.rerun()
-            else: S.step = "menu"; S.qq = []; st.rerun()
+        with c1:
+            if st.button("🔍 בדוק", use_container_width=True):
+                if ans == it['correct']: st.success(f"נכון! {it.get('reason','')}")
+                else: st.error(f"טעות. הנכון: {it['correct']}")
+        with c2:
+            if st.button("הבא ➡️", use_container_width=True):
+                if S.qi < len(S.qq)-1: S.qi += 1; st.rerun()
+                else: S.step = "menu"; S.qq = []; st.rerun()
