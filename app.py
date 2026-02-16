@@ -1,5 +1,5 @@
 # ==========================================
-# Project: מתווך בקליק | Version: 1212
+# Project: מתווך בקליק | Version: 1213
 # ==========================================
 import streamlit as st
 import google.generativeai as genai
@@ -35,7 +35,7 @@ SYLLABUS = {
     "חוק המכר (דירות)": ["מפרט וגילוי", "בדק ואחריות", "איחור במסירה", "הבטחת השקעות"],
     "חוק החוזים": ["כריתת חוזה", "פגמים בחוזה", "תרופות והפרה", "ביטול והשבה"],
     "חוק התכנון והבנייה": ["היתרים ושימוש חורג", "היטל השבחה", "תוכניות מתאר", "מוסדות התכנון"],
-    "חוק מיסוי מקרקעין": ["מס שבח (חישוב ופטורים)", "מס רכישה", "הקלות לדירת מגורים", "שווי שוק"],
+    "חוק מיסוי מקרקעין": ["מס שבח (חישוב ופפורים)", "מס רכישה", "הקלות לדירת מגורים", "שווי שוק"],
     "חוק הגנת הצרכן": ["ביטול עסקה", "הטעיה בפרסום"],
     "דיני ירושה": ["סדר הירושה", "צוואות"],
     "חוק העונשין": ["עבירות מרמה וזיוף"]
@@ -48,10 +48,8 @@ def fetch_q_ai(topic):
         p = f"צור שאלה אמריקאית קשה על {topic} למבחן המתווכים. החזר אך ורק JSON תקני: {{'q':'','options':['','','',''],'correct':'','explain':''}}"
         res = m.generate_content(p).text
         match = re.search(r'\{.*\}', res, re.DOTALL)
-        if match:
-            return json.loads(match.group())
-    except Exception as e:
-        return {"error": str(e)}
+        if match: return json.loads(match.group())
+    except: return None
     return None
 
 def stream_ai_lesson(p):
@@ -69,8 +67,13 @@ def stream_ai_lesson(p):
         return full_text
     except: return "⚠️ תקלה בטעינה."
 
+# אתחול
 if "step" not in st.session_state:
-    st.session_state.update({"user": None, "step": "login", "q_count": 0, "quiz_active": False, "show_ans": False, "lesson_txt": "", "q_data": None})
+    st.session_state.update({
+        "user": None, "step": "login", "q_count": 0, "quiz_active": False, 
+        "show_ans": False, "lesson_txt": "", "q_data": None, 
+        "correct_answers": 0, "quiz_finished": False
+    })
 
 st.title("🏠 מתווך בקליק")
 
@@ -92,7 +95,11 @@ elif st.session_state.step == "menu":
 elif st.session_state.step == "study":
     sel = st.selectbox("בחר נושא:", ["בחר..."] + list(SYLLABUS.keys()))
     if sel != "בחר..." and st.button("טען נושא"):
-        st.session_state.update({"selected_topic": sel, "step": "lesson_run", "quiz_active": False, "lesson_txt": "", "q_data": None, "q_count": 0})
+        st.session_state.update({
+            "selected_topic": sel, "step": "lesson_run", "quiz_active": False, 
+            "lesson_txt": "", "q_data": None, "q_count": 0, 
+            "correct_answers": 0, "quiz_finished": False
+        })
         st.rerun()
 
 elif st.session_state.step == "lesson_run":
@@ -103,7 +110,10 @@ elif st.session_state.step == "lesson_run":
     cols = st.columns(len(subs))
     for i, s in enumerate(subs):
         if cols[i].button(s, key=f"sub_{i}"):
-            st.session_state.update({"current_sub": s, "lesson_txt": "LOADING", "quiz_active": False, "q_data": None})
+            st.session_state.update({
+                "current_sub": s, "lesson_txt": "LOADING", "quiz_active": False, 
+                "q_data": None, "quiz_finished": False, "q_count": 0, "correct_answers": 0
+            })
             st.rerun()
 
     if st.session_state.get("lesson_txt") == "LOADING":
@@ -114,41 +124,71 @@ elif st.session_state.step == "lesson_run":
         st.subheader(st.session_state.current_sub)
         st.markdown(st.session_state.lesson_txt)
 
-    # הצגת השאלון
-    if st.session_state.quiz_active and st.session_state.q_data:
+    # הצגת תוצאות בסיום
+    if st.session_state.quiz_finished:
+        st.markdown("---")
+        st.balloons()
+        st.header("🏆 סיכום השאלון")
+        score = st.session_state.correct_answers
+        st.subheader(f"ענית נכון על {score} מתוך 10 שאלות.")
+        if score >= 8: st.success("כל הכבוד! רמת המוכנות שלך גבוהה מאוד.")
+        elif score >= 6: st.warning("עברת, אבל כדאי לחזור על החומר שוב.")
+        else: st.error("מומלץ לקרוא את השיעור שוב ולנסות שאלון נוסף.")
+        
+        if st.button("📝 נסה שאלון חדש בנושא"):
+            st.session_state.update({"quiz_active": False, "quiz_finished": False, "q_count": 0, "correct_answers": 0})
+            st.rerun()
+
+    # הצגת השאלון הפעיל
+    elif st.session_state.quiz_active and st.session_state.q_data:
         st.markdown("---")
         q = st.session_state.q_data
-        if "q" in q:
-            st.subheader(f"📝 שאלה {st.session_state.q_count} מתוך 10")
-            ans = st.radio(q['q'], q['options'], index=None, key=f"q_{st.session_state.q_count}")
-            if st.session_state.show_ans:
-                if ans == q['correct']: st.success("נכון!")
-                else: st.error(f"טעות. התשובה: {q['correct']}")
-                st.info(f"הסבר: {q['explain']}")
-        else:
-            st.error("לא הצלחתי לטעון את השאלה. נסה שנית.")
+        st.subheader(f"📝 שאלה {st.session_state.q_count} מתוך 10")
+        ans = st.radio(q['q'], q['options'], index=None, key=f"q_{st.session_state.q_count}")
+        
+        if st.session_state.show_ans:
+            if ans == q['correct']:
+                st.success("נכון!")
+            else:
+                st.error(f"טעות. התשובה הנכונה היא: {q['correct']}")
+            st.info(f"הסבר: {q['explain']}")
 
     st.write("")
     f_cols = st.columns([2.5, 2, 1.5, 3])
     
     with f_cols[0]:
-        if st.session_state.lesson_txt not in ["", "LOADING"]:
-            # כפתור התחלת שאלון או שאלה הבאה
-            btn_label = "➡️ שאלה הבאה" if st.session_state.quiz_active and st.session_state.show_ans else "📝 שאלון לבחינה עצמית"
-            if not st.session_state.quiz_active or st.session_state.show_ans:
-                if st.button(btn_label):
+        if st.session_state.lesson_txt not in ["", "LOADING"] and not st.session_state.quiz_finished:
+            # לוגיקת כפתורים
+            if not st.session_state.quiz_active:
+                if st.button("📝 שאלון לבחינה עצמית"):
                     with st.spinner("מעלה שאלה..."):
                         res = fetch_q_ai(topic)
                         if res:
-                            st.session_state.q_data = res
-                            st.session_state.q_count = (st.session_state.q_count + 1) if st.session_state.quiz_active else 1
-                            st.session_state.quiz_active = True
-                            st.session_state.show_ans = False
+                            st.session_state.update({"q_data": res, "q_count": 1, "quiz_active": True, "show_ans": False, "correct_answers": 0})
                             st.rerun()
-            elif st.session_state.quiz_active and not st.session_state.show_ans:
+            
+            elif not st.session_state.show_ans:
                 if st.button("✅ בדיקת תשובה"):
+                    # בדיקה אם צדק לעדכון הציון
+                    # אנחנו בודקים את ה-radio לפי ה-key שלו
+                    user_choice = st.session_state.get(f"q_{st.session_state.q_count}")
+                    if user_choice == st.session_state.q_data['correct']:
+                        st.session_state.correct_answers += 1
                     st.session_state.show_ans = True
                     st.rerun()
+            
+            else: # המשתמש כבר ראה את התשובה
+                if st.session_state.q_count < 10:
+                    if st.button("➡️ שאלה הבאה"):
+                        with st.spinner("מעלה שאלה..."):
+                            res = fetch_q_ai(topic)
+                            if res:
+                                st.session_state.update({"q_data": res, "q_count": st.session_state.q_count + 1, "show_ans": False})
+                                st.rerun()
+                else:
+                    if st.button("🏁 סיכום שאלון"):
+                        st.session_state.quiz_finished = True
+                        st.rerun()
 
     with f_cols[1]:
         if st.button("🏠 לתפריט הראשי"):
@@ -156,4 +196,4 @@ elif st.session_state.step == "lesson_run":
     with f_cols[2]:
         st.markdown('<a href="#top" class="top-link">🔝 לראש הדף</a>', unsafe_allow_html=True)
 
-    st.markdown(f'<div class="v-footer">Version: 1212</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="v-footer">Version: 1213</div>', unsafe_allow_html=True)
