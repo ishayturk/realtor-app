@@ -8,7 +8,7 @@ import json, re
 st.set_page_config(page_title="מתווך בקליק", layout="wide")
 st.markdown('<div id="top"></div>', unsafe_allow_html=True)
 
-# שימוש ב-CSS המקורי שלך מעוגן 1213 ללא שינויי צבע או רוחב
+# CSS עם ערכים זהים לכפתורי המערכת של סטרימליט
 st.markdown("""
 <style>
     * { direction: rtl; text-align: right; }
@@ -16,13 +16,23 @@ st.markdown("""
         width: 100%; border-radius: 8px; 
         font-weight: bold; height: 3em; 
     }
-    /* כפתור המבחן משתמש כעת בדיוק באותה הגדרה של top-link */
-    .exam-link-style { 
-        display: inline-block; width: 100%; text-align: center; 
-        border-radius: 8px; text-decoration: none !important; 
-        border: 1px solid #d1d5db;
-        font-weight: bold; height: 2.8em; line-height: 2.8em;
-        background-color: transparent; color: inherit !important;
+    .exam-link-fix { 
+        display: block; 
+        width: 100%; 
+        text-align: center; 
+        border-radius: 8px; 
+        text-decoration: none !important; 
+        border: 1px solid rgba(49, 51, 63, 0.2);
+        font-weight: bold; 
+        height: 3em; 
+        line-height: 3em;
+        background-color: #f0f2f6; 
+        color: #31333f !important;
+        box-sizing: border-box;
+    }
+    .exam-link-fix:hover {
+        border-color: #ff4b4b;
+        color: #ff4b4b !important;
     }
     .top-link { 
         display: inline-block; width: 100%; text-align: center; 
@@ -105,12 +115,12 @@ elif st.session_state.step == "menu":
             st.rerun()
     with c2:
         u_name = st.session_state.user.replace(" ", "%20")
-        base_url = "https://fullrealestatebroker-"
-        base_url += "yevuzewxde4obgrpgacrpc.streamlit.app/"
-        exam_url = f"{base_url}?user={u_name}"
-        # שימוש בעיצוב השקוף והגובה המקורי (2.8em) שביקשת
+        b_url = "https://fullrealestatebroker-"
+        b_url += "yevuzewxde4obgrpgacrpc.streamlit.app/"
+        exam_url = f"{b_url}?user={u_name}"
+        # כפתור שתופס את כל רוחב העמודה עם רקע אפור וטקסט כהה
         st.markdown(
-            f'<a href="{exam_url}" target="_self" class="exam-link-style">'
+            f'<a href="{exam_url}" target="_self" class="exam-link-fix">'
             f'⏱️ גש/י למבחן</a>', 
             unsafe_allow_html=True
         )
