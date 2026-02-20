@@ -8,20 +8,28 @@ import json, re
 
 st.set_page_config(page_title="מתווך בקליק", layout="wide")
 
-# CSS לעיצוב הכותרת המאוחדת והכפתורים השקופים
+# CSS מעודכן: הצמדת השם לכותרת, הדגשה וביטול הסימן
 st.markdown("""
 <style>
     * { direction: rtl; text-align: right; }
     
-    /* עיצוב כותרת משולבת: לוגו + כותרת + שם משתמש */
-    .header-container {
+    /* כותרת ושם משתמש בשורה אחת */
+    .header-wrapper {
         display: flex;
         align-items: baseline;
-        gap: 15px;
         margin-bottom: 20px;
     }
-    .header-title { font-size: 2.5rem; font-weight: bold; margin: 0; }
-    .header-user { font-size: 1.2rem; color: #555; margin-right: 20px; }
+    .header-title { 
+        font-size: 2.5rem; 
+        font-weight: bold; 
+        margin: 0; 
+    }
+    .header-user { 
+        font-size: 1.2rem; 
+        font-weight: 900 !important; /* הדגשה חזקה */
+        color: #31333f; 
+        margin-right: 15px; /* רווח מהכותרת */
+    }
 
     /* כפתורים שקופים */
     .stButton>button, .stLinkButton>a { 
@@ -75,13 +83,13 @@ def stream_ai_lesson(p):
 if "step" not in st.session_state:
     st.session_state.update({"user": None, "step": "login", "lesson_txt": ""})
 
-# פונקציה להצגת הכותרת המאוחדת בכל העמודים
+# פונקציית כותרת מאוחדת לכל העמודים
 def show_header():
-    user_display = f'<span class="header-user">| {st.session_state.user}</span>' if st.session_state.user else ""
+    u_display = f'<span class="header-user">{st.session_state.user}</span>' if st.session_state.user else ""
     st.markdown(f"""
-        <div class="header-container">
-            <h1 class="header-title">🏠 מתווך בקליק</h1>
-            {user_display}
+        <div class="header-wrapper">
+            <div class="header-title">🏠 מתווך בקליק</div>
+            {u_display}
         </div>
     """, unsafe_allow_html=True)
 
