@@ -8,37 +8,66 @@ import json, re
 
 st.set_page_config(page_title="מתווך בקליק", layout="wide")
 
-# CSS לסטריפ עליון צמוד לתקרה ללא רווחים
+# CSS לתיקון המרחקים והסטריפ
 st.markdown("""
 <style>
     * { direction: rtl; text-align: right; }
     .stApp header { visibility: hidden; }
-    /* ביטול פאדינג מובנה של סטרימליט כדי שהסטריפ יהיה למעלה */
     .block-container { 
-        padding-top: 0px !important; 
+        padding-top: 1rem !important; 
         padding-bottom: 0px !important;
     }
-    .slim-strip {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 10px 20px;
-        background-color: #f8f9fa;
-        border-bottom: 1px solid #ddd;
-        margin-top: 10px; /* שורה אחת מתחת לקצה */
+    /* עיצוב הסטריפ כרקע אפור בהיר */
+    .strip-bg {
+        background-color: #f0f2f6;
+        padding: 10px;
+        border-radius: 10px;
+        margin-bottom: 0px;
     }
     .stButton>button { 
         width: 100%; border-radius: 8px; 
         font-weight: bold; height: 3em; 
     }
-    .v-footer {
-        text-align: center; color: rgba(255, 255, 255, 0.1);
-        font-size: 0.7em; margin-top: 50px; width: 100%;
-    }
 </style>
 """, unsafe_allow_html=True)
 
-# ... (פונקציות AI וסילבוס מקוריות מ-1213 נשמרות כאן ללא שינוי) ...
+# --- פונקציות וסילבוס מקוריים (1213) ---
+SYLLABUS = {
+    "חוק המתווכים": ["רישוי והגבלות", "הגינות וזהירות", "הזמנה ובלעדיות", "פעולות שאינן תיווך"],
+    "תקנות המתווכים": ["פרטי הזמנה 1997", "פעולות שיווק 2004", "דמי תיווך"],
+    "חוק המקרקעין": ["בעלות וזכויות", "בתים משותפים", "עסקאות נוגדות", "הערות אזהרה", "שכירות וזיקה"],
+    "חוק המכר (דירות)": ["מפרט וגילוי", "בדק ואחריות", "איחור במסירה", "הבטחת השקעות"],
+    "חוק החוזים": ["כריתת חוזה", "פגמים בחוזה", "תרופות והפרה", "ביטול והשבה"],
+    "חוק התכנון והבנייה": ["היתרים ושימוש חורג", "היטל השבחה", "תוכניות מתאר", "מוסדות התכנון"],
+    "חוק מיסוי מקרקעין": ["מס שבח (חישוב ופפורים)", "מס רכישה", "הקלות לדירת מגורים", "שווי שוק"],
+    "חוק הגנת הצרכן": ["ביטול עסקה", "הטעיה בפרסום"],
+    "דיני ירושה": ["סדר הירושה", "צוואות"],
+    "חוק העונשין": ["עבירות מרמה וזיוף"]
+}
+
+def stream_ai_lesson(p):
+    try:
+        genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+        m = genai.GenerativeModel('gemini-2.0-flash')
+        res = m.generate_content(p + " ללא כותרות.", stream=True)
+        ph = st.empty()
+        txt = ""
+        for chunk in res:
+            txt += chunk.text
+            ph.markdown(txt + "▌")
+        ph.markdown(txt)
+        return txt
+    except: return "⚠️ תקלה."
+
+def fetch_q_ai(topic):
+    try:
+        genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+        m = genai.GenerativeModel('gemini-2.0-flash')
+        p = f"צור שאלה על {topic}. JSON בלבד."
+        res = m.generate_content(p).text
+        match = re.search(r'\{.*\}', res, re.DOTALL)
+        if match: return json.loads(match.group())
+    except: return None
 
 # אתחול Session State
 if "step" not in st.session_state:
@@ -49,7 +78,7 @@ if "step" not in st.session_state:
         "correct_answers": 0, "quiz_finished": False
     })
 
-# --- ניהול דפים ---
+# --- ניהול שלבים ---
 
 if st.session_state.step == "login":
     st.title("🏠 מתווך בקליק")
@@ -59,7 +88,6 @@ if st.session_state.step == "login":
         st.rerun()
 
 elif st.session_state.step == "menu":
-    st.title("🏠 מתווך בקליק")
     st.subheader(f"👤 שלום, {st.session_state.user}")
     c1, c2 = st.columns(2)
     with c1:
@@ -70,23 +98,42 @@ elif st.session_state.step == "menu":
             st.session_state.step = "exam_mode"; st.rerun()
 
 elif st.session_state.step == "exam_mode":
-    # הסטריפ העליון (פריים 1)
-    st.markdown(f"""
-    <div class="slim-strip">
-        <div style="font-weight:bold; font-size:1.2em;">🏠 מתווך בקליק</div>
-        <div style="font-size:1.1em;">👤 {st.session_state.user}</div>
-        <div></div>
-    </div>
-    """, unsafe_allow_html=True)
+    # סטריפ אחיד שכולל הכל בשורה אחת
+    with st.container():
+        st.markdown('<div class="strip-bg">', unsafe_allow_html=True)
+        cols = st.columns([1.5, 2, 1])
+        with cols[0]:
+            st.markdown("### 🏠 מתווך בקליק")
+        with cols[1]:
+            st.markdown(f"<center><h3>👤 {st.session_state.user}</h3></center>", 
+                        unsafe_allow_html=True)
+        with cols[2]:
+            if st.button("↩️ לתפריט הראשי"):
+                st.session_state.step = "menu"; st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
     
-    # כפתור חזרה בנפרד (כדי שיהיה פונקציונלי בסטרימליט)
-    c1, c2, c3 = st.columns([4, 4, 2])
-    with c3:
-        if st.button("↩️ לתפריט הראשי"):
-            st.session_state.step = "menu"; st.rerun()
+    # הצמדה מקסימלית של ה-Iframe
+    ex_url = "https://fullrealestatebroker-yevuzewxde4obgrpgacrpc.streamlit.app/?embedded=true"
+    components.iframe(ex_url, height=800, scrolling=True)
 
-    # האפליקציה השנייה (פריים 2) - הלינק הנכון
-    exam_url = "https://fullrealestatebroker-yevuzewxde4obgrpgacrpc.streamlit.app/?embedded=true"
-    components.iframe(exam_url, height=1000, scrolling=True)
+elif st.session_state.step == "study":
+    st.title("📚 לימוד לפי נושאים")
+    sel = st.selectbox("בחר נושא:", ["בחר..."] + list(SYLLABUS.keys()))
+    if sel != "בחר..." and st.button("טען נושא"):
+        st.session_state.update({
+            "selected_topic": sel, "step": "lesson_run", 
+            "lesson_txt": "", "quiz_active": False
+        })
+        st.rerun()
+    if st.button("חזרה לתפריט"):
+        st.session_state.step = "menu"; st.rerun()
 
-# ... (יתר הקוד המקורי של study ו-lesson_run מ-1213 ממשיך כאן) ...
+elif st.session_state.step == "lesson_run":
+    topic = st.session_state.selected_topic
+    st.header(f"📖 {topic}")
+    if st.button("🏠 חזרה לבחירת נושא"):
+        st.session_state.step = "study"; st.rerun()
+    # (כאן תבוא שאר הלוגיקה של Subs ו-AI שקיימת ב-1213)
+
+st.markdown('<div class="v-footer">Version: 1213-Exam-V2</div>', 
+            unsafe_allow_html=True)
