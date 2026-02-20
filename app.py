@@ -7,19 +7,28 @@ import google.generativeai as genai
 import json, re
 
 st.set_page_config(page_title="מתווך בקליק", layout="wide")
-st.markdown('<div id="top"></div>', unsafe_allow_html=True)
 
-# CSS לכפתורים שקופים ואחידים (ללא קו תחתי)
+# CSS לעיצוב הכותרת המאוחדת והכפתורים השקופים
 st.markdown("""
 <style>
     * { direction: rtl; text-align: right; }
     
+    /* עיצוב כותרת משולבת: לוגו + כותרת + שם משתמש */
+    .header-container {
+        display: flex;
+        align-items: baseline;
+        gap: 15px;
+        margin-bottom: 20px;
+    }
+    .header-title { font-size: 2.5rem; font-weight: bold; margin: 0; }
+    .header-user { font-size: 1.2rem; color: #555; margin-right: 20px; }
+
+    /* כפתורים שקופים */
     .stButton>button, .stLinkButton>a { 
         display: inline-flex !important;
         align-items: center;
         justify-content: center;
         width: 100% !important; 
-        padding: 0 25px !important;
         border-radius: 8px !important; 
         font-weight: bold !important; 
         height: 3em !important; 
@@ -27,33 +36,23 @@ st.markdown("""
         color: #31333f !important;
         border: 1px solid #d1d5db !important;
         text-decoration: none !important;
-        box-sizing: border-box;
         transition: 0.2s;
-        white-space: nowrap !important;
     }
-    
     .stButton>button:hover, .stLinkButton>a:hover {
         border-color: #ff4b4b !important;
         color: #ff4b4b !important;
-        background-color: transparent !important;
     }
 </style>
 """, unsafe_allow_html=True)
 
 SYLLABUS = {
-    "חוק המתווכים": ["רישוי והגבלות", "הגינות וזהירות", 
-                     "הזמנה ובלעדיות", "פעולות שאינן תיווך"],
+    "חוק המתווכים": ["רישוי והגבלות", "הגינות וזהירות", "הזמנה ובלעדיות", "פעולות שאינן תיווך"],
     "תקנות המתווכים": ["פרטי הזמנה 1997", "פעולות שיווק 2004", "דמי תיווך"],
-    "חוק המקרקעין": ["בעלות וזכויות", "בתים משותפים", "עסקאות נוגדות", 
-                     "הערות אזהרה", "שכירות וזיקה"],
-    "חוק המכר (דירות)": ["מפרט וגילוי", "בדק ואחריות", 
-                          "איחור במסירה", "הבטחת השקעות"],
-    "חוק החוזים": ["כריתת חוזה", "פגמים בחוזה", 
-                   "תרופות והפרה", "ביטול והשבה"],
-    "חוק התכנון והבנייה": ["היתרים ושימוש חורג", "היטל השבחה", 
-                           "תוכניות מתאר", "מוסדות התכנון"],
-    "חוק מיסוי מקרקעין": ["מס שבח (חישוב ופפורים)", "מס רכישה", 
-                          "הקלות לדירת מגורים", "שווי שוק"],
+    "חוק המקרקעין": ["בעלות וזכויות", "בתים משותפים", "עסקאות נוגדות", "הערות אזהרה", "שכירות וזיקה"],
+    "חוק המכר (דירות)": ["מפרט וגילוי", "בדק ואחריות", "איחור במסירה", "הבטחת השקעות"],
+    "חוק החוזים": ["כריתת חוזה", "פגמים בחוזה", "תרופות והפרה", "ביטול והשבה"],
+    "חוק התכנון והבנייה": ["היתרים ושימוש חורג", "היטל השבחה", "תוכניות מתאר", "מוסדות התכנון"],
+    "חוק מיסוי מקרקעין": ["מס שבח (חישוב ופפורים)", "מס רכישה", "הקלות לדירת מגורים", "שווי שוק"],
     "חוק הגנת הצרכן": ["ביטול עסקה", "הטעיה בפרסום"],
     "דיני ירושה": ["סדר הירושה", "צוואות"],
     "חוק העונשין": ["עבירות מרמה וזיוף"]
@@ -74,20 +73,27 @@ def stream_ai_lesson(p):
     except: return "⚠️ תקלה בטעינה."
 
 if "step" not in st.session_state:
-    st.session_state.update({
-        "user": None, "step": "login", "lesson_txt": ""
-    })
+    st.session_state.update({"user": None, "step": "login", "lesson_txt": ""})
 
-st.title("🏠 מתווך בקליק")
+# פונקציה להצגת הכותרת המאוחדת בכל העמודים
+def show_header():
+    user_display = f'<span class="header-user">| {st.session_state.user}</span>' if st.session_state.user else ""
+    st.markdown(f"""
+        <div class="header-container">
+            <h1 class="header-title">🏠 מתווך בקליק</h1>
+            {user_display}
+        </div>
+    """, unsafe_allow_html=True)
 
 if st.session_state.step == "login":
+    st.title("🏠 מתווך בקליק")
     u = st.text_input("שם מלא:")
     if st.button("כניסה") and u:
         st.session_state.update({"user": u, "step": "menu"})
         st.rerun()
 
 elif st.session_state.step == "menu":
-    st.subheader(f"👤 שלום, {st.session_state.user}")
+    show_header()
     c1, c2, c3 = st.columns([1.5, 1.5, 3])
     with c1:
         if st.button("📚 לימוד לפי נושאים"):
@@ -99,19 +105,16 @@ elif st.session_state.step == "menu":
         st.link_button("⏱️ גש/י למבחן", t_url)
 
 elif st.session_state.step == "study":
-    st.subheader(f"👤 שלום, {st.session_state.user}")
+    show_header()
     sel = st.selectbox("בחר נושא:", ["בחר..."] + list(SYLLABUS.keys()))
     if sel != "בחר..." and st.button("טען נושא"):
-        st.session_state.update({
-            "selected_topic": sel, "step": "lesson_run", "lesson_txt": ""
-        })
+        st.session_state.update({"selected_topic": sel, "step": "lesson_run", "lesson_txt": ""})
         st.rerun()
 
 elif st.session_state.step == "lesson_run":
+    show_header()
     topic = st.session_state.selected_topic
     st.header(f"📖 {topic}")
-    # החזרת שם המשתמש בין הכותרת לתתי הנושאים
-    st.subheader(f"👤 לומד/ת כעת: {st.session_state.user}")
     
     subs = SYLLABUS.get(topic, [])
     cols = st.columns(len(subs))
