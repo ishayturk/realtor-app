@@ -1,139 +1,40 @@
-# ==========================================
-# Project: מתווך בקליק | Version: 1213-Fixed
-# ==========================================
-import streamlit as st
-import streamlit.components.v1 as components
-import google.generativeai as genai
-import json, re
-
-st.set_page_config(page_title="מתווך בקליק", layout="wide")
-
-# CSS לתיקון המרחקים והסטריפ
-st.markdown("""
-<style>
-    * { direction: rtl; text-align: right; }
-    .stApp header { visibility: hidden; }
-    .block-container { 
-        padding-top: 1rem !important; 
-        padding-bottom: 0px !important;
-    }
-    /* עיצוב הסטריפ כרקע אפור בהיר */
-    .strip-bg {
-        background-color: #f0f2f6;
-        padding: 10px;
-        border-radius: 10px;
-        margin-bottom: 0px;
-    }
-    .stButton>button { 
-        width: 100%; border-radius: 8px; 
-        font-weight: bold; height: 3em; 
-    }
-</style>
-""", unsafe_allow_html=True)
-
-# --- פונקציות וסילבוס מקוריים (1213) ---
-SYLLABUS = {
-    "חוק המתווכים": ["רישוי והגבלות", "הגינות וזהירות", "הזמנה ובלעדיות", "פעולות שאינן תיווך"],
-    "תקנות המתווכים": ["פרטי הזמנה 1997", "פעולות שיווק 2004", "דמי תיווך"],
-    "חוק המקרקעין": ["בעלות וזכויות", "בתים משותפים", "עסקאות נוגדות", "הערות אזהרה", "שכירות וזיקה"],
-    "חוק המכר (דירות)": ["מפרט וגילוי", "בדק ואחריות", "איחור במסירה", "הבטחת השקעות"],
-    "חוק החוזים": ["כריתת חוזה", "פגמים בחוזה", "תרופות והפרה", "ביטול והשבה"],
-    "חוק התכנון והבנייה": ["היתרים ושימוש חורג", "היטל השבחה", "תוכניות מתאר", "מוסדות התכנון"],
-    "חוק מיסוי מקרקעין": ["מס שבח (חישוב ופפורים)", "מס רכישה", "הקלות לדירת מגורים", "שווי שוק"],
-    "חוק הגנת הצרכן": ["ביטול עסקה", "הטעיה בפרסום"],
-    "דיני ירושה": ["סדר הירושה", "צוואות"],
-    "חוק העונשין": ["עבירות מרמה וזיוף"]
-}
-
-def stream_ai_lesson(p):
-    try:
-        genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-        m = genai.GenerativeModel('gemini-2.0-flash')
-        res = m.generate_content(p + " ללא כותרות.", stream=True)
-        ph = st.empty()
-        txt = ""
-        for chunk in res:
-            txt += chunk.text
-            ph.markdown(txt + "▌")
-        ph.markdown(txt)
-        return txt
-    except: return "⚠️ תקלה."
-
-def fetch_q_ai(topic):
-    try:
-        genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-        m = genai.GenerativeModel('gemini-2.0-flash')
-        p = f"צור שאלה על {topic}. JSON בלבד."
-        res = m.generate_content(p).text
-        match = re.search(r'\{.*\}', res, re.DOTALL)
-        if match: return json.loads(match.group())
-    except: return None
-
-# אתחול Session State
-if "step" not in st.session_state:
-    st.session_state.update({
-        "user": None, "step": "login", "q_count": 0, 
-        "quiz_active": False, "show_ans": False, 
-        "lesson_txt": "", "q_data": None, 
-        "correct_answers": 0, "quiz_finished": False
-    })
-
-# --- ניהול שלבים ---
-
-if st.session_state.step == "login":
-    st.title("🏠 מתווך בקליק")
-    u = st.text_input("שם מלא:")
-    if st.button("כניסה") and u:
-        st.session_state.update({"user": u, "step": "menu"})
-        st.rerun()
-
-elif st.session_state.step == "menu":
-    st.subheader(f"👤 שלום, {st.session_state.user}")
-    c1, c2 = st.columns(2)
-    with c1:
-        if st.button("📚 לימוד לפי נושאים"):
-            st.session_state.step = "study"; st.rerun()
-    with c2:
-        if st.button("⏱️ גש/י למבחן"):
-            st.session_state.step = "exam_mode"; st.rerun()
-
 elif st.session_state.step == "exam_mode":
-    # סטריפ אחיד שכולל הכל בשורה אחת
+    # סטריפ עליון - פריים 1
+    # רקע אפור בהיר, צמוד לתקרה
+    st.markdown("""
+        <style>
+        .exam-strip {
+            background-color: #f0f2f6;
+            padding: 10px 20px;
+            border-radius: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+
     with st.container():
-        st.markdown('<div class="strip-bg">', unsafe_allow_html=True)
-        cols = st.columns([1.5, 2, 1])
-        with cols[0]:
+        # חלוקה ל-3 טורים בתוך הסטריפ
+        c1, c2, c3 = st.columns([2, 2, 1])
+        
+        with c1:
+            # לוגו ושם אפליקציה בצד ימין
             st.markdown("### 🏠 מתווך בקליק")
-        with cols[1]:
+            
+        with c2:
+            # שם המשתמש במרכז
             st.markdown(f"<center><h3>👤 {st.session_state.user}</h3></center>", 
                         unsafe_allow_html=True)
-        with cols[2]:
+            
+        with c3:
+            # כפתור חזרה בצד שמאל
             if st.button("↩️ לתפריט הראשי"):
-                st.session_state.step = "menu"; st.rerun()
-        st.markdown('</div>', unsafe_allow_html=True)
-    
-    # הצמדה מקסימלית של ה-Iframe
-    ex_url = "https://fullrealestatebroker-yevuzewxde4obgrpgacrpc.streamlit.app/?embedded=true"
-    components.iframe(ex_url, height=800, scrolling=True)
+                st.session_state.step = "menu"
+                st.rerun()
 
-elif st.session_state.step == "study":
-    st.title("📚 לימוד לפי נושאים")
-    sel = st.selectbox("בחר נושא:", ["בחר..."] + list(SYLLABUS.keys()))
-    if sel != "בחר..." and st.button("טען נושא"):
-        st.session_state.update({
-            "selected_topic": sel, "step": "lesson_run", 
-            "lesson_txt": "", "quiz_active": False
-        })
-        st.rerun()
-    if st.button("חזרה לתפריט"):
-        st.session_state.step = "menu"; st.rerun()
-
-elif st.session_state.step == "lesson_run":
-    topic = st.session_state.selected_topic
-    st.header(f"📖 {topic}")
-    if st.button("🏠 חזרה לבחירת נושא"):
-        st.session_state.step = "study"; st.rerun()
-    # (כאן תבוא שאר הלוגיקה של Subs ו-AI שקיימת ב-1213)
-
-st.markdown('<div class="v-footer">Version: 1213-Exam-V2</div>', 
-            unsafe_allow_html=True)
+    # פריים תחתון - האפליקציה השנייה (דף ההסבר)
+    # גובה מותאם אישית כדי למנוע גלילה מיותרת
+    exam_link = "https://fullrealestatebroker-yevuzewxde4obgrpgacrpc.streamlit.app/?embedded=true"
+    components.iframe(exam_link, height=850, scrolling=True)
