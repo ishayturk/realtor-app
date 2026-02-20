@@ -1,144 +1,127 @@
 import streamlit as st
 import google.generativeai as genai
-import json, re
+import json
+import re
 
+# הגדרות עמוד
 st.set_page_config(page_title="מתווך בקליק", layout="wide")
 
+# סילבוס לימודים
 SYLLABUS = {
-    "חוק המתווכים": [
-        "רישוי והגבלות", "הגינות וזהירות", 
-        "הזמנה ובלעדיות", "פעולות שאינן תיווך"
+    "חוק המתווכים במקרקעין, התשנ"ה-1995": [
+        "רישוי והגבלות (סעיפים 2-13)",
+        "חובת הגינות וזהירות (סעיף 8)",
+        "הזמנה בכתב ובלעדיות (סעיף 9)",
+        "פעולות שאינן פעולות תיווך (סעיף 12)",
+        "דמי תיווך והגורם היעיל (סעיף 14)"
     ],
-    "תקנות המתווכים": [
-        "פרטי הזמנה 1997", "פעולות שיווק 2004", "דמי תיווך"
+    "תקנות המתווכים במקרקעין": [
+        "פרטי הזמנה בכתב (1997)",
+        "פעולות שיווק (2004)"
     ],
-    "חוק המקרקעין": [
-        "בעלות וזכויות", "בתים משותפים", "עסקאות נוגדות", 
-        "הערות אזהרה", "שכירות וזיקה"
+    "חוק המקרקעין, התשכ"ט-1969": [
+        "בעלות וזכויות במקרקעין",
+        "עסקאות ורישום (סעיפים 6-10)",
+        "הערות אזהרה (סעיפים 126-127)",
+        "בתים משותפים",
+        "שכירות, שאילה וזיקת הנאה"
     ],
-    "חוק המכר (דירות)": [
-        "מפרט וגילוי", "בדק ואחריות", 
-        "איחור במסירה", "הבטחת השקעות"
+    "חוק המכר (דירות), התשל"ג-1973": [
+        "חובת גילוי ומפרט",
+        "תקופת בדק ואחריות",
+        "פיצוי על איחור במסירה"
     ],
-    "חוק החוזים": [
-        "כריתת חוזה", "פגמים בחוזה", 
-        "תרופות והפרה", "ביטול והשבה"
+    "חוק המכר (דירות) (הבטחת השקעות), התשל"ה-1974": [
+        "ערבויות חוק מכר",
+        "פנקס שוברים"
     ],
-    "חוק התכנון והבנייה": [
-        "היתרים ושימוש חורג", "היטל השבחה", 
-        "תוכניות מתאר", "מוסדות התכנון"
+    "חוק החוזים (חלק כללי) ודיני חוזים": [
+        "כריתת חוזה (הצעה וקיבול)",
+        "פגמים בכריתה (טעות, הטעיה, כפייה ועושק)",
+        "תרופות בשל הפרת חוזה"
     ],
-    "חוק מיסוי מקרקעין": [
-        "מס שבח", "מס רכישה", 
-        "הקלות לדירת מגורים", "שווי שוק"
+    "חוק התכנון והבנייה, התשכ"ה-1965": [
+        "מוסדות התכנון (מועצה ארצית, ועדה מחוזית/מקומית)",
+        "היתרי בנייה ושימוש חורג",
+        "היטל השבחה"
     ],
-    "חוק הגנת הצרכן": ["ביטול עסקה", "הטעיה בפרסום"],
-    "דיני ירושה": ["סדר הירושה", "צוואות"],
-    "חוק העונשין": ["עבירות מרמה וזיוף"]
+    "מיסוי מקרקעין": [
+        "מס שבח (עקרונות ופטורים)",
+        "מס רכישה (מדרגות ודירה יחידה)"
+    ],
+    "חוק הגנת הצרכן, התשמ"א-1981": [
+        "איסור הטעיה",
+        "ביטול עסקת רוכלות/מכר מרחוק"
+    ],
+    "חוק הירושה, התשכ"ה-1965": [
+        "ירושה על פי דין",
+        "צוואות (סוגים ועקרונות)"
+    ],
+    "חוק העונשין, התשל"ז-1977": [
+        "עבירות מרמה, זיוף ושוחד"
+    ]
 }
 
-def fetch_q_ai(topic):
+# פונקציה לשליפת שאלה מה-AI
+def fetch_question_from_ai(topic):
     try:
         genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-        m = genai.GenerativeModel('gemini-2.0-flash')
-        p = f"צור שאלה אמריקאית על {topic}. החזר JSON בלבד."
-        res = m.generate_content(p).text
-        match = re.search(r'\{.*\}', res, re.DOTALL)
-        if match: return json.loads(match.group())
-    except: return None
+        model = genai.GenerativeModel('gemini-2.0-flash')
+        
+        prompt = f"""
+        צור שאלה אמריקאית אחת קשה ומאתגרת בנושא {topic} מתוך חומר הלימוד של בחינת רשם המתווכים.
+        החזר את התשובה אך ורק בפורמט JSON תקני כזה:
+        {{
+            "question": "השאלה כאן",
+            "options": ["אופציה 1", "אופציה 2", "אופציה 3", "אופציה 4"],
+            "answer": "האופציה הנכונה בדיוק",
+            "explanation": "הסבר מפורט כולל סעיף החוק הרלוונטי"
+        }}
+        """
+        
+        response = model.generate_content(prompt)
+        raw_text = response.text
+        json_match = re.search(r'\{.*\}', raw_text, re.DOTALL)
+        if json_match:
+            return json.loads(json_match.group())
+    except Exception as e:
+        return None
     return None
 
-def stream_ai_lesson(p):
+# פונקציית סטרימינג לשיעור
+def stream_lesson(topic):
     try:
         genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-        m = genai.GenerativeModel('gemini-2.0-flash')
-        f_p = p + " כתוב שיעור הכנה מעמיק למבחן המתווכים."
-        response = m.generate_content(f_p, stream=True)
+        model = genai.GenerativeModel('gemini-2.0-flash')
+        
+        prompt = f"כתוב שיעור הכנה מפורט ומעמיק לבחינת המתווכים בנושא: {topic}. פרט סעיפי חוק, הגדרות חשובות, ודוגמאות פרקטיות. כתוב בצורה מסודרת עם בולטים."
+        
+        response = model.generate_content(prompt, stream=True)
+        
         placeholder = st.empty()
-        full_text = ""
+        full_response = ""
+        
         for chunk in response:
-            full_text += chunk.text
-            placeholder.markdown(full_text + "▌")
-        placeholder.markdown(full_text)
-        return full_text
-    except: return "⚠️ תקלה."
+            full_response += chunk.text
+            placeholder.markdown(full_response + "▌")
+        
+        placeholder.markdown(full_response)
+        return full_response
+    except Exception as e:
+        st.error(f"שגיאה בחיבור ל-AI: {str(e)}")
+        return None
 
+# ניהול מצבי אפליקציה
 if "step" not in st.session_state:
-    st.session_state.update({
-        "user": None, "step": "login", "selected_topic": None,
-        "lesson_txt": "", "quiz_active": False, 
-        "q_data": None, "show_ans": False
-    })
+    st.session_state.step = "login"
+if "user_name" not in st.session_state:
+    st.session_state.user_name = ""
+if "selected_topic" not in st.session_state:
+    st.session_state.selected_topic = None
+if "lesson_content" not in st.session_state:
+    st.session_state.lesson_content = ""
+if "quiz_active" not in st.session_state:
+    st.session_state.quiz_active = False
 
-st.markdown("<style>* { direction: rtl; text-align: right; }</style>", 
-            unsafe_allow_html=True)
-
-if st.session_state.step == "login":
-    st.title("🏠 מתווך בקליק")
-    u = st.text_input("שם מלא:")
-    if st.button("כניסה") and u:
-        st.session_state.update({"user": u, "step": "menu"})
-        st.rerun()
-
-elif st.session_state.step == "menu":
-    st.title("🏠 מתווך בקליק")
-    st.subheader(f"👤 שלום, {st.session_state.user}")
-    c1, c2 = st.columns(2)
-    with c1:
-        if st.button("📚 לימוד לפי נושאים"):
-            st.session_state.step = "study"; st.rerun()
-    with c2:
-        if st.button("⏱️ גש/י למבחן"):
-            st.session_state.step = "exam_intro"; st.rerun()
-
-elif st.session_state.step == "study":
-    st.title("🏠 מתווך בקליק")
-    st.subheader(f"👤 שלום, {st.session_state.user}")
-    
-    for category, topics in SYLLABUS.items():
-        with st.expander(category):
-            for t in topics:
-                if st.button(t, key=f"btn_{t}"):
-                    st.session_state.update({
-                        "selected_topic": t, "step": "lesson_run",
-                        "lesson_txt": "", "quiz_active": False
-                    })
-                    st.rerun()
-    
-    if st.button("🏠 חזרה לתפריט"):
-        st.session_state.step = "menu"; st.rerun()
-
-elif st.session_state.step == "lesson_run":
-    st.title(f"📖 {st.session_state.selected_topic}")
-    if not st.session_state.lesson_txt:
-        st.session_state.lesson_txt = stream_ai_lesson(st.session_state.selected_topic)
-    
-    if st.button("❓ בחן אותי"):
-        st.session_state.q_data = fetch_q_ai(st.session_state.selected_topic)
-        st.session_state.quiz_active = True
-        st.session_state.show_ans = False
-    
-    if st.session_state.quiz_active and st.session_state.q_data:
-        q = st.session_state.q_data
-        ans = st.radio(q['q'], q['options'], index=None)
-        if st.button("בדוק תשובה"): st.session_state.show_ans = True
-        if st.session_state.show_ans:
-            if ans == q['correct']: st.success("נכון!")
-            else: st.error(f"טעות. {q['correct']}")
-            st.info(q['explain'])
-    
-    if st.button("🏠 חזור לבחירת נושא"):
-        st.session_state.step = "study"; st.rerun()
-
-elif st.session_state.step == "exam_intro":
-    st.markdown("""<style>#MainMenu,footer,header{visibility:hidden;}.block-container{padding-top:0.8rem!important;}.user-info{font-size:0.9rem;color:gray;text-align:center;}.instruction-p{margin-bottom:-10px;}</style>""", unsafe_allow_html=True)
-    cr, cm, cl = st.columns([1.5, 3, 1.5])
-    with cr: st.markdown("#### 🏠 מתווך בקליק")
-    with cm: st.markdown(f"<p class='user-info'>👤 {st.session_state.user}</p>", unsafe_allow_html=True)
-    with cl:
-        if st.button("לתפריט"):
-            st.session_state.step = "menu"; st.rerun()
-    st.header("הוראות למבחן")
-    ins = ["1. 25 שאלות.", "2. 90 דקות.", "3. מעבר לאחר סימון.", "4. ניתן לחזור."]
-    for line in ins:
-        st.markdown
+# עיצוב RTL
+st.markdown("""
