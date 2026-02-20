@@ -8,15 +8,15 @@ import json, re
 
 st.set_page_config(page_title="מתווך בקליק", layout="wide")
 
-# CSS חזק יותר להצמדת השם והכותרת
+# CSS חזק להצמדת השם והכותרת בשורה אחת
 st.markdown("""
 <style>
     * { direction: rtl; text-align: right; }
     
     .header-container {
         display: flex;
-        align-items: center; /* מרכז אנכית */
-        gap: 45px; /* רווח משולש */
+        align-items: center;
+        gap: 45px;
         margin-bottom: 30px;
     }
     
@@ -29,13 +29,12 @@ st.markdown("""
     
     .header-user { 
         font-size: 1.2rem !important; 
-        font-weight: 900 !important; /* Bold חזק */
+        font-weight: 900 !important; 
         color: #31333f; 
         white-space: nowrap;
-        margin-top: 10px; /* התאמה קלה לגובה הטקסט */
+        margin-top: 10px;
     }
 
-    /* כפתורים שקופים */
     .stButton>button, .stLinkButton>a { 
         display: inline-flex !important;
         align-items: center;
@@ -87,16 +86,15 @@ def stream_ai_lesson(p):
 if "step" not in st.session_state:
     st.session_state.update({"user": None, "step": "login", "lesson_txt": ""})
 
-# פונקציית כותרת משופרת - הכל בתוך Container אחד
 def show_header():
     if st.session_state.user:
-        header_html = f"""
+        h_html = f"""
         <div class="header-container">
             <div class="header-title">🏠 מתווך בקליק</div>
             <div class="header-user">👤 <b>{st.session_state.user}</b></div>
         </div>
         """
-        st.markdown(header_html, unsafe_allow_html=True)
+        st.markdown(h_html, unsafe_allow_html=True)
     else:
         st.markdown('<div class="header-title">🏠 מתווך בקליק</div>', unsafe_allow_html=True)
 
@@ -116,4 +114,42 @@ elif st.session_state.step == "menu":
             st.rerun()
     with c2:
         u_name = st.session_state.user.replace(" ", "%20")
-        t_url = f"https://fullrealestatebroker-yevuzewxde4obgr
+        # הכתובת בשורה אחת למניעת SyntaxError
+        b_url = "https://fullrealestatebroker-yevuzewxde4obgrpgacrpc.streamlit.app/"
+        t_url = f"{b_url}?user={u_name}"
+        st.link_button("⏱️ גש/י למבחן", t_url)
+
+elif st.session_state.step == "study":
+    show_header()
+    sel = st.selectbox("בחר נושא:", ["בחר..."] + list(SYLLABUS.keys()))
+    if sel != "בחר..." and st.button("טען נושא"):
+        st.session_state.update({"selected_topic": sel, "step": "lesson_run", "lesson_txt": ""})
+        st.rerun()
+
+elif st.session_state.step == "lesson_run":
+    show_header()
+    topic = st.session_state.selected_topic
+    st.header(f"📖 {topic}")
+    
+    subs = SYLLABUS.get(topic, [])
+    cols = st.columns(len(subs))
+    for i, s in enumerate(subs):
+        if cols[i].button(s, key=f"sub_{i}"):
+            st.session_state.update({"current_sub": s, "lesson_txt": "LOADING"})
+            st.rerun()
+    
+    if st.session_state.get("lesson_txt") == "LOADING":
+        st.session_state.lesson_txt = stream_ai_lesson(f"שיעור על {st.session_state.current_sub}")
+        st.rerun()
+    elif st.session_state.get("lesson_txt"):
+        st.markdown(st.session_state.lesson_txt)
+
+    st.write("")
+    f_cols = st.columns([2, 2, 4])
+    with f_cols[0]:
+        if st.button("🏠 לתפריט הראשי"):
+            st.session_state.step = "menu"
+            st.rerun()
+    with f_cols[1]:
+        if st.button("🔝 לראש הדף"):
+            st.rerun()
