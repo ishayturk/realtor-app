@@ -25,6 +25,26 @@ st.markdown("""
         margin-top: 50px;
         width: 100%;
     }
+    /* עיצוב כפתור המבחן שייראה בדיוק כמו st.button */
+    .st-exam-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        height: 3em;
+        background-color: rgb(240, 242, 246);
+        color: rgb(49, 51, 63);
+        border: 1px solid rgba(49, 51, 63, 0.2);
+        border-radius: 8px;
+        font-weight: bold;
+        text-decoration: none;
+        cursor: pointer;
+        transition: border-color 0.2s, color 0.2s;
+    }
+    .st-exam-btn:hover {
+        border-color: rgb(255, 75, 75);
+        color: rgb(255, 75, 75);
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -67,7 +87,6 @@ def stream_ai_lesson(p):
         return full_text
     except: return "⚠️ תקלה בטעינה."
 
-# אתחול
 if "step" not in st.session_state:
     st.session_state.update({
         "user": None, "step": "login", "q_count": 0, "quiz_active": False, 
@@ -91,12 +110,10 @@ elif st.session_state.step == "menu":
             st.session_state.step = "study"
             st.rerun()
     with c2:
-        # כפתור רגיל לחלוטין ששומר על העימוד המקורי
-        if st.button("⏱️ גש/י למבחן"):
-            user_name = st.session_state.user.replace(" ", "%20")
-            exam_url = f"https://fullrealestatebroker-yevuzewxde4obgrpgacrpc.streamlit.app/?user={user_name}"
-            # פתיחת הלינק באותו חלון באמצעות JavaScript בלי לשנות שום פיקסל בעיצוב
-            st.components.v1.html(f"<script>window.parent.location.href='{exam_url}';</script>", height=0)
+        user_name = st.session_state.user.replace(" ", "%20")
+        exam_url = f"https://fullrealestatebroker-yevuzewxde4obgrpgacrpc.streamlit.app/?user={user_name}"
+        # שימוש בקישור HTML רגיל עם עיצוב של כפתור - לא נחסם על ידי דפדפנים
+        st.markdown(f'<a href="{exam_url}" target="_self" class="st-exam-btn">⏱️ גש/י למבחן</a>', unsafe_allow_html=True)
 
 elif st.session_state.step == "study":
     sel = st.selectbox("בחר נושא:", ["בחר..."] + list(SYLLABUS.keys()))
@@ -111,7 +128,6 @@ elif st.session_state.step == "study":
 elif st.session_state.step == "lesson_run":
     topic = st.session_state.selected_topic
     st.header(f"📖 {topic}")
-    
     subs = SYLLABUS.get(topic, [])
     cols = st.columns(len(subs))
     for i, s in enumerate(subs):
@@ -132,7 +148,6 @@ elif st.session_state.step == "lesson_run":
 
     st.write("")
     f_cols = st.columns([2.5, 2, 1.5, 3])
-    
     with f_cols[1]:
         if st.button("🏠 לתפריט הראשי"):
             st.session_state.step = "menu"; st.rerun()
