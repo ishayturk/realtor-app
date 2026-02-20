@@ -1,4 +1,6 @@
 import streamlit as st
+import google.generativeai as genai
+import json, re
 
 st.set_page_config(page_title="מתווך בקליק", layout="wide")
 
@@ -6,7 +8,8 @@ st.set_page_config(page_title="מתווך בקליק", layout="wide")
 if "step" not in st.session_state:
     st.session_state.update({"user": None, "step": "login"})
 
-# --- מסך כניסה ---
+# --- לוגיקה לעיצוב והצגת הדפים ---
+
 if st.session_state.step == "login":
     st.markdown("<style>* { direction: rtl; text-align: right; }</style>", unsafe_allow_html=True)
     st.title("🏠 מתווך בקליק")
@@ -15,7 +18,6 @@ if st.session_state.step == "login":
         st.session_state.update({"user": u, "step": "menu"})
         st.rerun()
 
-# --- תפריט ראשי ---
 elif st.session_state.step == "menu":
     st.markdown("<style>* { direction: rtl; text-align: right; }</style>", unsafe_allow_html=True)
     st.title("🏠 מתווך בקליק")
@@ -28,54 +30,44 @@ elif st.session_state.step == "menu":
         if st.button("⏱️ גש/י למבחן"):
             st.session_state.step = "exam_intro"; st.rerun()
 
-# --- עמוד הוראות המבחן (מיקום מדויק) ---
 elif st.session_state.step == "exam_intro":
+    # CSS ממוקד לתיקון היישור והרווחים
     st.markdown("""
         <style>
-        #MainMenu {visibility: hidden;}
-        footer {visibility: hidden;}
-        header {visibility: hidden;}
-        .block-container {
-            padding-top: 1rem !important; /* ריווח של שורה אחת מהלמעלה */
-            margin-top: 0px;
+        #MainMenu, footer, header {visibility: hidden;}
+        .block-container { padding-top: 0.5rem !important; }
+        
+        /* עיצוב הסטריפ העליון */
+        .header-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 5px 0;
+            border-bottom: 1px solid #f0f0f0;
+            margin-bottom: 10px;
         }
-        .user-name-small { 
-            font-size: 0.9rem; 
-            color: gray; 
-            text-align: center; 
-            margin-top: 10px;
-        }
-        div[data-testid="stCheckbox"] { direction: rtl !important; }
+        .user-info { font-size: 0.85rem; color: #555; flex-grow: 1; text-align: center; }
+        
+        /* צמצום רווחים בין שורות הטקסט */
+        .instruction-line { margin-bottom: -10px; }
+        
+        div[data-testid="stCheckbox"] { direction: rtl !important; margin-top: -10px; }
         * { direction: rtl; text-align: right; }
         </style>
         """, unsafe_allow_html=True)
 
-    # סטריפ עליון
-    col_r, col_m, col_l = st.columns([2, 2, 1])
+    # סטריפ עליון מאוזן
+    col_r, col_m, col_l = st.columns([1.5, 3, 1.5])
     
     with col_r:
-        st.subheader("🏠 מתווך בקליק") # שימוש ב-subheader להקטנת הכותרת
+        st.markdown("<h4 style='margin:0;'>🏠 מתווך בקליק</h4>", unsafe_allow_html=True)
     
     with col_m:
-        st.markdown(f"<p class='user-name-small'>👤 {st.session_state.user}</p>", 
+        st.markdown(f"<p class='user-info'>👤 משתמש: {st.session_state.user}</p>", 
                     unsafe_allow_html=True)
     
     with col_l:
-        if st.button("לתפריט הראשי"):
+        if st.button("לתפריט הראשי", key="back_btn"):
             st.session_state.step = "menu"; st.rerun()
 
-    st.header("הוראות למבחן רישויי מקרקעין")
-    st.write("1. המבחן כולל 25 שאלות.")
-    st.write("2. זמן מוקצב: 90 דקות.")
-    st.write("3. מעבר לשאלה הבאה רק לאחר סימון תשובה.")
-    st.write("4. ניתן לחזור אחורה רק לשאלות שנענו.")
-    st.write("5. בסיום 90 דקות המבחן יינעל.")
-    st.write("6. ציון עובר: 60.")
-    st.write("7. חל איסור על שימוש בחומר עזר.")
-
-    st.divider()
-
-    agree = st.checkbox("קראתי את ההוראות ואני מוכן להתחיל בבחינה")
-
-    if st.button("התחל בחינה", disabled=not agree):
-        st.session_state.step = "exam_run"; st.rerun()
+    # תוכן הוראות המבחן בצורה מהודקת
