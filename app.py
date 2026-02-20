@@ -8,26 +8,27 @@ import json, re
 st.set_page_config(page_title="מתווך בקליק", layout="wide")
 st.markdown('<div id="top"></div>', unsafe_allow_html=True)
 
+# CSS מפוצל לשורות קצרות למניעת שגיאות Git
 st.markdown("""
 <style>
     * { direction: rtl; text-align: right; }
-    .stButton>button { width: 100%; border-radius: 8px; font-weight: bold; height: 3em; }
-    
-    /* התאמה מושלמת של כפתור המבחן לכפתורי המערכת */
+    .stButton>button { 
+        width: 100%; border-radius: 8px; 
+        font-weight: bold; height: 3em; 
+    }
     .exam-btn-final { 
         display: block; width: 100%; text-align: center; 
         border-radius: 8px; text-decoration: none !important; 
         border: 1px solid rgba(49, 51, 63, 0.2);
         font-weight: bold; height: 3em; line-height: 3em;
         background-color: #f0f2f6; 
-        color: rgb(49, 51, 63) !important; /* צבע טקסט זהה לכפתור רגיל */
+        color: rgb(49, 51, 63) !important;
         box-sizing: border-box;
     }
     .exam-btn-final:hover {
         border-color: #ff4b4b;
         color: #ff4b4b !important;
     }
-
     .top-link { 
         display: inline-block; width: 100%; text-align: center; 
         border-radius: 8px; text-decoration: none; border: 1px solid #d1d5db;
@@ -35,23 +36,26 @@ st.markdown("""
         background-color: transparent; color: inherit;
     }
     .v-footer {
-        text-align: center;
-        color: rgba(255, 255, 255, 0.1);
-        font-size: 0.7em;
-        margin-top: 50px;
-        width: 100%;
+        text-align: center; color: rgba(255, 255, 255, 0.1);
+        font-size: 0.7em; margin-top: 50px; width: 100%;
     }
 </style>
 """, unsafe_allow_html=True)
 
 SYLLABUS = {
-    "חוק המתווכים": ["רישוי והגבלות", "הגינות וזהירות", "הזמנה ובלעדיות", "פעולות שאינן תיווך"],
+    "חוק המתווכים": ["רישוי והגבלות", "הגינות וזהירות", 
+                     "הזמנה ובלעדיות", "פעולות שאינן תיווך"],
     "תקנות המתווכים": ["פרטי הזמנה 1997", "פעולות שיווק 2004", "דמי תיווך"],
-    "חוק המקרקעין": ["בעלות וזכויות", "בתים משותפים", "עסקאות נוגדות", "הערות אזהרה", "שכירות וזיקה"],
-    "חוק המכר (דירות)": ["מפרט וגילוי", "בדק ואחריות", "איחור במסירה", "הבטחת השקעות"],
-    "חוק החוזים": ["כריתת חוזה", "פגמים בחוזה", "תרופות והפרה", "ביטול והשבה"],
-    "חוק התכנון והבנייה": ["היתרים ושימוש חורג", "היטל השבחה", "תוכניות מתאר", "מוסדות התכנון"],
-    "חוק מיסוי מקרקעין": ["מס שבח (חישוב ופפורים)", "מס רכישה", "הקלות לדירת מגורים", "שווי שוק"],
+    "חוק המקרקעין": ["בעלות וזכויות", "בתים משותפים", "עסקאות נוגדות", 
+                     "הערות אזהרה", "שכירות וזיקה"],
+    "חוק המכר (דירות)": ["מפרט וגילוי", "בדק ואחריות", 
+                          "איחור במסירה", "הבטחת השקעות"],
+    "חוק החוזים": ["כריתת חוזה", "פגמים בחוזה", 
+                   "תרופות והפרה", "ביטול והשבה"],
+    "חוק התכנון והבנייה": ["היתרים ושימוש חורג", "היטל השבחה", 
+                           "תוכניות מתאר", "מוסדות התכנון"],
+    "חוק מיסוי מקרקעין": ["מס שבח (חישוב ופפורים)", "מס רכישה", 
+                          "הקלות לדירת מגורים", "שווי שוק"],
     "חוק הגנת הצרכן": ["ביטול עסקה", "הטעיה בפרסום"],
     "דיני ירושה": ["סדר הירושה", "צוואות"],
     "חוק העונשין": ["עבירות מרמה וזיוף"]
@@ -83,8 +87,9 @@ def stream_ai_lesson(p):
 
 if "step" not in st.session_state:
     st.session_state.update({
-        "user": None, "step": "login", "q_count": 0, "quiz_active": False, 
-        "show_ans": False, "lesson_txt": "", "q_data": None, 
+        "user": None, "step": "login", "q_count": 0, 
+        "quiz_active": False, "show_ans": False, 
+        "lesson_txt": "", "q_data": None, 
         "correct_answers": 0, "quiz_finished": False
     })
 
@@ -104,9 +109,61 @@ elif st.session_state.step == "menu":
             st.session_state.step = "study"
             st.rerun()
     with c2:
-        user_name = st.session_state.user.replace(" ", "%20")
-        exam_url = f"https://fullrealestatebroker-yevuzewxde4obgrpgacrpc.streamlit.app/?user={user_name}"
-        # שימוש בקישור שמעוצב בדיוק כמו הכפתור שמשמאל
-        st.markdown(f'<a href="{exam_url}" target="_self" class="exam-btn-final">⏱️ גש/י למבחן</a>', unsafe_allow_html=True)
+        u_name = st.session_state.user.replace(" ", "%20")
+        # פיצול הכתובת לשורות קצרות
+        base_url = "https://fullrealestatebroker-"
+        base_url += "yevuzewxde4obgrpgacrpc.streamlit.app/"
+        exam_url = f"{base_url}?user={u_name}"
+        st.markdown(
+            f'<a href="{exam_url}" target="_self" class="exam-btn-final">'
+            f'⏱️ גש/י למבחן</a>', 
+            unsafe_allow_html=True
+        )
 
-elif st.session_state.
+elif st.session_state.step == "study":
+    sel = st.selectbox("בחר נושא:", ["בחר..."] + list(SYLLABUS.keys()))
+    if sel != "בחר..." and st.button("טען נושא"):
+        st.session_state.update({
+            "selected_topic": sel, 
+            "step": "lesson_run", 
+            "lesson_txt": ""
+        })
+        st.rerun()
+
+elif st.session_state.step == "lesson_run":
+    topic = st.session_state.selected_topic
+    st.header(f"📖 {topic}")
+    subs = SYLLABUS.get(topic, [])
+    cols = st.columns(len(subs))
+    for i, s in enumerate(subs):
+        if cols[i].button(s, key=f"sub_{i}"):
+            st.session_state.update({
+                "current_sub": s, 
+                "lesson_txt": "LOADING"
+            })
+            st.rerun()
+    
+    if st.session_state.get("lesson_txt") == "LOADING":
+        st.session_state.lesson_txt = stream_ai_lesson(
+            f"שיעור על {st.session_state.current_sub}"
+        )
+        st.rerun()
+    elif st.session_state.get("lesson_txt"):
+        st.markdown(st.session_state.lesson_txt)
+
+    st.write("")
+    f_cols = st.columns([2.5, 2, 1.5, 3])
+    with f_cols[1]:
+        if st.button("🏠 לתפריט הראשי"):
+            st.session_state.step = "menu"
+            st.rerun()
+    with f_cols[2]:
+        st.markdown(
+            '<a href="#top" class="top-link">🔝 לראש הדף</a>', 
+            unsafe_allow_html=True
+        )
+
+st.markdown(
+    f'<div class="v-footer">Version: 1213</div>', 
+    unsafe_allow_html=True
+)
