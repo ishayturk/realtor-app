@@ -25,25 +25,31 @@ st.markdown("""
         margin-top: 50px;
         width: 100%;
     }
-    /* עיצוב כפתור המבחן שייראה בדיוק כמו st.button */
+    
+    /* דיוק מקסימלי לכפתור המבחן שייראה כ-st.button */
     .st-exam-btn {
         display: flex;
         align-items: center;
         justify-content: center;
         width: 100%;
-        height: 3em;
-        background-color: rgb(240, 242, 246);
-        color: rgb(49, 51, 63);
+        height: 3em; /* גובה זהה ל-.stButton>button */
+        background-color: rgb(240, 242, 246); /* צבע רקע מקורי של סטרימליט */
+        color: rgb(49, 51, 63) !important;
         border: 1px solid rgba(49, 51, 63, 0.2);
         border-radius: 8px;
         font-weight: bold;
-        text-decoration: none;
-        cursor: pointer;
-        transition: border-color 0.2s, color 0.2s;
+        text-decoration: none !important;
+        box-sizing: border-box;
+        font-size: 16px; /* גודל פונט סטנדרטי */
     }
     .st-exam-btn:hover {
         border-color: rgb(255, 75, 75);
-        color: rgb(255, 75, 75);
+        color: rgb(255, 75, 75) !important;
+        background-color: rgb(240, 242, 246);
+    }
+    .st-exam-btn:active {
+        background-color: rgb(255, 75, 75);
+        color: white !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -65,19 +71,17 @@ def fetch_q_ai(topic):
     try:
         genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
         m = genai.GenerativeModel('gemini-2.0-flash')
-        p = f"צור שאלה אמריקאית קשה על {topic} למבחן המתווכים. החזר אך ורק JSON תקני: {{'q':'','options':['','','',''],'correct':'','explain':''}}"
+        p = f"צור שאלה אמריקאית קשה על {topic}. החזר JSON תקני בלבד."
         res = m.generate_content(p).text
         match = re.search(r'\{.*\}', res, re.DOTALL)
         if match: return json.loads(match.group())
     except: return None
-    return None
 
 def stream_ai_lesson(p):
     try:
         genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
         m = genai.GenerativeModel('gemini-2.0-flash')
-        full_p = p + " כתוב שיעור הכנה מעמיק למבחן המתווכים. פרט סעיפי חוק, מספרים ודוגמאות. ללא כותרות."
-        response = m.generate_content(full_p, stream=True)
+        response = m.generate_content(p, stream=True)
         placeholder = st.empty()
         full_text = ""
         for chunk in response:
@@ -87,71 +91,4 @@ def stream_ai_lesson(p):
         return full_text
     except: return "⚠️ תקלה בטעינה."
 
-if "step" not in st.session_state:
-    st.session_state.update({
-        "user": None, "step": "login", "q_count": 0, "quiz_active": False, 
-        "show_ans": False, "lesson_txt": "", "q_data": None, 
-        "correct_answers": 0, "quiz_finished": False
-    })
-
-st.title("🏠 מתווך בקליק")
-
-if st.session_state.step == "login":
-    u = st.text_input("שם מלא:")
-    if st.button("כניסה") and u:
-        st.session_state.update({"user": u, "step": "menu"})
-        st.rerun()
-
-elif st.session_state.step == "menu":
-    st.subheader(f"👤 שלום, {st.session_state.user}")
-    c1, c2 = st.columns(2)
-    with c1:
-        if st.button("📚 לימוד לפי נושאים"):
-            st.session_state.step = "study"
-            st.rerun()
-    with c2:
-        user_name = st.session_state.user.replace(" ", "%20")
-        exam_url = f"https://fullrealestatebroker-yevuzewxde4obgrpgacrpc.streamlit.app/?user={user_name}"
-        # שימוש בקישור HTML רגיל עם עיצוב של כפתור - לא נחסם על ידי דפדפנים
-        st.markdown(f'<a href="{exam_url}" target="_self" class="st-exam-btn">⏱️ גש/י למבחן</a>', unsafe_allow_html=True)
-
-elif st.session_state.step == "study":
-    sel = st.selectbox("בחר נושא:", ["בחר..."] + list(SYLLABUS.keys()))
-    if sel != "בחר..." and st.button("טען נושא"):
-        st.session_state.update({
-            "selected_topic": sel, "step": "lesson_run", "quiz_active": False, 
-            "lesson_txt": "", "q_data": None, "q_count": 0, 
-            "correct_answers": 0, "quiz_finished": False
-        })
-        st.rerun()
-
-elif st.session_state.step == "lesson_run":
-    topic = st.session_state.selected_topic
-    st.header(f"📖 {topic}")
-    subs = SYLLABUS.get(topic, [])
-    cols = st.columns(len(subs))
-    for i, s in enumerate(subs):
-        if cols[i].button(s, key=f"sub_{i}"):
-            st.session_state.update({
-                "current_sub": s, "lesson_txt": "LOADING", "quiz_active": False, 
-                "q_data": None, "quiz_finished": False, "q_count": 0, "correct_answers": 0
-            })
-            st.rerun()
-
-    if st.session_state.get("lesson_txt") == "LOADING":
-        st.subheader(st.session_state.current_sub)
-        st.session_state.lesson_txt = stream_ai_lesson(f"שיעור על {st.session_state.current_sub} בחוק {topic}")
-        st.rerun()
-    elif st.session_state.get("lesson_txt"):
-        st.subheader(st.session_state.current_sub)
-        st.markdown(st.session_state.lesson_txt)
-
-    st.write("")
-    f_cols = st.columns([2.5, 2, 1.5, 3])
-    with f_cols[1]:
-        if st.button("🏠 לתפריט הראשי"):
-            st.session_state.step = "menu"; st.rerun()
-    with f_cols[2]:
-        st.markdown('<a href="#top" class="top-link">🔝 לראש הדף</a>', unsafe_allow_html=True)
-
-st.markdown(f'<div class="v-footer">Version: 1213</div>', unsafe_allow_html=True)
+if "step" not in
