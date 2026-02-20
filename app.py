@@ -61,32 +61,4 @@ elif st.session_state.step == "menu":
     st.markdown("<style>* { direction: rtl; text-align: right; }</style>", unsafe_allow_html=True)
     st.title("🏠 מתווך בקליק")
     st.subheader(f"👤 שלום, {st.session_state.user}")
-    c1, c2 = st.columns(2)
-    with c1:
-        if st.button("📚 לימוד לפי נושאים"):
-            st.session_state.step = "study"; st.rerun()
-    with c2:
-        if st.button("⏱️ גש/י למבחן"):
-            st.session_state.step = "exam_intro"; st.rerun()
-
-elif st.session_state.step == "study":
-    st.markdown("<style>* { direction: rtl; text-align: right; }</style>", unsafe_allow_html=True)
-    st.title("🏠 מתווך בקליק")
-    st.subheader(f"👤 שלום, {st.session_state.user}")
-    sel = st.selectbox("בחר נושא ללימוד:", ["בחר..."] + list(SYLLABUS.keys()))
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button("התחל לימוד") and sel != "בחר...":
-            st.session_state.update({"selected_topic": sel, "step": "lesson_run", "lesson_txt": "", "quiz_active": False})
-            st.rerun()
-    with col2:
-        if st.button("🏠 חזרה לתפריט"):
-            st.session_state.step = "menu"; st.rerun()
-
-elif st.session_state.step == "lesson_run":
-    st.markdown("<style>* { direction: rtl; text-align: right; }</style>", unsafe_allow_html=True)
-    st.title(f"📖 {st.session_state.selected_topic}")
-    if not st.session_state.lesson_txt:
-        st.session_state.lesson_txt = stream_ai_lesson(st.session_state.selected_topic)
-    if st.button("❓ בחן אותי על הנושא"):
-        st.session_state.q_data = fetch_q_ai(st.session
+    c
