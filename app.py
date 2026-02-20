@@ -46,7 +46,7 @@ if "step" not in st.session_state:
         "quiz_active": False, "q_data": None, "show_ans": False
     })
 
-# --- דפים ---
+# --- ניווט ודפים ---
 
 if st.session_state.step == "login":
     st.markdown("<style>* { direction: rtl; text-align: right; }</style>", 
@@ -62,10 +62,13 @@ elif st.session_state.step == "menu":
                 unsafe_allow_html=True)
     st.title("🏠 מתווך בקליק")
     st.subheader(f"👤 שלום, {st.session_state.user}")
-    if st.button("📚 לימוד לפי נושאים"):
-        st.session_state.step = "study"; st.rerun()
-    if st.button("⏱️ גש/י למבחן"):
-        st.session_state.step = "exam_intro"; st.rerun()
+    c1, c2 = st.columns(2)
+    with c1:
+        if st.button("📚 לימוד לפי נושאים", use_container_width=True):
+            st.session_state.step = "study"; st.rerun()
+    with c2:
+        if st.button("⏱️ גש/י למבחן", use_container_width=True):
+            st.session_state.step = "exam_intro"; st.rerun()
 
 elif st.session_state.step == "study":
     st.markdown("<style>* { direction: rtl; text-align: right; }</style>", 
@@ -73,14 +76,17 @@ elif st.session_state.step == "study":
     st.title("🏠 מתווך בקליק")
     st.subheader(f"👤 שלום, {st.session_state.user}")
     sel = st.selectbox("בחר נושא:", ["בחר..."] + list(SYLLABUS.keys()))
-    if st.button("התחל לימוד") and sel != "בחר...":
-        st.session_state.update({
-            "selected_topic": sel, "step": "lesson_run", 
-            "lesson_txt": "", "quiz_active": False
-        })
-        st.rerun()
-    if st.button("🏠 חזרה"):
-        st.session_state.step = "menu"; st.rerun()
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("התחל לימוד", use_container_width=True) and sel != "בחר...":
+            st.session_state.update({
+                "selected_topic": sel, "step": "lesson_run", 
+                "lesson_txt": "", "quiz_active": False
+            })
+            st.rerun()
+    with col2:
+        if st.button("🏠 חזרה לתפריט", use_container_width=True):
+            st.session_state.step = "menu"; st.rerun()
 
 elif st.session_state.step == "lesson_run":
     st.markdown("<style>* { direction: rtl; text-align: right; }</style>", 
@@ -95,24 +101,4 @@ elif st.session_state.step == "lesson_run":
     if st.session_state.quiz_active and st.session_state.q_data:
         q = st.session_state.q_data
         ans = st.radio(q['q'], q['options'], index=None)
-        if st.button("בדוק"): st.session_state.show_ans = True
-        if st.session_state.show_ans:
-            if ans == q['correct']: st.success("נכון!")
-            else: st.error(f"טעות. {q['correct']}")
-            st.info(q['explain'])
-    if st.button("🏠 חזור"):
-        st.session_state.step = "study"; st.rerun()
-
-elif st.session_state.step == "exam_intro":
-    st.markdown("""<style>#MainMenu,footer,header{visibility:hidden;}.block-container{padding-top:0.8rem!important;}.user-info{font-size:0.9rem;color:gray;text-align:center;}*{direction:rtl;text-align:right;}</style>""", unsafe_allow_html=True)
-    cr, cm, cl = st.columns([1, 2, 1])
-    with cr: st.write("🏠 מתווך בקליק")
-    with cm: st.write(f"👤 {st.session_state.user}")
-    with cl:
-        if st.button("לתפריט"):
-            st.session_state.step = "menu"; st.rerun()
-    st.header("הוראות")
-    st.write("1. 25 שאלות. 2. 90 דקות. 3. מעבר לאחר סימון. 4. ציון עובר: 60.")
-    agree = st.checkbox("אני מוכן")
-    if st.button("התחל", disabled=not agree):
-        st.session_state.step = "exam_run"; st.rerun()
+        if st.button("בדוק"): st.session_state.show_ans
