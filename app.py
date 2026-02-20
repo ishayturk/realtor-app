@@ -91,10 +91,12 @@ elif st.session_state.step == "menu":
             st.session_state.step = "study"
             st.rerun()
     with c2:
-        # הלינק משתמש ב-class top-link שהגדרת ב-CSS למעלה
-        user_name = st.session_state.user.replace(" ", "%20")
-        exam_url = f"https://fullrealestatebroker-yevuzewxde4obgrpgacrpc.streamlit.app/?user={user_name}"
-        st.markdown(f'<a href="{exam_url}" target="_self" class="top-link">⏱️ גש/י למבחן</a>', unsafe_allow_html=True)
+        # כפתור רגיל לחלוטין ששומר על העימוד המקורי
+        if st.button("⏱️ גש/י למבחן"):
+            user_name = st.session_state.user.replace(" ", "%20")
+            exam_url = f"https://fullrealestatebroker-yevuzewxde4obgrpgacrpc.streamlit.app/?user={user_name}"
+            # פתיחת הלינק באותו חלון באמצעות JavaScript בלי לשנות שום פיקסל בעיצוב
+            st.components.v1.html(f"<script>window.parent.location.href='{exam_url}';</script>", height=0)
 
 elif st.session_state.step == "study":
     sel = st.selectbox("בחר נושא:", ["בחר..."] + list(SYLLABUS.keys()))
