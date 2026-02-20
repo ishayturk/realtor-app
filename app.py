@@ -8,11 +8,10 @@ import json, re
 st.set_page_config(page_title="מתווך בקליק", layout="wide")
 st.markdown('<div id="top"></div>', unsafe_allow_html=True)
 
-# CSS לכפתורים שקופים מותאמי טקסט
+# CSS לכפתורים שקופים מותאמי טקסט - שורות קצרות בלבד
 st.markdown("""
 <style>
     * { direction: rtl; text-align: right; }
-    
     .stButton>button, .custom-btn { 
         width: auto !important; 
         min-width: 140px;
@@ -29,12 +28,10 @@ st.markdown("""
         box-sizing: border-box;
         text-align: center;
     }
-    
     .stButton>button:hover, .custom-btn:hover {
         border-color: #ff4b4b !important;
         color: #ff4b4b !important;
     }
-
     .top-link { 
         display: inline-block; width: 100%; text-align: center; 
         border-radius: 8px; text-decoration: none; border: 1px solid #d1d5db;
@@ -109,7 +106,6 @@ if st.session_state.step == "login":
 
 elif st.session_state.step == "menu":
     st.subheader(f"👤 שלום, {st.session_state.user}")
-    
     cols = st.columns([1, 1, 4]) 
     with cols[0]:
         if st.button("📚 לימוד לפי נושאים"):
@@ -117,9 +113,58 @@ elif st.session_state.step == "menu":
             st.rerun()
     with cols[1]:
         u_name = st.session_state.user.replace(" ", "%20")
-        b_url = "https://fullrealestatebroker-"
-        b_url += "yevuzewxde4obgrpgacrpc.streamlit.app/"
-        exam_url = f"{b_url}?user={u_name}"
+        # פירוק הכתובת לשורות קצרות מאוד
+        p1 = "https://fullrealestatebroker-"
+        p2 = "yevuzewxde4obgrpgacrpc.streamlit.app/"
+        full_url = f"{p1}{p2}?user={u_name}"
+        
+        # יצירת ה-HTML בחלקים למניעת חיתוך מחרוזת
+        t = "⏱️ גש/י למבחן"
+        btn_tag = f'<a href="{full_url}" target="_self" class="custom-btn">'
+        btn_html = f'{btn_tag}{t}</a>'
+        st.markdown(btn_html, unsafe_allow_html=True)
+
+elif st.session_state.step == "study":
+    sel = st.selectbox("בחר נושא:", ["בחר..."] + list(SYLLABUS.keys()))
+    if sel != "בחר..." and st.button("טען נושא"):
+        st.session_state.update({
+            "selected_topic": sel, "step": "lesson_run", "lesson_txt": ""
+        })
+        st.rerun()
+
+elif st.session_state.step == "lesson_run":
+    topic = st.session_state.selected_topic
+    st.header(f"📖 {topic}")
+    subs = SYLLABUS.get(topic, [])
+    cols = st.columns(len(subs))
+    for i, s in enumerate(subs):
+        if cols[i].button(s, key=f"sub_{i}"):
+            st.session_state.update({
+                "current_sub": s, "lesson_txt": "LOADING"
+            })
+            st.rerun()
+    
+    if st.session_state.get("lesson_txt") == "LOADING":
+        st.session_state.lesson_txt = stream_ai_lesson(
+            f"שיעור על {st.session_state.current_sub}"
+        )
+        st.rerun()
+    elif st.session_state.get("lesson_txt"):
+        st.markdown(st.session_state.lesson_txt)
+
+    st.write("")
+    f_cols = st.columns([2.5, 2, 1.5, 3])
+    with f_cols[1]:
+        if st.button("🏠 לתפריט הראשי"):
+            st.session_state.step = "menu"
+            st.rerun()
+    with f_cols[2]:
         st.markdown(
-            f'<a href="{exam_url}" target="_self" class="custom-btn">'
-            f'⏱️ גש/י למבחן
+            '<a href="#top" class="top-link">🔝 לראש הדף</a>', 
+            unsafe_allow_html=True
+        )
+
+st.markdown(
+    f'<div class="v-footer">Version: 1213</div>', 
+    unsafe_allow_html=True
+)
