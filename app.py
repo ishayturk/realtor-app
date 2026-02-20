@@ -111,17 +111,4 @@ def stream_lesson(topic):
         st.error(f"שגיאה בחיבור ל-AI: {str(e)}")
         return None
 
-# ניהול מצבי אפליקציה
-if "step" not in st.session_state:
-    st.session_state.step = "login"
-if "user_name" not in st.session_state:
-    st.session_state.user_name = ""
-if "selected_topic" not in st.session_state:
-    st.session_state.selected_topic = None
-if "lesson_content" not in st.session_state:
-    st.session_state.lesson_content = ""
-if "quiz_active" not in st.session_state:
-    st.session_state.quiz_active = False
-
-# עיצוב RTL
-st.markdown("""
+# ניהול
