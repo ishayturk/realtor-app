@@ -4,24 +4,38 @@ import json, re
 
 st.set_page_config(page_title="מתווך בקליק", layout="wide")
 
+# סילבוס בשורות קצרות
 SYLLABUS = {
-    "חוק המתווכים": ["רישוי והגבלות", "הגינות וזהירות", "הזמנה ובלעדיות", "פעולות שאינן תיווך"],
-    "תקנות המתווכים": ["פרטי הזמנה 1997", "פעולות שיווק 2004", "דמי תיווך"],
-    "חוק המקרקעין": ["בעלות וזכויות", "בתים משותפים", "עסקאות נוגדות", "הערות אזהרה", "שכירות וזיקה"],
-    "חוק המכר (דירות)": ["מפרט וגילוי", "בדק ואחריות", "איחור במסירה", "הבטחת השקעות"],
-    "חוק החוזים": ["כריתת חוזה", "פגמים בחוזה", "תרופות והפרה", "ביטול והשבה"],
-    "חוק התכנון והבנייה": ["היתרים ושימוש חורג", "היטל השבחה", "תוכניות מתאר", "מוסדות התכנון"],
-    "חוק מיסוי מקרקעין": ["מס שבח (חישוב ופטורים)", "מס רכישה", "הקלות לדירת מגורים", "שווי שוק"],
-    "חוק הגנת הצרכן": ["ביטול עסקה", "הטעיה בפרסום"],
-    "דיני ירושה": ["סדר הירושה", "צוואות"],
-    "חוק העונשין": ["עבירות מרמה וזיוף"]
+    "חוק המתווכים": [
+        "רישוי והגבלות", 
+        "הגינות וזהירות", 
+        "הזמנה ובלעדיות"
+    ],
+    "תקנות המתווכים": [
+        "פרטי הזמנה 1997", 
+        "פעולות שיווק 2004"
+    ],
+    "חוק המקרקעין": [
+        "בעלות וזכויות", 
+        "בתים משותפים", 
+        "הערות אזהרה"
+    ],
+    "חוק המכר": [
+        "מפרט וגילוי", 
+        "בדק ואחריות"
+    ],
+    "חוק החוזים": [
+        "כריתת חוזה", 
+        "פגמים ותרופות"
+    ]
 }
 
 def fetch_q_ai(topic):
     try:
         genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
         m = genai.GenerativeModel('gemini-2.0-flash')
-        p = f"צור שאלה אמריקאית קשה על {topic}. החזר JSON: {{'q':'','options':['','','',''],'correct':'','explain':''}}"
+        p = f"צור שאלה על {topic}. החזר JSON: "
+        p += "{'q':'','options':['','','',''],'correct':'','explain':''}"
         res = m.generate_content(p).text
         match = re.search(r'\{.*\}', res, re.DOTALL)
         if match: return json.loads(match.group())
@@ -41,16 +55,20 @@ def stream_ai_lesson(p):
             placeholder.markdown(full_text + "▌")
         placeholder.markdown(full_text)
         return full_text
-    except: return "⚠️ תקלה בטעינה."
+    except: return "⚠️ תקלה."
 
 if "step" not in st.session_state:
     st.session_state.update({
-        "user": None, "step": "login", "selected_topic": None,
-        "lesson_txt": "", "quiz_active": False, "q_data": None, "show_ans": False
+        "user": None, "step": "login", 
+        "selected_topic": None, "lesson_txt": "", 
+        "quiz_active": False, "q_data": None, "show_ans": False
     })
 
+# --- ניווט ---
+
 if st.session_state.step == "login":
-    st.markdown("<style>* { direction: rtl; text-align: right; }</style>", unsafe_allow_html=True)
+    st.markdown("<style>* { direction: rtl; text-align: right; }</style>", 
+                unsafe_allow_html=True)
     st.title("🏠 מתווך בקליק")
     u = st.text_input("שם מלא:")
     if st.button("כניסה") and u:
@@ -58,7 +76,8 @@ if st.session_state.step == "login":
         st.rerun()
 
 elif st.session_state.step == "menu":
-    st.markdown("<style>* { direction: rtl; text-align: right; }</style>", unsafe_allow_html=True)
+    st.markdown("<style>* { direction: rtl; text-align: right; }</style>", 
+                unsafe_allow_html=True)
     st.title("🏠 מתווך בקליק")
     st.subheader(f"👤 שלום, {st.session_state.user}")
     c1, c2 = st.columns(2)
@@ -70,21 +89,26 @@ elif st.session_state.step == "menu":
             st.session_state.step = "exam_intro"; st.rerun()
 
 elif st.session_state.step == "study":
-    st.markdown("<style>* { direction: rtl; text-align: right; }</style>", unsafe_allow_html=True)
+    st.markdown("<style>* { direction: rtl; text-align: right; }</style>", 
+                unsafe_allow_html=True)
     st.title("🏠 מתווך בקליק")
     st.subheader(f"👤 שלום, {st.session_state.user}")
     sel = st.selectbox("בחר נושא:", ["בחר..."] + list(SYLLABUS.keys()))
     col1, col2 = st.columns(2)
     with col1:
         if st.button("התחל לימוד") and sel != "בחר...":
-            st.session_state.update({"selected_topic": sel, "step": "lesson_run", "lesson_txt": "", "quiz_active": False})
+            st.session_state.update({
+                "selected_topic": sel, "step": "lesson_run", 
+                "lesson_txt": "", "quiz_active": False
+            })
             st.rerun()
     with col2:
         if st.button("🏠 חזרה לתפריט"):
             st.session_state.step = "menu"; st.rerun()
 
 elif st.session_state.step == "lesson_run":
-    st.markdown("<style>* { direction: rtl; text-align: right; }</style>", unsafe_allow_html=True)
+    st.markdown("<style>* { direction: rtl; text-align: right; }</style>", 
+                unsafe_allow_html=True)
     st.title(f"📖 {st.session_state.selected_topic}")
     if not st.session_state.lesson_txt:
         st.session_state.lesson_txt = stream_ai_lesson(st.session_state.selected_topic)
@@ -104,11 +128,27 @@ elif st.session_state.step == "lesson_run":
         st.session_state.step = "study"; st.rerun()
 
 elif st.session_state.step == "exam_intro":
-    st.markdown("""<style>#MainMenu,footer,header{visibility:hidden;}.block-container{padding-top:0.8rem!important;}.user-info{font-size:0.9rem;color:gray;text-align:center;margin-top:10px;}.instruction-p{margin-bottom:-10px;}div[data-testid="stCheckbox"]{direction:rtl!important;margin-top:15px;}*{direction:rtl;text-align:right;}</style>""", unsafe_allow_html=True)
+    st.markdown("""
+        <style>
+        #MainMenu, footer, header {visibility: hidden;}
+        .block-container { padding-top: 0.8rem !important; }
+        .user-info { font-size: 0.9rem; color: gray; text-align: center; }
+        .instruction-p { margin-bottom: -10px; }
+        div[data-testid="stCheckbox"] { direction: rtl !important; }
+        * { direction: rtl; text-align: right; }
+        </style>
+        """, unsafe_allow_html=True)
     cr, cm, cl = st.columns([1.5, 3, 1.5])
-    with cr: st.markdown("<h4 style='margin:0;'>🏠 מתווך בקליק</h4>", unsafe_allow_html=True)
-    with cm: st.markdown(f"<p class='user-info'>👤 {st.session_state.user}</p>", unsafe_allow_html=True)
+    with cr: st.markdown("#### 🏠 מתווך בקליק")
+    with cm: st.markdown(f"<p class='user-info'>👤 {st.session_state.user}</p>", 
+                         unsafe_allow_html=True)
     with cl:
-        if st.button("לתפריט הראשי"): st.session_state.step = "menu"; st.rerun()
+        if st.button("לתפריט"): 
+            st.session_state.step = "menu"; st.rerun()
     st.header("הוראות למבחן")
-    instr = ["1. המבחן כולל 25 שאלות.", "2. זמן מוקצב: 90 דקות.", "3. מעבר לשאלה הבאה רק לאחר סימון.", "4. ניתן לחזור אחורה לשאלות שנענו.", "5. בסיום הזמן המבחן
+    instr = [
+        "1. המבחן כולל 25 שאלות.",
+        "2. זמן מוקצב: 90 דקות.",
+        "3. מעבר לשאלה רק לאחר סימון.",
+        "4. ניתן לחזור אחורה לשאלות שנענו.",
+        "5. בסיום הזמן המבחן יינעל.",
