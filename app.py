@@ -3,17 +3,17 @@
 # Version: 1213 | Anchor: 1213 (Raw Content)
 # ==========================================
 import streamlit as st
+import streamlit.components.v1 as components
 import google.generativeai as genai
 import json, re
 
 st.set_page_config(page_title="מתווך בקליק", layout="wide")
 st.markdown('<div id="top"></div>', unsafe_allow_html=True)
 
-# CSS לכפתורים שקופים ואחידים (ללא קו תחתי)
-st.markdown("""
+# CSS לכפתורים (כולל עיצוב הלינק שיוצג בתוך ה-iframe)
+common_style = """
 <style>
-    * { direction: rtl; text-align: right; }
-    
+    * { direction: rtl; text-align: right; font-family: sans-serif; }
     .stButton>button, .custom-btn { 
         display: inline-flex !important;
         align-items: center;
@@ -30,25 +30,15 @@ st.markdown("""
         box-sizing: border-box;
         transition: 0.2s;
         white-space: nowrap !important;
+        cursor: pointer;
     }
-    
     .stButton>button:hover, .custom-btn:hover {
         border-color: #ff4b4b !important;
         color: #ff4b4b !important;
-        text-decoration: none !important;
-    }
-
-    a.custom-btn {
-        color: #31333f !important;
-        text-decoration: none !important;
-    }
-
-    .v-footer {
-        text-align: center; color: rgba(255, 255, 255, 0.1);
-        font-size: 0.7em; margin-top: 50px; width: 100%;
     }
 </style>
-""", unsafe_allow_html=True)
+"""
+st.markdown(common_style, unsafe_allow_html=True)
 
 SYLLABUS = {
     "חוק המתווכים": ["רישוי והגבלות", "הגינות וזהירות", 
@@ -119,13 +109,20 @@ elif st.session_state.step == "menu":
             st.rerun()
     with c2:
         u_name = st.session_state.user.replace(" ", "%20")
-        b_url = "https://fullrealestatebroker-"
-        e_url = "yevuzewxde4obgrpgacrpc.streamlit.app/"
-        full_link = f"{b_url}{e_url}?user={u_name}"
-        t_btn = "⏱️ גש/י למבחן"
-        # שימוש ב-target="_self" לניווט באותה כרטיסייה
-        html_str = f'<a href="{full_link}" target="_self" class="custom-btn">{t_btn}</a>'
-        st.markdown(html_str, unsafe_allow_html=True)
+        target_url = (
+            f"https://fullrealestatebroker-yevuzewxde4obgrpgacrpc.streamlit.app/"
+            f"?user={u_name}"
+        )
+        
+        # בניית קומפוננטת HTML עצמאית שתבצע את הניווט ב-Top Level
+        # זה עוקף את החסימה של Streamlit
+        nav_html = f"""
+        {common_style}
+        <a href="{target_url}" target="_top" class="custom-btn">
+            ⏱️ גש/י למבחן
+        </a>
+        """
+        components.html(nav_html, height=55)
 
 elif st.session_state.step == "study":
     sel = st.selectbox("בחר נושא:", ["בחר..."] + list(SYLLABUS.keys()))
