@@ -9,12 +9,11 @@ import json, re
 st.set_page_config(page_title="מתווך בקליק", layout="wide")
 st.markdown('<div id="top"></div>', unsafe_allow_html=True)
 
-# CSS שגורם לקישור הרשמי להיראות שקוף ותואם לעיצוב שלך
+# CSS לכפתורים שקופים ואחידים (ללא קו תחתי)
 st.markdown("""
 <style>
     * { direction: rtl; text-align: right; }
     
-    /* עיצוב כפתורי המערכת והקישורים */
     .stButton>button, .stLinkButton>a { 
         display: inline-flex !important;
         align-items: center;
@@ -30,6 +29,7 @@ st.markdown("""
         text-decoration: none !important;
         box-sizing: border-box;
         transition: 0.2s;
+        white-space: nowrap !important;
     }
     
     .stButton>button:hover, .stLinkButton>a:hover {
@@ -88,7 +88,6 @@ if st.session_state.step == "login":
 
 elif st.session_state.step == "menu":
     st.subheader(f"👤 שלום, {st.session_state.user}")
-    
     c1, c2, c3 = st.columns([1.5, 1.5, 3])
     with c1:
         if st.button("📚 לימוד לפי נושאים"):
@@ -96,14 +95,11 @@ elif st.session_state.step == "menu":
             st.rerun()
     with c2:
         u_name = st.session_state.user.replace(" ", "%20")
-        target_url = (
-            f"https://fullrealestatebroker-yevuzewxde4obgrpgacrpc.streamlit.app/"
-            f"?user={u_name}"
-        )
-        # שימוש ברכיב הרשמי של Streamlit למעבר דפים
-        st.link_button("⏱️ גש/י למבחן", target_url)
+        t_url = f"https://fullrealestatebroker-yevuzewxde4obgrpgacrpc.streamlit.app/?user={u_name}"
+        st.link_button("⏱️ גש/י למבחן", t_url)
 
 elif st.session_state.step == "study":
+    st.subheader(f"👤 שלום, {st.session_state.user}")
     sel = st.selectbox("בחר נושא:", ["בחר..."] + list(SYLLABUS.keys()))
     if sel != "בחר..." and st.button("טען נושא"):
         st.session_state.update({
@@ -114,19 +110,18 @@ elif st.session_state.step == "study":
 elif st.session_state.step == "lesson_run":
     topic = st.session_state.selected_topic
     st.header(f"📖 {topic}")
+    # החזרת שם המשתמש בין הכותרת לתתי הנושאים
+    st.subheader(f"👤 לומד/ת כעת: {st.session_state.user}")
+    
     subs = SYLLABUS.get(topic, [])
     cols = st.columns(len(subs))
     for i, s in enumerate(subs):
         if cols[i].button(s, key=f"sub_{i}"):
-            st.session_state.update({
-                "current_sub": s, "lesson_txt": "LOADING"
-            })
+            st.session_state.update({"current_sub": s, "lesson_txt": "LOADING"})
             st.rerun()
     
     if st.session_state.get("lesson_txt") == "LOADING":
-        st.session_state.lesson_txt = stream_ai_lesson(
-            f"שיעור על {st.session_state.current_sub}"
-        )
+        st.session_state.lesson_txt = stream_ai_lesson(f"שיעור על {st.session_state.current_sub}")
         st.rerun()
     elif st.session_state.get("lesson_txt"):
         st.markdown(st.session_state.lesson_txt)
@@ -138,7 +133,5 @@ elif st.session_state.step == "lesson_run":
             st.session_state.step = "menu"
             st.rerun()
     with f_cols[1]:
-        # שימוש בכפתור רגיל לחזור למעלה במקום לינק
         if st.button("🔝 לראש הדף"):
-            st.markdown('<script>window.scrollTo(0,0);</script>', unsafe_allow_html=True)
             st.rerun()
