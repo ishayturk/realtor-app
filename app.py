@@ -4,37 +4,19 @@ import json, re
 
 st.set_page_config(page_title="מתווך בקליק", layout="wide")
 
-# סילבוס בשורות קצרות
 SYLLABUS = {
-    "חוק המתווכים": [
-        "רישוי והגבלות", 
-        "הגינות וזהירות", 
-        "הזמנה ובלעדיות"
-    ],
-    "תקנות המתווכים": [
-        "פרטי הזמנה 1997", 
-        "פעולות שיווק 2004"
-    ],
-    "חוק המקרקעין": [
-        "בעלות וזכויות", 
-        "בתים משותפים", 
-        "הערות אזהרה"
-    ],
-    "חוק המכר": [
-        "מפרט וגילוי", 
-        "בדק ואחריות"
-    ],
-    "חוק החוזים": [
-        "כריתת חוזה", 
-        "פגמים ותרופות"
-    ]
+    "חוק המתווכים": ["רישוי", "הגינות", "בלעדיות"],
+    "תקנות המתווכים": ["הזמנה 1997", "שיווק 2004"],
+    "חוק המקרקעין": ["זכויות", "בתים משותפים", "אזהרה"],
+    "חוק המכר": ["מפרט", "אחריות"],
+    "חוק החוזים": ["כריתה", "תרופות"]
 }
 
 def fetch_q_ai(topic):
     try:
         genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
         m = genai.GenerativeModel('gemini-2.0-flash')
-        p = f"צור שאלה על {topic}. החזר JSON: "
+        p = f"שאלה על {topic}. JSON: "
         p += "{'q':'','options':['','','',''],'correct':'','explain':''}"
         res = m.generate_content(p).text
         match = re.search(r'\{.*\}', res, re.DOTALL)
@@ -46,7 +28,7 @@ def stream_ai_lesson(p):
     try:
         genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
         m = genai.GenerativeModel('gemini-2.0-flash')
-        full_p = p + " כתוב שיעור הכנה למבחן המתווכים. ללא כותרות."
+        full_p = p + " שיעור הכנה למבחן המתווכים."
         response = m.generate_content(full_p, stream=True)
         placeholder = st.empty()
         full_text = ""
@@ -64,7 +46,7 @@ if "step" not in st.session_state:
         "quiz_active": False, "q_data": None, "show_ans": False
     })
 
-# --- ניווט ---
+# --- דפים ---
 
 if st.session_state.step == "login":
     st.markdown("<style>* { direction: rtl; text-align: right; }</style>", 
@@ -80,13 +62,10 @@ elif st.session_state.step == "menu":
                 unsafe_allow_html=True)
     st.title("🏠 מתווך בקליק")
     st.subheader(f"👤 שלום, {st.session_state.user}")
-    c1, c2 = st.columns(2)
-    with c1:
-        if st.button("📚 לימוד לפי נושאים"):
-            st.session_state.step = "study"; st.rerun()
-    with c2:
-        if st.button("⏱️ גש/י למבחן"):
-            st.session_state.step = "exam_intro"; st.rerun()
+    if st.button("📚 לימוד לפי נושאים"):
+        st.session_state.step = "study"; st.rerun()
+    if st.button("⏱️ גש/י למבחן"):
+        st.session_state.step = "exam_intro"; st.rerun()
 
 elif st.session_state.step == "study":
     st.markdown("<style>* { direction: rtl; text-align: right; }</style>", 
@@ -94,17 +73,14 @@ elif st.session_state.step == "study":
     st.title("🏠 מתווך בקליק")
     st.subheader(f"👤 שלום, {st.session_state.user}")
     sel = st.selectbox("בחר נושא:", ["בחר..."] + list(SYLLABUS.keys()))
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button("התחל לימוד") and sel != "בחר...":
-            st.session_state.update({
-                "selected_topic": sel, "step": "lesson_run", 
-                "lesson_txt": "", "quiz_active": False
-            })
-            st.rerun()
-    with col2:
-        if st.button("🏠 חזרה לתפריט"):
-            st.session_state.step = "menu"; st.rerun()
+    if st.button("התחל לימוד") and sel != "בחר...":
+        st.session_state.update({
+            "selected_topic": sel, "step": "lesson_run", 
+            "lesson_txt": "", "quiz_active": False
+        })
+        st.rerun()
+    if st.button("🏠 חזרה"):
+        st.session_state.step = "menu"; st.rerun()
 
 elif st.session_state.step == "lesson_run":
     st.markdown("<style>* { direction: rtl; text-align: right; }</style>", 
@@ -128,27 +104,15 @@ elif st.session_state.step == "lesson_run":
         st.session_state.step = "study"; st.rerun()
 
 elif st.session_state.step == "exam_intro":
-    st.markdown("""
-        <style>
-        #MainMenu, footer, header {visibility: hidden;}
-        .block-container { padding-top: 0.8rem !important; }
-        .user-info { font-size: 0.9rem; color: gray; text-align: center; }
-        .instruction-p { margin-bottom: -10px; }
-        div[data-testid="stCheckbox"] { direction: rtl !important; }
-        * { direction: rtl; text-align: right; }
-        </style>
-        """, unsafe_allow_html=True)
-    cr, cm, cl = st.columns([1.5, 3, 1.5])
-    with cr: st.markdown("#### 🏠 מתווך בקליק")
-    with cm: st.markdown(f"<p class='user-info'>👤 {st.session_state.user}</p>", 
-                         unsafe_allow_html=True)
+    st.markdown("""<style>#MainMenu,footer,header{visibility:hidden;}.block-container{padding-top:0.8rem!important;}.user-info{font-size:0.9rem;color:gray;text-align:center;}*{direction:rtl;text-align:right;}</style>""", unsafe_allow_html=True)
+    cr, cm, cl = st.columns([1, 2, 1])
+    with cr: st.write("🏠 מתווך בקליק")
+    with cm: st.write(f"👤 {st.session_state.user}")
     with cl:
-        if st.button("לתפריט"): 
+        if st.button("לתפריט"):
             st.session_state.step = "menu"; st.rerun()
-    st.header("הוראות למבחן")
-    instr = [
-        "1. המבחן כולל 25 שאלות.",
-        "2. זמן מוקצב: 90 דקות.",
-        "3. מעבר לשאלה רק לאחר סימון.",
-        "4. ניתן לחזור אחורה לשאלות שנענו.",
-        "5. בסיום הזמן המבחן יינעל.",
+    st.header("הוראות")
+    st.write("1. 25 שאלות. 2. 90 דקות. 3. מעבר לאחר סימון. 4. ציון עובר: 60.")
+    agree = st.checkbox("אני מוכן")
+    if st.button("התחל", disabled=not agree):
+        st.session_state.step = "exam_run"; st.rerun()
