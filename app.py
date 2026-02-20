@@ -1,5 +1,6 @@
 # ==========================================
-# Project: מתווך בקליק | Version: 1213
+# Project: מתווך בקליק | File: app.py
+# Version: 1213 | Anchor: 1213 (Raw Content)
 # ==========================================
 import streamlit as st
 import google.generativeai as genai
@@ -8,18 +9,17 @@ import json, re
 st.set_page_config(page_title="מתווך בקליק", layout="wide")
 st.markdown('<div id="top"></div>', unsafe_allow_html=True)
 
-# CSS ששומר על הטקסט המלא ומתאים את רוחב הכפתור לתוכן
+# CSS לכפתורים שקופים ואחידים (ללא קו תחתי)
 st.markdown("""
 <style>
     * { direction: rtl; text-align: right; }
     
-    /* עיצוב גמיש - הכפתור יגדל לפי אורך המילים */
     .stButton>button, .custom-btn { 
         display: inline-flex !important;
         align-items: center;
         justify-content: center;
-        width: auto !important; 
-        padding: 0 30px !important; /* ריווח נדיב לצדדים */
+        width: 100% !important; 
+        padding: 0 25px !important;
         border-radius: 8px !important; 
         font-weight: bold !important; 
         height: 3em !important; 
@@ -28,12 +28,14 @@ st.markdown("""
         border: 1px solid #d1d5db !important;
         text-decoration: none !important;
         box-sizing: border-box;
-        white-space: nowrap !important; /* מונע מהמילים לרדת שורה */
+        transition: 0.2s;
+        white-space: nowrap !important;
     }
     
     .stButton>button:hover, .custom-btn:hover {
         border-color: #ff4b4b !important;
         color: #ff4b4b !important;
+        text-decoration: none !important;
     }
 
     a.custom-btn {
@@ -110,7 +112,6 @@ if st.session_state.step == "login":
 elif st.session_state.step == "menu":
     st.subheader(f"👤 שלום, {st.session_state.user}")
     
-    # שימוש ברוחב עמודות גדול יותר כדי להכיל את הטקסט הארוך
     c1, c2, c3 = st.columns([1.5, 1.5, 3])
     with c1:
         if st.button("📚 לימוד לפי נושאים"):
@@ -118,12 +119,13 @@ elif st.session_state.step == "menu":
             st.rerun()
     with c2:
         u_name = st.session_state.user.replace(" ", "%20")
-        p1 = "https://fullrealestatebroker-"
-        p2 = "yevuzewxde4obgrpgacrpc.streamlit.app/"
-        full_url = f"{p1}{p2}?user={u_name}"
-        t = "⏱️ גש/י למבחן"
-        btn_html = f'<a href="{full_url}" target="_self" class="custom-btn">{t}</a>'
-        st.markdown(btn_html, unsafe_allow_html=True)
+        b_url = "https://fullrealestatebroker-"
+        e_url = "yevuzewxde4obgrpgacrpc.streamlit.app/"
+        full_link = f"{b_url}{e_url}?user={u_name}"
+        t_btn = "⏱️ גש/י למבחן"
+        # שימוש ב-target="_self" לניווט באותה כרטיסייה
+        html_str = f'<a href="{full_link}" target="_self" class="custom-btn">{t_btn}</a>'
+        st.markdown(html_str, unsafe_allow_html=True)
 
 elif st.session_state.step == "study":
     sel = st.selectbox("בחר נושא:", ["בחר..."] + list(SYLLABUS.keys()))
