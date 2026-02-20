@@ -8,36 +8,39 @@ import json, re
 st.set_page_config(page_title="מתווך בקליק", layout="wide")
 st.markdown('<div id="top"></div>', unsafe_allow_html=True)
 
-# CSS לכפתורים שקופים מותאמי טקסט - שורות קצרות בלבד
+# CSS ששומר על הטקסט המלא ומתאים את רוחב הכפתור לתוכן
 st.markdown("""
 <style>
     * { direction: rtl; text-align: right; }
+    
+    /* עיצוב גמיש - הכפתור יגדל לפי אורך המילים */
     .stButton>button, .custom-btn { 
+        display: inline-flex !important;
+        align-items: center;
+        justify-content: center;
         width: auto !important; 
-        min-width: 140px;
-        padding: 0 25px;
-        border-radius: 8px; 
-        font-weight: bold; 
-        height: 2.8em; 
-        line-height: 2.8em;
+        padding: 0 30px !important; /* ריווח נדיב לצדדים */
+        border-radius: 8px !important; 
+        font-weight: bold !important; 
+        height: 3em !important; 
         background-color: transparent !important;
-        color: inherit !important;
+        color: #31333f !important;
         border: 1px solid #d1d5db !important;
-        display: inline-block;
         text-decoration: none !important;
         box-sizing: border-box;
-        text-align: center;
+        white-space: nowrap !important; /* מונע מהמילים לרדת שורה */
     }
+    
     .stButton>button:hover, .custom-btn:hover {
         border-color: #ff4b4b !important;
         color: #ff4b4b !important;
     }
-    .top-link { 
-        display: inline-block; width: 100%; text-align: center; 
-        border-radius: 8px; text-decoration: none; border: 1px solid #d1d5db;
-        font-weight: bold; height: 2.8em; line-height: 2.8em;
-        background-color: transparent; color: inherit;
+
+    a.custom-btn {
+        color: #31333f !important;
+        text-decoration: none !important;
     }
+
     .v-footer {
         text-align: center; color: rgba(255, 255, 255, 0.1);
         font-size: 0.7em; margin-top: 50px; width: 100%;
@@ -106,22 +109,20 @@ if st.session_state.step == "login":
 
 elif st.session_state.step == "menu":
     st.subheader(f"👤 שלום, {st.session_state.user}")
-    cols = st.columns([1, 1, 4]) 
-    with cols[0]:
+    
+    # שימוש ברוחב עמודות גדול יותר כדי להכיל את הטקסט הארוך
+    c1, c2, c3 = st.columns([1.5, 1.5, 3])
+    with c1:
         if st.button("📚 לימוד לפי נושאים"):
             st.session_state.step = "study"
             st.rerun()
-    with cols[1]:
+    with c2:
         u_name = st.session_state.user.replace(" ", "%20")
-        # פירוק הכתובת לשורות קצרות מאוד
         p1 = "https://fullrealestatebroker-"
         p2 = "yevuzewxde4obgrpgacrpc.streamlit.app/"
         full_url = f"{p1}{p2}?user={u_name}"
-        
-        # יצירת ה-HTML בחלקים למניעת חיתוך מחרוזת
         t = "⏱️ גש/י למבחן"
-        btn_tag = f'<a href="{full_url}" target="_self" class="custom-btn">'
-        btn_html = f'{btn_tag}{t}</a>'
+        btn_html = f'<a href="{full_url}" target="_self" class="custom-btn">{t}</a>'
         st.markdown(btn_html, unsafe_allow_html=True)
 
 elif st.session_state.step == "study":
@@ -153,18 +154,13 @@ elif st.session_state.step == "lesson_run":
         st.markdown(st.session_state.lesson_txt)
 
     st.write("")
-    f_cols = st.columns([2.5, 2, 1.5, 3])
-    with f_cols[1]:
+    f_cols = st.columns([2, 2, 4])
+    with f_cols[0]:
         if st.button("🏠 לתפריט הראשי"):
             st.session_state.step = "menu"
             st.rerun()
-    with f_cols[2]:
-        st.markdown(
-            '<a href="#top" class="top-link">🔝 לראש הדף</a>', 
-            unsafe_allow_html=True
-        )
+    with f_cols[1]:
+        st.markdown('<a href="#top" class="custom-btn">🔝 לראש הדף</a>', 
+                    unsafe_allow_html=True)
 
-st.markdown(
-    f'<div class="v-footer">Version: 1213</div>', 
-    unsafe_allow_html=True
-)
+st.markdown(f'<div class="v-footer">Version: 1213</div>', unsafe_allow_html=True)
