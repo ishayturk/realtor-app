@@ -25,28 +25,6 @@ st.markdown("""
         margin-top: 50px;
         width: 100%;
     }
-    
-    /* העתקה מדויקת של עיצוב כפתור סטרימליט עבור הלינק */
-    .st-exam-btn {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 100%;
-        height: 3em;
-        background-color: rgb(240, 242, 246);
-        color: rgb(49, 51, 63) !important;
-        border: 1px solid rgba(49, 51, 63, 0.2);
-        border-radius: 8px;
-        font-weight: bold;
-        text-decoration: none !important;
-        box-sizing: border-box;
-        font-size: 16px;
-    }
-    .st-exam-btn:hover {
-        border-color: rgb(255, 75, 75);
-        color: rgb(255, 75, 75) !important;
-        background-color: rgb(240, 242, 246);
-    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -112,7 +90,8 @@ elif st.session_state.step == "menu":
     with c2:
         user_name = st.session_state.user.replace(" ", "%20")
         exam_url = f"https://fullrealestatebroker-yevuzewxde4obgrpgacrpc.streamlit.app/?user={user_name}"
-        st.markdown(f'<a href="{exam_url}" target="_self" class="st-exam-btn">⏱️ גש/י למבחן</a>', unsafe_allow_html=True)
+        # שימוש ב-Class המקורי שלך top-link בלבד
+        st.markdown(f'<a href="{exam_url}" target="_self" class="top-link">⏱️ גש/י למבחן</a>', unsafe_allow_html=True)
 
 elif st.session_state.step == "study":
     sel = st.selectbox("בחר נושא:", ["בחר..."] + list(SYLLABUS.keys()))
