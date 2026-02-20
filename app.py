@@ -26,30 +26,26 @@ st.markdown("""
         width: 100%;
     }
     
-    /* דיוק מקסימלי לכפתור המבחן שייראה כ-st.button */
+    /* העתקה מדויקת של עיצוב כפתור סטרימליט עבור הלינק */
     .st-exam-btn {
         display: flex;
         align-items: center;
         justify-content: center;
         width: 100%;
-        height: 3em; /* גובה זהה ל-.stButton>button */
-        background-color: rgb(240, 242, 246); /* צבע רקע מקורי של סטרימליט */
+        height: 3em;
+        background-color: rgb(240, 242, 246);
         color: rgb(49, 51, 63) !important;
         border: 1px solid rgba(49, 51, 63, 0.2);
         border-radius: 8px;
         font-weight: bold;
         text-decoration: none !important;
         box-sizing: border-box;
-        font-size: 16px; /* גודל פונט סטנדרטי */
+        font-size: 16px;
     }
     .st-exam-btn:hover {
         border-color: rgb(255, 75, 75);
         color: rgb(255, 75, 75) !important;
         background-color: rgb(240, 242, 246);
-    }
-    .st-exam-btn:active {
-        background-color: rgb(255, 75, 75);
-        color: white !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -91,4 +87,61 @@ def stream_ai_lesson(p):
         return full_text
     except: return "⚠️ תקלה בטעינה."
 
-if "step" not in
+if "step" not in st.session_state:
+    st.session_state.update({
+        "user": None, "step": "login", "q_count": 0, "quiz_active": False, 
+        "show_ans": False, "lesson_txt": "", "q_data": None, 
+        "correct_answers": 0, "quiz_finished": False
+    })
+
+st.title("🏠 מתווך בקליק")
+
+if st.session_state.step == "login":
+    u = st.text_input("שם מלא:")
+    if st.button("כניסה") and u:
+        st.session_state.update({"user": u, "step": "menu"})
+        st.rerun()
+
+elif st.session_state.step == "menu":
+    st.subheader(f"👤 שלום, {st.session_state.user}")
+    c1, c2 = st.columns(2)
+    with c1:
+        if st.button("📚 לימוד לפי נושאים"):
+            st.session_state.step = "study"
+            st.rerun()
+    with c2:
+        user_name = st.session_state.user.replace(" ", "%20")
+        exam_url = f"https://fullrealestatebroker-yevuzewxde4obgrpgacrpc.streamlit.app/?user={user_name}"
+        st.markdown(f'<a href="{exam_url}" target="_self" class="st-exam-btn">⏱️ גש/י למבחן</a>', unsafe_allow_html=True)
+
+elif st.session_state.step == "study":
+    sel = st.selectbox("בחר נושא:", ["בחר..."] + list(SYLLABUS.keys()))
+    if sel != "בחר..." and st.button("טען נושא"):
+        st.session_state.update({"selected_topic": sel, "step": "lesson_run", "lesson_txt": ""})
+        st.rerun()
+
+elif st.session_state.step == "lesson_run":
+    topic = st.session_state.selected_topic
+    st.header(f"📖 {topic}")
+    subs = SYLLABUS.get(topic, [])
+    cols = st.columns(len(subs))
+    for i, s in enumerate(subs):
+        if cols[i].button(s, key=f"sub_{i}"):
+            st.session_state.update({"current_sub": s, "lesson_txt": "LOADING"})
+            st.rerun()
+    
+    if st.session_state.get("lesson_txt") == "LOADING":
+        st.session_state.lesson_txt = stream_ai_lesson(f"שיעור על {st.session_state.current_sub}")
+        st.rerun()
+    elif st.session_state.get("lesson_txt"):
+        st.markdown(st.session_state.lesson_txt)
+
+    st.write("")
+    f_cols = st.columns([2.5, 2, 1.5, 3])
+    with f_cols[1]:
+        if st.button("🏠 לתפריט הראשי"):
+            st.session_state.step = "menu"; st.rerun()
+    with f_cols[2]:
+        st.markdown('<a href="#top" class="top-link">🔝 לראש הדף</a>', unsafe_allow_html=True)
+
+st.markdown(f'<div class="v-footer">Version: 1213</div>', unsafe_allow_html=True)
