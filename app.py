@@ -1,16 +1,12 @@
 import streamlit as st
-import google.generativeai as genai
-import json, re
 
 st.set_page_config(page_title="מתווך בקליק", layout="wide")
 
 # אתחול Session State
 if "step" not in st.session_state:
-    st.session_state.update({
-        "user": None, "step": "login"
-    })
+    st.session_state.update({"user": None, "step": "login"})
 
-# --- מסך כניסה: מקורי ונקי מגרסה 1213 ---
+# --- מסך כניסה ---
 if st.session_state.step == "login":
     st.markdown("<style>* { direction: rtl; text-align: right; }</style>", unsafe_allow_html=True)
     st.title("🏠 מתווך בקליק")
@@ -32,29 +28,33 @@ elif st.session_state.step == "menu":
         if st.button("⏱️ גש/י למבחן"):
             st.session_state.step = "exam_intro"; st.rerun()
 
-# --- עמוד הוראות המבחן: עם הסטריפ העליון שביקשת ---
+# --- עמוד הוראות המבחן (מיקום מדויק) ---
 elif st.session_state.step == "exam_intro":
-    # הזרקת עיצוב ספציפי לעמוד זה בלבד
     st.markdown("""
         <style>
-        header { visibility: hidden; }
-        .user-name-small { font-size: 0.9rem; color: gray; text-align: center; width: 100%; }
-        div[data-testid="stCheckbox"] { direction: rtl !important; }
-        div[data-testid="stCheckbox"] > label {
-            display: flex !important;
-            flex-direction: row !important;
-            align-items: center !important;
-            gap: 10px !important;
+        #MainMenu {visibility: hidden;}
+        footer {visibility: hidden;}
+        header {visibility: hidden;}
+        .block-container {
+            padding-top: 1rem !important; /* ריווח של שורה אחת מהלמעלה */
+            margin-top: 0px;
         }
+        .user-name-small { 
+            font-size: 0.9rem; 
+            color: gray; 
+            text-align: center; 
+            margin-top: 10px;
+        }
+        div[data-testid="stCheckbox"] { direction: rtl !important; }
         * { direction: rtl; text-align: right; }
         </style>
         """, unsafe_allow_html=True)
 
-    # סטריפ עליון: לוגו | שם משתמש | כפתור חזרה
+    # סטריפ עליון
     col_r, col_m, col_l = st.columns([2, 2, 1])
     
     with col_r:
-        st.markdown("### 🏠 מתווך בקליק")
+        st.subheader("🏠 מתווך בקליק") # שימוש ב-subheader להקטנת הכותרת
     
     with col_m:
         st.markdown(f"<p class='user-name-small'>👤 {st.session_state.user}</p>", 
