@@ -25,6 +25,21 @@ st.markdown("""
         margin-top: 50px;
         width: 100%;
     }
+    /* עיצוב ייעודי לכפתור המבחן שייראה כמו כפתור סטרימליט */
+    .exam-button-link {
+        width: 100%;
+        background-color: #f0f2f6;
+        color: #31333f;
+        border-radius: 8px;
+        border: 1px solid rgba(49, 51, 63, 0.2);
+        font-weight: bold;
+        text-align: center;
+        height: 3em;
+        line-height: 3em;
+        display: inline-block;
+        text-decoration: none;
+        cursor: pointer;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -45,17 +60,19 @@ def fetch_q_ai(topic):
     try:
         genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
         m = genai.GenerativeModel('gemini-2.0-flash')
-        p = f"צור שאלה אמריקאית קשה על {topic}. החזר JSON תקני בלבד."
+        p = f"צור שאלה אמריקאית קשה על {topic} למבחן המתווכים. החזר אך ורק JSON תקני: {{'q':'','options':['','','',''],'correct':'','explain':''}}"
         res = m.generate_content(p).text
         match = re.search(r'\{.*\}', res, re.DOTALL)
         if match: return json.loads(match.group())
     except: return None
+    return None
 
 def stream_ai_lesson(p):
     try:
         genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
         m = genai.GenerativeModel('gemini-2.0-flash')
-        response = m.generate_content(p, stream=True)
+        full_p = p + " כתוב שיעור הכנה מעמיק למבחן המתווכים. פרט סעיפי חוק, מספרים ודוגמאות. ללא כותרות."
+        response = m.generate_content(full_p, stream=True)
         placeholder = st.empty()
         full_text = ""
         for chunk in response:
@@ -65,6 +82,7 @@ def stream_ai_lesson(p):
         return full_text
     except: return "⚠️ תקלה בטעינה."
 
+# אתחול
 if "step" not in st.session_state:
     st.session_state.update({
         "user": None, "step": "login", "q_count": 0, "quiz_active": False, 
@@ -88,36 +106,50 @@ elif st.session_state.step == "menu":
             st.session_state.step = "study"
             st.rerun()
     with c2:
-        if st.button("⏱️ גש/י למבחן"):
-            user_name = st.session_state.user.replace(" ", "%20")
-            exam_url = f"https://fullrealestatebroker-yevuzewxde4obgrpgacrpc.streamlit.app/?user={user_name}"
-            st.components.v1.html(f"<script>window.parent.location.href='{exam_url}';</script>", height=0)
+        user_name = st.session_state.user.replace(" ", "%20")
+        exam_url = f"https://fullrealestatebroker-yevuzewxde4obgrpgacrpc.streamlit.app/?user={user_name}"
+        # כפתור מעוצב כלינק שלא נחסם ושומר על העימוד
+        st.markdown(f'<a href="{exam_url}" target="_self" class="exam-button-link">⏱️ גש/י למבחן</a>', unsafe_allow_html=True)
 
 elif st.session_state.step == "study":
     sel = st.selectbox("בחר נושא:", ["בחר..."] + list(SYLLABUS.keys()))
     if sel != "בחר..." and st.button("טען נושא"):
-        st.session_state.update({"selected_topic": sel, "step": "lesson_run", "lesson_txt": ""})
+        st.session_state.update({
+            "selected_topic": sel, "step": "lesson_run", "quiz_active": False, 
+            "lesson_txt": "", "q_data": None, "q_count": 0, 
+            "correct_answers": 0, "quiz_finished": False
+        })
         st.rerun()
 
 elif st.session_state.step == "lesson_run":
     topic = st.session_state.selected_topic
     st.header(f"📖 {topic}")
+    
     subs = SYLLABUS.get(topic, [])
     cols = st.columns(len(subs))
     for i, s in enumerate(subs):
         if cols[i].button(s, key=f"sub_{i}"):
-            st.session_state.update({"current_sub": s, "lesson_txt": "LOADING"})
+            st.session_state.update({
+                "current_sub": s, "lesson_txt": "LOADING", "quiz_active": False, 
+                "q_data": None, "quiz_finished": False, "q_count": 0, "correct_answers": 0
+            })
             st.rerun()
-    
+
     if st.session_state.get("lesson_txt") == "LOADING":
-        st.session_state.lesson_txt = stream_ai_lesson(f"שיעור על {st.session_state.current_sub}")
+        st.subheader(st.session_state.current_sub)
+        st.session_state.lesson_txt = stream_ai_lesson(f"שיעור על {st.session_state.current_sub} בחוק {topic}")
         st.rerun()
     elif st.session_state.get("lesson_txt"):
+        st.subheader(st.session_state.current_sub)
         st.markdown(st.session_state.lesson_txt)
 
+    st.write("")
     f_cols = st.columns([2.5, 2, 1.5, 3])
+    
     with f_cols[1]:
         if st.button("🏠 לתפריט הראשי"):
             st.session_state.step = "menu"; st.rerun()
+    with f_cols[2]:
+        st.markdown('<a href="#top" class="top-link">🔝 לראש הדף</a>', unsafe_allow_html=True)
 
 st.markdown(f'<div class="v-footer">Version: 1213</div>', unsafe_allow_html=True)
