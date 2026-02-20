@@ -41,7 +41,7 @@ def fetch_q_ai(topic):
     try:
         genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
         m = genai.GenerativeModel('gemini-2.0-flash')
-        p = f"צור שאלה על {topic}. החזר JSON תקני בלבד."
+        p = f"צור שאלה אמריקאית על {topic}. החזר JSON בלבד."
         res = m.generate_content(p).text
         match = re.search(r'\{.*\}', res, re.DOTALL)
         if match: return json.loads(match.group())
@@ -52,7 +52,7 @@ def stream_ai_lesson(p):
     try:
         genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
         m = genai.GenerativeModel('gemini-2.0-flash')
-        f_p = p + " כתוב שיעור הכנה מעמיק. ללא כותרות."
+        f_p = p + " כתוב שיעור הכנה מעמיק למבחן המתווכים."
         response = m.generate_content(f_p, stream=True)
         placeholder = st.empty()
         full_text = ""
@@ -94,27 +94,30 @@ elif st.session_state.step == "menu":
 elif st.session_state.step == "study":
     st.title("🏠 מתווך בקליק")
     st.subheader(f"👤 שלום, {st.session_state.user}")
-    sel = st.selectbox("בחר נושא:", ["בחר..."] + list(SYLLABUS.keys()))
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button("התחל לימוד") and sel != "בחר...":
-            st.session_state.update({
-                "selected_topic": sel, "step": "lesson_run", 
-                "lesson_txt": "", "quiz_active": False
-            })
-            st.rerun()
-    with col2:
-        if st.button("🏠 חזרה לתפריט"):
-            st.session_state.step = "menu"; st.rerun()
+    
+    for category, topics in SYLLABUS.items():
+        with st.expander(category):
+            for t in topics:
+                if st.button(t, key=f"btn_{t}"):
+                    st.session_state.update({
+                        "selected_topic": t, "step": "lesson_run",
+                        "lesson_txt": "", "quiz_active": False
+                    })
+                    st.rerun()
+    
+    if st.button("🏠 חזרה לתפריט"):
+        st.session_state.step = "menu"; st.rerun()
 
 elif st.session_state.step == "lesson_run":
     st.title(f"📖 {st.session_state.selected_topic}")
     if not st.session_state.lesson_txt:
         st.session_state.lesson_txt = stream_ai_lesson(st.session_state.selected_topic)
+    
     if st.button("❓ בחן אותי"):
         st.session_state.q_data = fetch_q_ai(st.session_state.selected_topic)
         st.session_state.quiz_active = True
         st.session_state.show_ans = False
+    
     if st.session_state.quiz_active and st.session_state.q_data:
         q = st.session_state.q_data
         ans = st.radio(q['q'], q['options'], index=None)
@@ -123,30 +126,19 @@ elif st.session_state.step == "lesson_run":
             if ans == q['correct']: st.success("נכון!")
             else: st.error(f"טעות. {q['correct']}")
             st.info(q['explain'])
+    
     if st.button("🏠 חזור לבחירת נושא"):
         st.session_state.step = "study"; st.rerun()
 
 elif st.session_state.step == "exam_intro":
-    st.markdown("""
-        <style>
-        #MainMenu, footer, header {visibility: hidden;}
-        .block-container { padding-top: 0.8rem !important; }
-        .user-info { font-size: 0.9rem; color: gray; text-align: center; }
-        .instruction-p { margin-bottom: -10px; }
-        </style>
-        """, unsafe_allow_html=True)
+    st.markdown("""<style>#MainMenu,footer,header{visibility:hidden;}.block-container{padding-top:0.8rem!important;}.user-info{font-size:0.9rem;color:gray;text-align:center;}.instruction-p{margin-bottom:-10px;}</style>""", unsafe_allow_html=True)
     cr, cm, cl = st.columns([1.5, 3, 1.5])
     with cr: st.markdown("#### 🏠 מתווך בקליק")
-    with cm: st.markdown(f"<p class='user-info'>👤 {st.session_state.user}</p>", 
-                         unsafe_allow_html=True)
+    with cm: st.markdown(f"<p class='user-info'>👤 {st.session_state.user}</p>", unsafe_allow_html=True)
     with cl:
         if st.button("לתפריט"):
             st.session_state.step = "menu"; st.rerun()
     st.header("הוראות למבחן")
     ins = ["1. 25 שאלות.", "2. 90 דקות.", "3. מעבר לאחר סימון.", "4. ניתן לחזור."]
     for line in ins:
-        st.markdown(f"<p class='instruction-p'>{line}</p>", unsafe_allow_html=True)
-    st.divider()
-    agree = st.checkbox("קראתי ואני מוכן")
-    if st.button("התחל בחינה", disabled=not agree):
-        st.session_state.step = "exam_run"; st.rerun()
+        st.markdown
