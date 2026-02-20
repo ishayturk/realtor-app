@@ -1,20 +1,21 @@
 # ==========================================
 # Project: מתווך בקליק | File: app.py
-# Version: 1213 | Anchor: 1213 (Raw Content)
+# Anchor: 1213 (Raw Content)
 # ==========================================
 import streamlit as st
-import streamlit.components.v1 as components
 import google.generativeai as genai
 import json, re
 
 st.set_page_config(page_title="מתווך בקליק", layout="wide")
 st.markdown('<div id="top"></div>', unsafe_allow_html=True)
 
-# CSS לכפתורים (כולל עיצוב הלינק שיוצג בתוך ה-iframe)
-common_style = """
+# CSS שגורם לקישור הרשמי להיראות שקוף ותואם לעיצוב שלך
+st.markdown("""
 <style>
-    * { direction: rtl; text-align: right; font-family: sans-serif; }
-    .stButton>button, .custom-btn { 
+    * { direction: rtl; text-align: right; }
+    
+    /* עיצוב כפתורי המערכת והקישורים */
+    .stButton>button, .stLinkButton>a { 
         display: inline-flex !important;
         align-items: center;
         justify-content: center;
@@ -29,16 +30,15 @@ common_style = """
         text-decoration: none !important;
         box-sizing: border-box;
         transition: 0.2s;
-        white-space: nowrap !important;
-        cursor: pointer;
     }
-    .stButton>button:hover, .custom-btn:hover {
+    
+    .stButton>button:hover, .stLinkButton>a:hover {
         border-color: #ff4b4b !important;
         color: #ff4b4b !important;
+        background-color: transparent !important;
     }
 </style>
-"""
-st.markdown(common_style, unsafe_allow_html=True)
+""", unsafe_allow_html=True)
 
 SYLLABUS = {
     "חוק המתווכים": ["רישוי והגבלות", "הגינות וזהירות", 
@@ -59,16 +59,6 @@ SYLLABUS = {
     "חוק העונשין": ["עבירות מרמה וזיוף"]
 }
 
-def fetch_q_ai(topic):
-    try:
-        genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-        m = genai.GenerativeModel('gemini-2.0-flash')
-        p = f"צור שאלה אמריקאית קשה על {topic}. החזר JSON תקני בלבד."
-        res = m.generate_content(p).text
-        match = re.search(r'\{.*\}', res, re.DOTALL)
-        if match: return json.loads(match.group())
-    except: return None
-
 def stream_ai_lesson(p):
     try:
         genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
@@ -85,10 +75,7 @@ def stream_ai_lesson(p):
 
 if "step" not in st.session_state:
     st.session_state.update({
-        "user": None, "step": "login", "q_count": 0, 
-        "quiz_active": False, "show_ans": False, 
-        "lesson_txt": "", "q_data": None, 
-        "correct_answers": 0, "quiz_finished": False
+        "user": None, "step": "login", "lesson_txt": ""
     })
 
 st.title("🏠 מתווך בקליק")
@@ -113,16 +100,8 @@ elif st.session_state.step == "menu":
             f"https://fullrealestatebroker-yevuzewxde4obgrpgacrpc.streamlit.app/"
             f"?user={u_name}"
         )
-        
-        # בניית קומפוננטת HTML עצמאית שתבצע את הניווט ב-Top Level
-        # זה עוקף את החסימה של Streamlit
-        nav_html = f"""
-        {common_style}
-        <a href="{target_url}" target="_top" class="custom-btn">
-            ⏱️ גש/י למבחן
-        </a>
-        """
-        components.html(nav_html, height=55)
+        # שימוש ברכיב הרשמי של Streamlit למעבר דפים
+        st.link_button("⏱️ גש/י למבחן", target_url)
 
 elif st.session_state.step == "study":
     sel = st.selectbox("בחר נושא:", ["בחר..."] + list(SYLLABUS.keys()))
@@ -159,7 +138,7 @@ elif st.session_state.step == "lesson_run":
             st.session_state.step = "menu"
             st.rerun()
     with f_cols[1]:
-        st.markdown('<a href="#top" class="custom-btn">🔝 לראש הדף</a>', 
-                    unsafe_allow_html=True)
-
-st.markdown(f'<div class="v-footer">Version: 1213</div>', unsafe_allow_html=True)
+        # שימוש בכפתור רגיל לחזור למעלה במקום לינק
+        if st.button("🔝 לראש הדף"):
+            st.markdown('<script>window.scrollTo(0,0);</script>', unsafe_allow_html=True)
+            st.rerun()
