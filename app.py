@@ -25,6 +25,21 @@ st.markdown("""
         margin-top: 50px;
         width: 100%;
     }
+    /* עיצוב ייעודי לכפתור המבחן שייראה כמו כפתור סטרימליט */
+    .exam-button-link {
+        width: 100%;
+        background-color: #f0f2f6;
+        color: #31333f;
+        border-radius: 8px;
+        border: 1px solid rgba(49, 51, 63, 0.2);
+        font-weight: bold;
+        text-align: center;
+        height: 3em;
+        line-height: 3em;
+        display: inline-block;
+        text-decoration: none;
+        cursor: pointer;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -88,9 +103,13 @@ elif st.session_state.step == "menu":
     c1, c2 = st.columns(2)
     with c1:
         if st.button("📚 לימוד לפי נושאים"):
-            st.session_state.step = "study"; st.rerun()
+            st.session_state.step = "study"
+            st.rerun()
     with c2:
-        if st.button("⏱️ גש/י למבחן"): st.info("בקרוב!")
+        user_name = st.session_state.user.replace(" ", "%20")
+        exam_url = f"https://fullrealestatebroker-yevuzewxde4obgrpgacrpc.streamlit.app/?user={user_name}"
+        # כפתור מעוצב כלינק שלא נחסם ושומר על העימוד
+        st.markdown(f'<a href="{exam_url}" target="_self" class="exam-button-link">⏱️ גש/י למבחן</a>', unsafe_allow_html=True)
 
 elif st.session_state.step == "study":
     sel = st.selectbox("בחר נושא:", ["בחר..."] + list(SYLLABUS.keys()))
@@ -124,76 +143,13 @@ elif st.session_state.step == "lesson_run":
         st.subheader(st.session_state.current_sub)
         st.markdown(st.session_state.lesson_txt)
 
-    # הצגת תוצאות בסיום
-    if st.session_state.quiz_finished:
-        st.markdown("---")
-        st.balloons()
-        st.header("🏆 סיכום השאלון")
-        score = st.session_state.correct_answers
-        st.subheader(f"ענית נכון על {score} מתוך 10 שאלות.")
-        if score >= 8: st.success("כל הכבוד! רמת המוכנות שלך גבוהה מאוד.")
-        elif score >= 6: st.warning("עברת, אבל כדאי לחזור על החומר שוב.")
-        else: st.error("מומלץ לקרוא את השיעור שוב ולנסות שאלון נוסף.")
-        
-        if st.button("📝 נסה שאלון חדש בנושא"):
-            st.session_state.update({"quiz_active": False, "quiz_finished": False, "q_count": 0, "correct_answers": 0})
-            st.rerun()
-
-    # הצגת השאלון הפעיל
-    elif st.session_state.quiz_active and st.session_state.q_data:
-        st.markdown("---")
-        q = st.session_state.q_data
-        st.subheader(f"📝 שאלה {st.session_state.q_count} מתוך 10")
-        ans = st.radio(q['q'], q['options'], index=None, key=f"q_{st.session_state.q_count}")
-        
-        if st.session_state.show_ans:
-            if ans == q['correct']:
-                st.success("נכון!")
-            else:
-                st.error(f"טעות. התשובה הנכונה היא: {q['correct']}")
-            st.info(f"הסבר: {q['explain']}")
-
     st.write("")
     f_cols = st.columns([2.5, 2, 1.5, 3])
     
-    with f_cols[0]:
-        if st.session_state.lesson_txt not in ["", "LOADING"] and not st.session_state.quiz_finished:
-            # לוגיקת כפתורים
-            if not st.session_state.quiz_active:
-                if st.button("📝 שאלון לבחינה עצמית"):
-                    with st.spinner("מעלה שאלה..."):
-                        res = fetch_q_ai(topic)
-                        if res:
-                            st.session_state.update({"q_data": res, "q_count": 1, "quiz_active": True, "show_ans": False, "correct_answers": 0})
-                            st.rerun()
-            
-            elif not st.session_state.show_ans:
-                if st.button("✅ בדיקת תשובה"):
-                    # בדיקה אם צדק לעדכון הציון
-                    # אנחנו בודקים את ה-radio לפי ה-key שלו
-                    user_choice = st.session_state.get(f"q_{st.session_state.q_count}")
-                    if user_choice == st.session_state.q_data['correct']:
-                        st.session_state.correct_answers += 1
-                    st.session_state.show_ans = True
-                    st.rerun()
-            
-            else: # המשתמש כבר ראה את התשובה
-                if st.session_state.q_count < 10:
-                    if st.button("➡️ שאלה הבאה"):
-                        with st.spinner("מעלה שאלה..."):
-                            res = fetch_q_ai(topic)
-                            if res:
-                                st.session_state.update({"q_data": res, "q_count": st.session_state.q_count + 1, "show_ans": False})
-                                st.rerun()
-                else:
-                    if st.button("🏁 סיכום שאלון"):
-                        st.session_state.quiz_finished = True
-                        st.rerun()
-
     with f_cols[1]:
         if st.button("🏠 לתפריט הראשי"):
             st.session_state.step = "menu"; st.rerun()
     with f_cols[2]:
         st.markdown('<a href="#top" class="top-link">🔝 לראש הדף</a>', unsafe_allow_html=True)
 
-    st.markdown(f'<div class="v-footer">Version: 1213</div>', unsafe_allow_html=True)
+st.markdown(f'<div class="v-footer">Version: 1213</div>', unsafe_allow_html=True)
