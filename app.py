@@ -8,7 +8,7 @@ import json, re
 st.set_page_config(page_title="מתווך בקליק", layout="wide")
 st.markdown('<div id="top"></div>', unsafe_allow_html=True)
 
-# CSS מפוצל לשורות קצרות למניעת שגיאות Git
+# שימוש ב-CSS המקורי שלך מעוגן 1213 ללא שינויי צבע או רוחב
 st.markdown("""
 <style>
     * { direction: rtl; text-align: right; }
@@ -16,18 +16,13 @@ st.markdown("""
         width: 100%; border-radius: 8px; 
         font-weight: bold; height: 3em; 
     }
-    .exam-btn-final { 
-        display: block; width: 100%; text-align: center; 
+    /* כפתור המבחן משתמש כעת בדיוק באותה הגדרה של top-link */
+    .exam-link-style { 
+        display: inline-block; width: 100%; text-align: center; 
         border-radius: 8px; text-decoration: none !important; 
-        border: 1px solid rgba(49, 51, 63, 0.2);
-        font-weight: bold; height: 3em; line-height: 3em;
-        background-color: #f0f2f6; 
-        color: rgb(49, 51, 63) !important;
-        box-sizing: border-box;
-    }
-    .exam-btn-final:hover {
-        border-color: #ff4b4b;
-        color: #ff4b4b !important;
+        border: 1px solid #d1d5db;
+        font-weight: bold; height: 2.8em; line-height: 2.8em;
+        background-color: transparent; color: inherit !important;
     }
     .top-link { 
         display: inline-block; width: 100%; text-align: center; 
@@ -110,12 +105,12 @@ elif st.session_state.step == "menu":
             st.rerun()
     with c2:
         u_name = st.session_state.user.replace(" ", "%20")
-        # פיצול הכתובת לשורות קצרות
         base_url = "https://fullrealestatebroker-"
         base_url += "yevuzewxde4obgrpgacrpc.streamlit.app/"
         exam_url = f"{base_url}?user={u_name}"
+        # שימוש בעיצוב השקוף והגובה המקורי (2.8em) שביקשת
         st.markdown(
-            f'<a href="{exam_url}" target="_self" class="exam-btn-final">'
+            f'<a href="{exam_url}" target="_self" class="exam-link-style">'
             f'⏱️ גש/י למבחן</a>', 
             unsafe_allow_html=True
         )
@@ -124,9 +119,7 @@ elif st.session_state.step == "study":
     sel = st.selectbox("בחר נושא:", ["בחר..."] + list(SYLLABUS.keys()))
     if sel != "בחר..." and st.button("טען נושא"):
         st.session_state.update({
-            "selected_topic": sel, 
-            "step": "lesson_run", 
-            "lesson_txt": ""
+            "selected_topic": sel, "step": "lesson_run", "lesson_txt": ""
         })
         st.rerun()
 
@@ -138,8 +131,7 @@ elif st.session_state.step == "lesson_run":
     for i, s in enumerate(subs):
         if cols[i].button(s, key=f"sub_{i}"):
             st.session_state.update({
-                "current_sub": s, 
-                "lesson_txt": "LOADING"
+                "current_sub": s, "lesson_txt": "LOADING"
             })
             st.rerun()
     
