@@ -8,32 +8,35 @@ import json, re
 st.set_page_config(page_title="מתווך בקליק", layout="wide")
 st.markdown('<div id="top"></div>', unsafe_allow_html=True)
 
-# CSS עם ערכים זהים לכפתורי המערכת של סטרימליט
+# CSS לכפתורים מותאמי טקסט ללא רקע
 st.markdown("""
 <style>
     * { direction: rtl; text-align: right; }
-    .stButton>button { 
-        width: 100%; border-radius: 8px; 
-        font-weight: bold; height: 3em; 
-    }
-    .exam-link-fix { 
-        display: block; 
-        width: 100%; 
-        text-align: center; 
+    
+    /* עיצוב אחיד לכפתור מערכת וכפתור לינק - ללא רקע ורוחב מותאם */
+    .stButton>button, .custom-btn { 
+        width: auto !important; 
+        min-width: 120px;
+        padding: 0 20px;
         border-radius: 8px; 
-        text-decoration: none !important; 
-        border: 1px solid rgba(49, 51, 63, 0.2);
         font-weight: bold; 
-        height: 3em; 
-        line-height: 3em;
-        background-color: #f0f2f6; 
-        color: #31333f !important;
+        height: 2.8em; 
+        line-height: 2.8em;
+        background-color: transparent !important;
+        color: inherit !important;
+        border: 1px solid #d1d5db !important;
+        display: inline-block;
+        text-decoration: none !important;
         box-sizing: border-box;
+        text-align: center;
+        transition: 0.3s;
     }
-    .exam-link-fix:hover {
-        border-color: #ff4b4b;
+    
+    .stButton>button:hover, .custom-btn:hover {
+        border-color: #ff4b4b !important;
         color: #ff4b4b !important;
     }
+
     .top-link { 
         display: inline-block; width: 100%; text-align: center; 
         border-radius: 8px; text-decoration: none; border: 1px solid #d1d5db;
@@ -108,20 +111,21 @@ if st.session_state.step == "login":
 
 elif st.session_state.step == "menu":
     st.subheader(f"👤 שלום, {st.session_state.user}")
-    c1, c2 = st.columns(2)
-    with c1:
-        if st.button("📚 לימוד לפי נושאים"):
+    
+    # שימוש ב-container כדי לאפשר לכפתורים להיות צמודים ואוטומטיים ברוחב
+    cols = st.columns([1, 1, 4]) 
+    with cols[0]:
+        if st.button("📚 לימוד"):
             st.session_state.step = "study"
             st.rerun()
-    with c2:
+    with cols[1]:
         u_name = st.session_state.user.replace(" ", "%20")
         b_url = "https://fullrealestatebroker-"
         b_url += "yevuzewxde4obgrpgacrpc.streamlit.app/"
         exam_url = f"{b_url}?user={u_name}"
-        # כפתור שתופס את כל רוחב העמודה עם רקע אפור וטקסט כהה
         st.markdown(
-            f'<a href="{exam_url}" target="_self" class="exam-link-fix">'
-            f'⏱️ גש/י למבחן</a>', 
+            f'<a href="{exam_url}" target="_self" class="custom-btn">'
+            f'⏱️ מבחן</a>', 
             unsafe_allow_html=True
         )
 
@@ -137,6 +141,7 @@ elif st.session_state.step == "lesson_run":
     topic = st.session_state.selected_topic
     st.header(f"📖 {topic}")
     subs = SYLLABUS.get(topic, [])
+    # כאן השארתי את הפריסה המקורית של תתי הנושאים
     cols = st.columns(len(subs))
     for i, s in enumerate(subs):
         if cols[i].button(s, key=f"sub_{i}"):
@@ -156,12 +161,12 @@ elif st.session_state.step == "lesson_run":
     st.write("")
     f_cols = st.columns([2.5, 2, 1.5, 3])
     with f_cols[1]:
-        if st.button("🏠 לתפריט הראשי"):
+        if st.button("🏠 תפריט"):
             st.session_state.step = "menu"
             st.rerun()
     with f_cols[2]:
         st.markdown(
-            '<a href="#top" class="top-link">🔝 לראש הדף</a>', 
+            '<a href="#top" class="top-link">🔝 למעלה</a>', 
             unsafe_allow_html=True
         )
 
