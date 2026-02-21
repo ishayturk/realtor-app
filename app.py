@@ -1,7 +1,7 @@
 # ==========================================
 # Project: מתווך בקליק | Version: 1213-Anchor-Updated
-# Last Update: 21/02/2026 | 11:35 (Jerusalem Time GMT+2)
-# Status: Syntax & Line Length Fixed | Protocol: Full File Delivery
+# Last Update: 21/02/2026 | 11:40 (Jerusalem Time GMT+2)
+# Status: Syntax Final Fix | Protocol: Full File Delivery
 # ==========================================
 import streamlit as st
 import google.generativeai as genai
@@ -36,9 +36,9 @@ def fetch_q_ai(topic):
     try:
         genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
         m = genai.GenerativeModel('gemini-2.0-flash')
-        p = f"צור שאלה אמריקאית קשה על {topic}. החזר JSON: " \
-            f"{{'q':'','options':['','','',''],'correct':'','explain':''}}"
-        res = m.generate_content(p).text
+        prompt = f"צור שאלה אמריקאית קשה על {topic}. החזר JSON: " \
+                 f"{{'q':'','options':['','','',''],'correct':'','explain':''}}"
+        res = m.generate_content(prompt).text
         match = re.search(r'\{.*\}', res, re.DOTALL)
         if match: return json.loads(match.group())
     except: return None
@@ -66,72 +66,11 @@ if "step" not in st.session_state:
 
 def show_header():
     if st.session_state.user:
-        u = st.session_state.user
+        u_name = st.session_state.user
         h_html = f'<div class="header-container">' \
                  f'<div class="header-title">🏠 מתווך בקליק</div>' \
-                 f'<div class="header-user">👤 <b>{u}</b></div></div>'
+                 f'<div class="header-user">👤 <b>{u_name}</b></div></div>'
         st.markdown(h_html, unsafe_allow_html=True)
 
 if st.session_state.step == "login":
     st.title("🏠 מתווך בקליק")
-    u = st.text_input("שם מלא:")
-    if st.button("כניסה") and u:
-        st.session_state.update({"user": u, "step": "menu"})
-        st.rerun()
-
-elif st.session_state.step == "menu":
-    show_header()
-    c1, c2, c3 = st.columns([1.5, 1.5, 3])
-    with c1:
-        if st.button("📚 לימוד לפי נושאים"):
-            st.session_state.step = "study"
-            st.rerun()
-    with c2:
-        if st.button("⏱️ גש/י למבחן"):
-            st.session_state.step = "exam_frame"
-            st.rerun()
-
-elif st.session_state.step == "exam_frame":
-    st.markdown("""<style>
-        header {visibility: hidden !important;}
-        #MainMenu {visibility: hidden !important;}
-        footer {visibility: hidden !important;}
-        .stApp { margin-top: -80px; }
-    </style>""", unsafe_allow_html=True)
-    st.markdown('<div style="height: 5px;"></div>', unsafe_allow_html=True)
-    c_right, c_mid, c_left = st.columns([2, 2, 2])
-    with c_right:
-        st.markdown('<b>🏠 מתווך בקליק</b>', unsafe_allow_html=True)
-    with c_mid:
-        st.markdown(f'<center><b>{st.session_state.user}</b></center>', 
-                    unsafe_allow_html=True)
-    with c_left:
-        if st.button("לתפריט הראשי"):
-            st.session_state.step = "menu"
-            st.rerun()
-    u_enc = st.session_state.user.replace(" ", "%20")
-    t_url = f"https://fullrealestatebroker-yevuzewxde4obgrpgacrpc.streamlit.app/?user={u_enc}"
-    st.components.v1.iframe(t_url, height=1000, scrolling=True)
-
-elif st.session_state.step == "study":
-    show_header()
-    sel = st.selectbox("בחר נושא:", ["בחר..."] + list(SYLLABUS.keys()))
-    if sel != "בחר..." and st.button("טען נושא"):
-        st.session_state.update({"selected_topic": sel, 
-                               "step": "lesson_run", "lesson_txt": ""})
-        st.rerun()
-
-elif st.session_state.step == "lesson_run":
-    show_header()
-    st.header(f"📖 {st.session_state.selected_topic}")
-    subs = SYLLABUS.get(st.session_state.selected_topic, [])
-    cols = st.columns(len(subs))
-    for i, s in enumerate(subs):
-        if cols[i].button(s, key=f"sub_{i}"):
-            st.session_state.update({"current_sub": s, "lesson_txt": "LOADING", 
-                                   "quiz_active": False, "q_count": 0})
-            st.rerun()
-    if st.session_state.get("lesson_txt") == "LOADING":
-        st.session_state.lesson_txt = stream_ai_lesson(f"שיעור על {st.session_state.current_sub}")
-        st.rerun()
-    elif st.session_state.get("lesson_txt
