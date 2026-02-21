@@ -200,4 +200,62 @@ elif st.session_state.step == "lesson_run":
             st.rerun()
     if not st.session_state.get("current_sub"):
         st.write("")
-        if st.button("לתפריט הראשי", key
+        if st.button("לתפריט הראשי", key="back_no_sub"):
+            reset_quiz_state()
+            st.session_state.step = "menu"
+            st.rerun()
+    else:
+        if st.session_state.get("lesson_txt") == "LOADING":
+            st.session_state.lesson_txt = stream_ai_lesson(f"הסבר על {st.session_state.current_sub}")
+            st.rerun()
+        elif st.session_state.get("lesson_txt"):
+            st.markdown(st.session_state.lesson_txt)
+        if st.session_state.quiz_active and st.session_state.q_data and not st.session_state.quiz_finished:
+            st.divider()
+            q = st.session_state.q_data
+            st.subheader(f"📝 שאלה {st.session_state.q_count} מתוך 10")
+            ans = st.radio(q['q'], q['options'], index=None, key=f"q_{st.session_state.q_count}")
+            qc1, qc2, qc3 = st.columns([2, 2, 2])
+            if qc1.button("בדוק/י תשובה", disabled=(ans is None or st.session_state.checked)):
+                st.session_state.checked = True
+                st.rerun()
+            if qc2.button("לשאלה הבאה" if st.session_state.q_count < 10 else "🏁 סיכום", disabled=not st.session_state.checked):
+                if st.session_state.q_count < 10:
+                    with st.spinner("טוען..."):
+                        res = fetch_q_ai(st.session_state.current_sub)
+                        if res:
+                            st.session_state.update({"q_data": res, "q_count": st.session_state.q_count + 1, "checked": False})
+                            st.rerun()
+                else:
+                    st.session_state.quiz_finished = True
+                    st.rerun()
+            if qc3.button("לתפריט הראשי", key="q_back"):
+                reset_quiz_state()
+                st.session_state.step = "menu"
+                st.rerun()
+            if st.session_state.checked:
+                if ans == q['correct']:
+                    st.success("נכון מאוד!")
+                    if f"sc_{st.session_state.q_count}" not in st.session_state:
+                        st.session_state.correct_answers += 1
+                        st.session_state[f"sc_{st.session_state.q_count}"] = True
+                else: st.error(f"טעות. הנכון הוא: {q['correct']}")
+                st.info(f"הסבר: {q['explain']}")
+        if (not st.session_state.quiz_active or st.session_state.quiz_finished) and st.session_state.get("current_sub"):
+            if st.session_state.quiz_finished:
+                st.success(f"🏆 ציון: {st.session_state.correct_answers} מתוך 10.")
+            ca, cb = st.columns([1, 1])
+            if ca.button("📝 שאלון תרגול" if not st.session_state.quiz_finished else "🔄 תרגול חוזר"):
+                if st.session_state.get("lesson_txt") not in ["", "LOADING"]:
+                    with st.spinner("מייצר שאלה..."):
+                        res = fetch_q_ai(st.session_state.current_sub)
+                        if res:
+                            reset_quiz_state()
+                            st.session_state.update({"q_data": res, "quiz_active": True, "q_count": 1, "checked": False})
+                            st.rerun()
+            if cb.button("לתפריט הראשי", key="main_back"):
+                reset_quiz_state()
+                st.session_state.step = "menu"
+                st.rerun()
+
+# --- End of File ---
