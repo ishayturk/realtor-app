@@ -1,4 +1,4 @@
-# Project: מתווך בקליק | Training_full_V12 | 21/02/2026 | 18:25
+# Project: מתווך בקליק | Training_full_V15 | 21/02/2026 | 18:27
 import streamlit as st
 import google.generativeai as genai
 import json
@@ -122,43 +122,31 @@ elif st.session_state.step == "menu":
         st.rerun()
 
 elif st.session_state.step == "exam_frame":
-    # CSS קיצוני להצמדה לקצה העליון של המסך
+    # הזרקת CSS ממוקדת אך ורק למסך זה כדי להעלים את המרווח וליישר לשמאל
     st.markdown("""
         <style>
             header { visibility: hidden; }
             .main .block-container { 
-                padding: 0 !important; 
-                max-width: 100% !important;
+                padding-top: 0px !important; 
+                margin-top: -85px !important; 
             }
-            /* הפיכת הכפתור לציפה על המסך למעלה */
-            .fixed-btn-container {
-                position: fixed;
-                top: 10px;
-                left: 20px;
-                z-index: 999999;
-                width: 150px;
-            }
-            iframe {
-                position: absolute;
-                top: 0;
-                left: 0;
-                width: 100vw;
-                height: 100vh;
-                border: none;
+            [data-testid="column"] {
+                display: flex;
+                justify-content: flex-start;
             }
         </style>
     """, unsafe_allow_html=True)
     
-    # שימוש ב-HTML להצבת הכפתור במקום קבוע
-    st.markdown('<div class="fixed-btn-container">', unsafe_allow_html=True)
-    if st.button("🏠 לתפריט הראשי"):
-        st.session_state.step = "menu"
-        st.rerun()
-    st.markdown('</div>', unsafe_allow_html=True)
+    # עמודה צרה לשמאל עבור הכפתור, ועמודה רחבה לימין כדי לדחוף אותו
+    c_back, c_empty = st.columns([1, 5])
+    with c_back:
+        if st.button("🏠 לתפריט הראשי"):
+            st.session_state.step = "menu"
+            st.rerun()
     
-    # הפריים של הבחינה תופס הכל
+    # הצגת הפריים של הבחינה
     exam_url = f"https://fullrealestatebroker-yevuzewxde4obgrpgacrpc.streamlit.app/?user={st.session_state.user}&embed=true"
-    st.markdown(f'<iframe src="{exam_url}"></iframe>', unsafe_allow_html=True)
+    st.markdown(f'<iframe src="{exam_url}" style="width:100%; height:100vh; border:none; margin-top:0px;"></iframe>', unsafe_allow_html=True)
 
 elif st.session_state.step == "study":
     show_header()
