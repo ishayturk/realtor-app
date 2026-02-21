@@ -1,6 +1,6 @@
 # ==========================================
 # Project: מתווך בקליק | File: app.py
-# Anchor: 1213 (Raw Content)
+# Anchor: 1213 (Integrated & Isolated Test Mode)
 # ==========================================
 import streamlit as st
 import google.generativeai as genai
@@ -8,7 +8,7 @@ import json, re
 
 st.set_page_config(page_title="מתווך בקליק", layout="wide")
 
-# CSS חזק להצמדת השם והכותרת בשורה אחת
+# CSS המקורי שלך - ללא שינוי כדי לשמור על נראות הלימוד
 st.markdown("""
 <style>
     * { direction: rtl; text-align: right; }
@@ -98,6 +98,8 @@ def show_header():
     else:
         st.markdown('<div class="header-title">🏠 מתווך בקליק</div>', unsafe_allow_html=True)
 
+# --- ניהול שלבי האפליקציה ---
+
 if st.session_state.step == "login":
     st.title("🏠 מתווך בקליק")
     u = st.text_input("שם מלא:")
@@ -113,17 +115,44 @@ elif st.session_state.step == "menu":
             st.session_state.step = "study"
             st.rerun()
     with c2:
-        u_name = st.session_state.user.replace(" ", "%20")
-        # הכתובת בשורה אחת למניעת SyntaxError
-        b_url = "https://fullrealestatebroker-yevuzewxde4obgrpgacrpc.streamlit.app/"
-        t_url = f"{b_url}?user={u_name}"
-        st.link_button("⏱️ גש/י למבחן", t_url)
+        # שינוי לכפתור רגיל שמפעיל את מצב ה-Iframe
+        if st.button("⏱️ גש/י למבחן"):
+            st.session_state.step = "test_mode"
+            st.rerun()
+
+elif st.session_state.step == "test_mode":
+    # 1. הסטריפ העליון - ממוקם גבוה, צפוף ומדויק
+    # שימוש ב-columns כדי לשלוט בצפיפות (הכל קרוב למרכז/ימין)
+    st.markdown('<div style="margin-top: -30px;"></div>', unsafe_allow_html=True) # דחיפה למעלה
+    cols = st.columns([1, 1, 1, 5]) 
+    with cols[0]:
+        if st.button("🏠 לתפריט"):
+            st.session_state.step = "menu"
+            st.rerun()
+    with cols[1]:
+        st.markdown(f"<p style='margin-top:10px; font-weight:900; white-space:nowrap;'>👤 {st.session_state.user}</p>", unsafe_allow_html=True)
+    with cols[2]:
+        st.markdown("<p style='margin-top:5px; font-size:1.2rem; font-weight:bold; white-space:nowrap;'>🏠 מתווך בקליק</p>", unsafe_allow_html=True)
+    
+    st.divider() # קו מפריד דק
+
+    # 2. אירוח אפליקציית המבחן ב-Iframe (צמוד לסטריפ)
+    u_name = st.session_state.user.replace(" ", "%20")
+    # הכתובת של אפליקציית המבחן
+    test_url = f"https://fullrealestatebroker-yevuzewxde4obgrpgacrpc.streamlit.app/?user={u_name}"
+    
+    # הצגת הפריים עם רווח מינימלי
+    st.markdown('<div style="margin-top: -20px;"></div>', unsafe_allow_html=True)
+    st.components.v1.iframe(test_url, height=900, scrolling=True)
 
 elif st.session_state.step == "study":
     show_header()
     sel = st.selectbox("בחר נושא:", ["בחר..."] + list(SYLLABUS.keys()))
     if sel != "בחר..." and st.button("טען נושא"):
         st.session_state.update({"selected_topic": sel, "step": "lesson_run", "lesson_txt": ""})
+        st.rerun()
+    if st.button("🏠 חזרה"):
+        st.session_state.step = "menu"
         st.rerun()
 
 elif st.session_state.step == "lesson_run":
