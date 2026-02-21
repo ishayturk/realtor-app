@@ -1,4 +1,4 @@
-# Project: מתווך בקליק | Version: 1213-Safe-Exam-Final-Full-V2 | File: app.py
+# Project: מתווך בקליק | Version: 1213-Safe-Exam-Final-Full-V2-SlimStrip | File: app.py
 import streamlit as st
 import google.generativeai as genai
 import json
@@ -32,6 +32,16 @@ st.markdown("""
         border-radius: 8px !important; 
         font-weight: bold !important; 
         height: 3em !important; 
+    }
+    /* עיצוב לינק טקסטואלי נקי עבור הסטריפ */
+    .nav-link-simple {
+        color: black !important;
+        text-decoration: none !important;
+        font-weight: bold !important;
+        font-size: 1rem;
+    }
+    .nav-link-simple:hover {
+        text-decoration: underline !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -124,23 +134,28 @@ elif st.session_state.step == "menu":
         st.rerun()
 
 elif st.session_state.step == "exam_frame":
-    # הסתרת הדר המערכת וצמצום מרווחים רק בדף זה
+    # צמצום מרווחים מקסימלי לסטריפ דק מאוד
     st.markdown("""
         <style>
             header {visibility: hidden;}
-            .block-container { padding-top: 1rem !important; }
+            .block-container { padding-top: 0.5rem !important; }
         </style>
     """, unsafe_allow_html=True)
     
+    # סטריפ צר וממורכז ברוחב התוכן
     _, center_col, _ = st.columns([1, 2, 1])
     with center_col:
-        sc1, sc2, sc3 = st.columns([1, 2, 1])
-        with sc1: st.markdown("🏠 **מתווך בקליק**")
-        with sc2: st.markdown(f"<p style='text-align:center;'>👤 <b>{st.session_state.user}</b></p>", unsafe_allow_html=True)
+        sc1, sc2, sc3 = st.columns([1.2, 2, 1.2])
+        with sc1: 
+            st.markdown("🏠 **מתווך בקליק**")
+        with sc2: 
+            st.markdown(f"<p style='text-align:center; margin:0;'>👤 <b>{st.session_state.user}</b></p>", unsafe_allow_html=True)
         with sc3:
-            if st.button("חזרה", key="exam_back_btn"):
+            # שימוש בקישור טקסטואלי במקום כפתור
+            if st.button("לתפריט הראשי", key="back_to_menu_link", use_container_width=False):
                 st.session_state.step = "menu"
                 st.rerun()
+                
     st.write("") 
     st.markdown("### כאן יבואו עמודי הבחינה")
 
