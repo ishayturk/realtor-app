@@ -130,7 +130,7 @@ elif st.session_state.step == "exam_frame":
         <style>
             header {visibility: hidden;}
             .block-container { padding-top: 0.5rem !important; }
-            /* דריסת העיצוב הגלובלי לכפתור החזרה בסטריפ כדי שייראה כטקסט */
+            /* עיצוב כפתור הניווט בסטריפ - נראה כטקסט מוגדל עם אייקון */
             div[data-testid="stColumn"] .stButton button {
                 background: none !important;
                 border: none !important;
@@ -139,6 +139,7 @@ elif st.session_state.step == "exam_frame":
                 text-decoration: underline !important;
                 height: auto !important;
                 width: auto !important;
+                font-size: 1.1rem !important;
                 font-weight: bold !important;
                 display: inline !important;
             }
@@ -151,8 +152,8 @@ elif st.session_state.step == "exam_frame":
         with sc1: st.markdown("🏠 **מתווך בקליק**")
         with sc2: st.markdown(f"<p style='text-align:center; margin:0;'>👤 <b>{st.session_state.user}</b></p>", unsafe_allow_html=True)
         with sc3:
-            # הכפתור מופעל לוגית כפתור אך נראה כטקסט דק
-            if st.button("לתפריט הראשי", key="strip_nav_back"):
+            # כפתור טקסטואלי מוגדל עם אייקון בית
+            if st.button("🏠 לתפריט הראשי", key="strip_nav_back"):
                 reset_quiz_state()
                 st.session_state.step = "menu"
                 st.rerun()
@@ -168,7 +169,7 @@ elif st.session_state.step == "study":
         reset_quiz_state()
         st.session_state.update({"selected_topic": sel, "step": "lesson_run", "lesson_txt": "", "current_sub": None})
         st.rerun()
-    if col_b.button("לתפריט הראשי"):
+    if col_b.button("🏠 לתפריט הראשי"):
         reset_quiz_state()
         st.session_state.step = "menu"
         st.rerun()
@@ -190,7 +191,7 @@ elif st.session_state.step == "lesson_run":
 
     if not st.session_state.get("current_sub"):
         st.write("")
-        if st.button("לתפריט הראשי", key="back_no_sub"):
+        if st.button("🏠 לתפריט הראשי", key="back_no_sub"):
             reset_quiz_state()
             st.session_state.step = "menu"
             st.rerun()
@@ -220,7 +221,7 @@ elif st.session_state.step == "lesson_run":
                 else:
                     st.session_state.quiz_finished = True
                     st.rerun()
-            if qc3.button("לתפריט הראשי", key="q_back"):
+            if qc3.button("🏠 לתפריט הראשי", key="q_back"):
                 reset_quiz_state()
                 st.session_state.step = "menu"
                 st.rerun()
@@ -246,7 +247,7 @@ elif st.session_state.step == "lesson_run":
                             reset_quiz_state()
                             st.session_state.update({"q_data": res, "quiz_active": True, "q_count": 1, "checked": False})
                             st.rerun()
-            if cb.button("לתפריט הראשי", key="main_back"):
+            if cb.button("🏠 לתפריט הראשי", key="main_back"):
                 reset_quiz_state()
                 st.session_state.step = "menu"
                 st.rerun()
