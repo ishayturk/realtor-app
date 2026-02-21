@@ -1,7 +1,7 @@
 # ==========================================
 # Project: מתווך בקליק | Version: 1213-Anchor-Updated
-# Last Update: 21/02/2026 | 12:15 (Jerusalem Time GMT+2)
-# Status: Final Strip Fix | Protocol: Full File Delivery
+# Last Update: 21/02/2026 | 12:20 (Jerusalem Time GMT+2)
+# Status: Indentation Fixed | Protocol: Full File Delivery
 # ==========================================
 import streamlit as st
 import google.generativeai as genai
@@ -134,6 +134,7 @@ elif st.session_state.step == "lesson_run":
         st.rerun()
     elif st.session_state.get("lesson_txt"):
         st.markdown(st.session_state.lesson_txt)
+    
     if st.session_state.quiz_active and st.session_state.q_data and not st.session_state.quiz_finished:
         st.divider()
         q = st.session_state.q_data
@@ -146,9 +147,23 @@ elif st.session_state.step == "lesson_run":
             else:
                 st.error(f"טעות. התשובה היא: {q['correct']}")
             st.info(f"הסבר: {q['explain']}")
+    
     if st.session_state.quiz_finished:
         st.divider(); st.balloons()
         st.success(f"🏆 סיימת! ענית נכון על {st.session_state.correct_answers} מתוך 10.")
+    
     st.divider()
     f1, f2, f3 = st.columns([2, 2, 4])
     with f1:
+        if st.button("🏠 חזרה לתפריט"):
+            st.session_state.step = "menu"
+            st.rerun()
+    with f2:
+        if st.session_state.get("lesson_txt") and st.session_state.lesson_txt != "LOADING":
+            if not st.session_state.quiz_active:
+                if st.button("📝 שאלון תרגול"):
+                    with st.spinner("מכין שאלה..."):
+                        res = fetch_q_ai(st.session_state.current_sub)
+                        if res: 
+                            st.session_state.update({"q_data": res, "quiz_active": True, 
+                                                   "q
