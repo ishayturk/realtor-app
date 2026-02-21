@@ -1,4 +1,4 @@
-# Project: מתווך בקליק | Version: training_full_V02 | 21/02/2026 | 19:10
+# Project: מתווך בקליק | Version: training_full_V02 | 21/02/2026 | 19:40
 import streamlit as st
 import google.generativeai as genai
 import json
@@ -7,7 +7,7 @@ import re
 # הגדרת דף
 st.set_page_config(page_title="מתווך בקליק", layout="wide")
 
-# עיצוב RTL בסיסי - בדיוק כפי שסיפקת ב-V01
+# עיצוב RTL בסיסי - עוגן 1213 המקורי (ללא שינוי!)
 st.markdown("""
 <style>
     * { direction: rtl; text-align: right; }
@@ -50,7 +50,7 @@ SYLLABUS = {
     "חוק העונשין": ["עבירות מרמה וזיוף"]
 }
 
-# פונקציות
+# פונקציות (V01)
 def reset_quiz_state():
     st.session_state.update({
         "quiz_active": False, "q_data": None, "q_count": 0,
@@ -124,25 +124,41 @@ elif st.session_state.step == "menu":
         st.rerun()
 
 elif st.session_state.step == "exam_frame":
-    # הזרקת CSS מבודדת רק לדף זה כדי להצמיד ללמעלה ולהעלים את ה-Header של סטרימליט
+    # שיטת הלינק הגבוה (V1218) בתוך ה-V01, מוסט לשמאל
     st.markdown("""
-        <style>
-            header {visibility: hidden;}
-            .main .block-container { padding-top: 0px !important; margin-top: -85px !important; }
-            .back-col { text-align: left; direction: ltr; }
-        </style>
+    <style>
+        header { visibility: hidden !important; }
+        .main .block-container { padding: 0 !important; }
+        .nav-link-box { 
+            position: fixed; 
+            top: 10px; 
+            width: 100%; 
+            display: flex; 
+            justify-content: flex-start; 
+            padding-right: 20px;
+            z-index: 1001; 
+        }
+        .nav-link { 
+            text-decoration: none; 
+            color: #555; 
+            font-weight: bold; 
+            background: rgba(255,255,255,0.8); 
+            padding: 2px 12px; 
+            border-radius: 5px; 
+            border: 1px solid #ddd; 
+        }
+    </style>
+    <div class="nav-link-box"><a href="/?step=menu" target="_self" class="nav-link">לתפריט הראשי</a></div>
     """, unsafe_allow_html=True)
     
-    # שורה עליונה עם כפתור חזרה בשמאל
-    cols = st.columns([5, 1])
-    with cols[1]:
-        if st.button("חזרה", key="exam_back_btn"):
-            st.session_state.step = "menu"
-            st.rerun()
-            
-    # פריים הבחינה
-    exam_url = f"https://fullrealestatebroker-yevuzewxde4obgrpgacrpc.streamlit.app/?user={st.session_state.user}&embed=true"
-    st.markdown(f'<iframe src="{exam_url}" style="width:100%; height:100vh; border:none;"></iframe>', unsafe_allow_html=True)
+    if st.query_params.get("step") == "menu":
+        st.session_state.step = "menu"
+        st.query_params.clear()
+        st.rerun()
+
+    base_url = "https://fullrealestatebroker-yevuzewxde4obgrpgacrpc.streamlit.app/"
+    exam_url = f"{base_url}?user={st.session_state.user}&embed=true"
+    st.markdown(f'<iframe src="{exam_url}" style="width:100%; height:100vh; border:none; margin-top:-50px;"></iframe>', unsafe_allow_html=True)
 
 elif st.session_state.step == "study":
     show_header()
