@@ -130,18 +130,21 @@ elif st.session_state.step == "exam_frame":
         <style>
             header {visibility: hidden;}
             .block-container { padding-top: 0.5rem !important; }
-            /* עיצוב כפתור הניווט בסטריפ - נראה כטקסט מוגדל עם אייקון */
+            /* עיצוב כפתור הניווט בסטריפ - נראה כטקסט נקי ללא קו תחתון */
             div[data-testid="stColumn"] .stButton button {
                 background: none !important;
                 border: none !important;
                 padding: 0 !important;
                 color: black !important;
-                text-decoration: underline !important;
+                text-decoration: none !important;
                 height: auto !important;
                 width: auto !important;
-                font-size: 1.1rem !important;
+                font-size: 1.15rem !important;
                 font-weight: bold !important;
                 display: inline !important;
+            }
+            div[data-testid="stColumn"] .stButton button:hover {
+                color: #4F8BFF !important; /* צבע ריחוף עדין לאחידות */
             }
         </style>
     """, unsafe_allow_html=True)
@@ -152,7 +155,7 @@ elif st.session_state.step == "exam_frame":
         with sc1: st.markdown("🏠 **מתווך בקליק**")
         with sc2: st.markdown(f"<p style='text-align:center; margin:0;'>👤 <b>{st.session_state.user}</b></p>", unsafe_allow_html=True)
         with sc3:
-            # כפתור טקסטואלי מוגדל עם אייקון בית
+            # כפתור טקסטואלי עם אייקון ועיצוב נקי ללא קו תחתון
             if st.button("🏠 לתפריט הראשי", key="strip_nav_back"):
                 reset_quiz_state()
                 st.session_state.step = "menu"
