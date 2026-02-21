@@ -1,7 +1,7 @@
 # ==========================================
-# Project: מתווך בקליק | Version: 1213-Anchor-Updated
-# Last Update: 21/02/2026 | 14:45 (Jerusalem Time GMT+2)
-# Status: Strip Visibility Restored | Protocol: Full File Delivery
+# Project: מתווך בקליק | Version: 1213-Anchor-Restored
+# Last Update: 21/02/2026 | 15:30 (Jerusalem Time GMT+2)
+# Status: Full System Restored | Protocol: Full File Delivery
 # ==========================================
 import streamlit as st
 import google.generativeai as genai
@@ -15,9 +15,10 @@ st.markdown("""
     .header-container { display: flex; align-items: center; gap: 45px; margin-bottom: 30px; }
     .header-title { font-size: 2.5rem !important; font-weight: bold !important; margin: 0 !important; }
     .header-user { font-size: 1.2rem !important; font-weight: 900 !important; color: #31333f; }
-    .stButton>button { width: 100% !important; border-radius: 8px !important; height: 3em !important; }
+    .stButton>button { width: 100% !important; border-radius: 8px !important; height: 3em !important; font-weight: bold !important; }
     
-    .strip-text { font-size: 1.2rem; font-weight: bold; padding-top: 10px; }
+    /* סטריפ בחינה - שורה אחת דקה */
+    .exam-strip-txt { font-size: 1.1rem; font-weight: bold; padding-top: 5px; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -73,8 +74,6 @@ def show_header():
             f'<div class="header-user">👤 <b>{u}</b></div></div>'
         st.markdown(h, unsafe_allow_html=True)
 
-# --- ניהול שלבים ---
-
 if st.session_state.step == "login":
     st.title("🏠 מתווך בקליק")
     u_in = st.text_input("שם מלא:")
@@ -92,23 +91,19 @@ elif st.session_state.step == "menu":
             st.session_state.step = "exam_frame"; st.rerun()
 
 elif st.session_state.step == "exam_frame":
-    # ניקוי מרווחים בסיסי בלי להעלים אלמנטים
     st.markdown("""<style>
-        header {visibility: hidden !important; height: 0 !important;}
-        .block-container {padding-top: 2rem !important;}
+        header {visibility: hidden !important;}
+        .block-container {padding-top: 0.5rem !important;}
+        .stApp { margin-top: -30px; }
     </style>""", unsafe_allow_html=True)
     
-    # הסטריפ - שורה ראשונה
-    strip_cols = st.columns([1, 1, 1])
-    with strip_cols[0]:
-        st.markdown('<p class="strip-text" style="text-align:right;">🏠 מתווך בקליק</p>', unsafe_allow_html=True)
-    with strip_cols[1]:
-        st.markdown(f'<p class="strip-text" style="text-align:center;">{st.session_state.user}</p>', unsafe_allow_html=True)
-    with strip_cols[2]:
-        if st.button("🔙 חזרה", key="back_from_exam"):
+    # סטריפ בחינה - שורה אחת גבוהה ודקה
+    s_r, s_c, s_l = st.columns([1, 1, 1])
+    with s_r: st.markdown('<p class="exam-strip-txt" style="text-align:right;">🏠 מתווך בקליק</p>', unsafe_allow_html=True)
+    with s_c: st.markdown(f'<p class="exam-strip-txt" style="text-align:center;">{st.session_state.user}</p>', unsafe_allow_html=True)
+    with s_l: 
+        if st.button("חזרה לתפריט", key="back_exam"):
             st.session_state.step = "menu"; st.rerun()
-
-    st.divider() # קו מפריד דק בין הסטריפ ל-iframe
 
     u_enc = st.session_state.user.replace(" ", "%20")
     b_url = "https://fullrealestatebroker-yevuzewxde4obgrpgacrpc.streamlit.app/"
@@ -128,13 +123,50 @@ elif st.session_state.step == "lesson_run":
     cols = st.columns(len(subs))
     for i, s in enumerate(subs):
         if cols[i].button(s, key=f"sub_{i}"):
-            st.session_state.update({"current_sub": s, "lesson_txt": "LOADING", "quiz_active": False})
+            st.session_state.update({"current_sub": s, "lesson_txt": "LOADING", "quiz_active": False, "q_count": 0})
             st.rerun()
-    
+            
     if st.session_state.get("lesson_txt") == "LOADING":
         st.session_state.lesson_txt = stream_ai_lesson(f"שיעור על {st.session_state.current_sub}")
         st.rerun()
     elif st.session_state.get("lesson_txt"):
         st.markdown(st.session_state.lesson_txt)
-        if st.button("🏠 חזרה לתפריט"):
-            st.session_state.step = "menu"; st.rerun()
+        
+        # כפתורי פעולה בשיעור
+        st.divider()
+        f1, f2 = st.columns([1, 1])
+        with f1:
+            if st.button("🏠 חזרה"): st.session_state.step = "menu"; st.rerun()
+        with f2:
+            if not st.session_state.quiz_active:
+                if st.button("📝 שאלון תרגול"):
+                    res = fetch_q_ai(st.session_state.current_sub)
+                    if res: st.session_state.update({"q_data": res, "quiz_active": True, "q_count": 1, "correct_answers": 0, "quiz_finished": False})
+                    st.rerun()
+
+    # לוגיקת שאלון
+    if st.session_state.quiz_active and st.session_state.q_data and not st.session_state.quiz_finished:
+        st.divider()
+        q = st.session_state.q_data
+        st.subheader(f"📝 שאלה {st.session_state.q_count} מתוך 10")
+        ans = st.radio(q['q'], q['options'], index=None, key=f"q_{st.session_state.q_count}")
+        if st.button("✅ בדיקת תשובה"):
+            if ans == q['correct']:
+                st.success("נכון!"); st.session_state.correct_answers += 1
+            else:
+                st.error(f"טעות. התשובה היא: {q['correct']}")
+            st.info(f"הסבר: {q['explain']}")
+            
+            if st.session_state.q_count < 10:
+                if st.button("➡️ שאלה הבאה"):
+                    res = fetch_q_ai(st.session_state.current_sub)
+                    if res: st.session_state.update({"q_data": res, "q_count": st.session_state.q_count + 1})
+                    st.rerun()
+            else:
+                if st.button("🏁 סיכום שאלון"):
+                    st.session_state.update({"quiz_finished": True}); st.rerun()
+
+    if st.session_state.quiz_finished:
+        st.divider(); st.balloons()
+        st.success(f"🏆 סיימת! ענית נכון על {st.session_state.correct_answers} מתוך 10.")
+        if st.button("🏠 חזרה לתפריט הראשי"): st.session_state.step = "menu"; st.rerun()
