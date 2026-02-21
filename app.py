@@ -1,4 +1,4 @@
-# Project: מתווך בקליק | Training_full_V15 | 21/02/2026 | 18:27
+# Project: מתווך בקליק | Training_full_V16 | 21/02/2026 | 18:40
 import streamlit as st
 import google.generativeai as genai
 import json
@@ -7,7 +7,7 @@ import re
 # הגדרת דף
 st.set_page_config(page_title="מתווך בקליק", layout="wide")
 
-# עיצוב RTL כללי
+# עיצוב RTL כללי (ללא פגיעה במרווחים של שאר האפליקציה)
 st.markdown("""
 <style>
     * { direction: rtl; text-align: right; }
@@ -122,31 +122,26 @@ elif st.session_state.step == "menu":
         st.rerun()
 
 elif st.session_state.step == "exam_frame":
-    # הזרקת CSS ממוקדת אך ורק למסך זה כדי להעלים את המרווח וליישר לשמאל
+    # הסתרת ה-Header המובנה של סטרימליט וביטול מרווח עליון
     st.markdown("""
         <style>
             header { visibility: hidden; }
-            .main .block-container { 
-                padding-top: 0px !important; 
-                margin-top: -85px !important; 
-            }
-            [data-testid="column"] {
-                display: flex;
-                justify-content: flex-start;
-            }
+            .main .block-container { padding: 0 !important; }
+            iframe { border: none; width: 100%; height: 100vh; }
         </style>
     """, unsafe_allow_html=True)
-    
-    # עמודה צרה לשמאל עבור הכפתור, ועמודה רחבה לימין כדי לדחוף אותו
-    c_back, c_empty = st.columns([1, 5])
-    with c_back:
+
+    # יצירת כפתור "חזרה" שיופיע בתוך הדף בצד שמאל, ממש מעל ה-Iframe
+    # כדי שלא יהיה מרווח, אנחנו משתמשים ב-HTML/CSS פשוט
+    cols = st.columns([1, 5])
+    with cols[0]:
         if st.button("🏠 לתפריט הראשי"):
             st.session_state.step = "menu"
             st.rerun()
-    
-    # הצגת הפריים של הבחינה
+
+    # טעינת אפליקציית הבחינה בתוך פריים שמתחיל מיד מתחת לכפתור
     exam_url = f"https://fullrealestatebroker-yevuzewxde4obgrpgacrpc.streamlit.app/?user={st.session_state.user}&embed=true"
-    st.markdown(f'<iframe src="{exam_url}" style="width:100%; height:100vh; border:none; margin-top:0px;"></iframe>', unsafe_allow_html=True)
+    st.markdown(f'<iframe src="{exam_url}"></iframe>', unsafe_allow_html=True)
 
 elif st.session_state.step == "study":
     show_header()
