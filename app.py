@@ -124,7 +124,7 @@ elif st.session_state.step == "menu":
         st.rerun()
 
 elif st.session_state.step == "exam_frame":
-    # הסתרת הדר המערכת וצמצום מרווחים רק בדף זה
+    # צמצום מרווחים רק בדף זה
     st.markdown("""
         <style>
             header {visibility: hidden;}
@@ -134,16 +134,15 @@ elif st.session_state.step == "exam_frame":
     
     _, center_col, _ = st.columns([1, 2, 1])
     with center_col:
-        sc1, sc2, sc3 = st.columns([1.2, 2, 1.2])
+        sc1, sc2, sc3 = st.columns([1, 2, 1])
         with sc1: st.markdown("🏠 **מתווך בקליק**")
         with sc2: st.markdown(f"<p style='text-align:center;'>👤 <b>{st.session_state.user}</b></p>", unsafe_allow_html=True)
         with sc3:
-            # שימוש ב-st.button שמעוצב כלינק כדי לשמור על הלוגיקה בלי להרוס את העיצוב
-            if st.button("לתפריט הראשי", key="strip_back_btn"):
+            # הכפתור כאן יפעל בדיוק כמו הכפתורים בלימוד
+            if st.button("לתפריט הראשי", key="back_from_exam"):
                 reset_quiz_state()
                 st.session_state.step = "menu"
                 st.rerun()
-
     st.write("") 
     st.markdown("### כאן יבואו עמודי הבחינה")
 
