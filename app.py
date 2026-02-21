@@ -1,4 +1,4 @@
-# Project: מתווך בקליק | Version: 1213-Ultra-Slim-Final | File: app.py
+# Project: מתווך בקליק | Version: 1213-Final-Slim-Seamless | File: app.py
 import streamlit as st
 import google.generativeai as genai
 import json
@@ -8,54 +8,57 @@ import streamlit.components.v1 as components
 # הגדרת דף
 st.set_page_config(page_title="מתווך בקליק", layout="wide")
 
-# עיצוב RTL בסיסי
+# בדיקת ניווט דרך URL עבור הלינק בסטריפ
+if st.query_params.get("nav") == "menu":
+    st.query_params.clear()
+    st.session_state.step = "menu"
+    st.rerun()
+
+# עיצוב RTL, ניקוי שוליים ועיצוב הסטריפ
 st.markdown("""
 <style>
     * { direction: rtl; text-align: right; }
-    .header-container { 
-        display: flex; 
-        align-items: center; 
-        gap: 45px; 
-        margin-bottom: 30px; 
-    }
-    .header-title { 
-        font-size: 2.5rem !important; 
-        font-weight: bold !important; 
-        margin: 0 !important; 
-    }
-    .header-user { 
-        font-size: 1.2rem !important; 
-        font-weight: 900 !important; 
-        color: #31333f; 
-    }
-    .stButton>button { 
-        width: 100% !important; 
-        border-radius: 8px !important; 
-        font-weight: bold !important; 
-        height: 3em !important; 
-    }
+    header { visibility: hidden; }
     
-    /* סטריפ דק מאוד - שורה אחת מהקצה, עובי 2 שורות */
-    .exam-strip {
+    /* הסטריפ הדק - שורה אחת מהקצה, עובי מינימלי */
+    .ultra-slim-strip {
         max-width: 1200px;
-        margin: 1rem auto 0.5rem auto;
+        margin: 1rem auto 0.2rem auto;
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 5px 20px;
-        height: 40px;
-        color: black;
+        height: 30px;
+        padding: 0 10px;
+        font-family: sans-serif;
+        background-color: transparent;
     }
-    .nav-link-btn {
+    
+    .strip-text {
+        font-weight: bold;
+        color: black;
+        font-size: 1rem;
+        margin: 0;
+    }
+    
+    .nav-link-text {
         color: black !important;
         text-decoration: none !important;
         font-weight: bold !important;
-        background: none !important;
-        border: none !important;
-        padding: 0 !important;
-        cursor: pointer !important;
-        font-family: inherit !important;
-        font-size: 1rem !important;
+        font-size: 1rem;
+    }
+    .nav-link-text:hover {
+        text-decoration: underline !important;
+    }
+
+    /* פריסת ה-Iframe לכל הרוחב ללא שוליים */
+    .main .block-container {
+        padding-top: 0 !important;
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+        max-width: 100% !important;
+    }
+    iframe {
+        margin-top: 0 !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -122,9 +125,9 @@ if "step" not in st.session_state:
 
 def show_header():
     if st.session_state.get("user"):
-        st.markdown(f"""<div class="header-container">
-            <div class="header-title">🏠 מתווך בקליק</div>
-            <div class="header-user">👤 <b>{st.session_state.user}</b></div>
+        st.markdown(f"""<div style="display:flex; align-items:center; gap:45px; margin-bottom:30px;">
+            <div style="font-size:2.5rem; font-weight:bold;">🏠 מתווך בקליק</div>
+            <div style="font-size:1.2rem; font-weight:900;">👤 <b>{st.session_state.user}</b></div>
         </div>""", unsafe_allow_html=True)
 
 # --- Routing ---
@@ -140,43 +143,28 @@ if st.session_state.step == "login":
 elif st.session_state.step == "menu":
     show_header()
     c1, c2, _ = st.columns([1.5, 1.5, 3])
-    if c1.button("📚 לימוד לפי נושאים"):
-        st.session_state.step = "study"
-        st.rerun()
-    if c2.button("⏱️ גש/י למבחן"):
-        st.session_state.step = "exam_frame"
-        st.rerun()
+    with c1:
+        if st.button("📚 לימוד לפי נושאים"):
+            st.session_state.step = "study"
+            st.rerun()
+    with c2:
+        if st.button("⏱️ גש/י למבחן"):
+            st.session_state.step = "exam_frame"
+            st.rerun()
 
 elif st.session_state.step == "exam_frame":
-    # CSS לביטול שוליים והסתרת הדר של המארח
-    st.markdown("""
-        <style>
-            header {visibility: hidden;}
-            .main .block-container {
-                padding-top: 0 !important;
-                padding-left: 0 !important;
-                padding-right: 0 !important;
-                max-width: 100% !important;
-            }
-        </style>
-    """, unsafe_allow_html=True)
-    
-    # בניית הסטריפ בשורה אחת דקה
+    # הזרקת הסטריפ כ-HTML טהור (שורה אחת, דקה, צרה)
     st.markdown(f"""
-        <div class="exam-strip">
-            <div style="font-weight: bold; flex: 1; text-align: right;">🏠 מתווך בקליק</div>
-            <div style="font-weight: bold; flex: 2; text-align: center;">👤 {st.session_state.user}</div>
-            <div style="flex: 1; text-align: left;">
+        <div class="ultra-slim-strip">
+            <div class="strip-text">🏠 מתווך בקליק</div>
+            <div class="strip-text">👤 {st.session_state.user}</div>
+            <div class="strip-text">
+                <a href="/?nav=menu" target="_self" class="nav-link-text">לתפריט הראשי</a>
+            </div>
+        </div>
     """, unsafe_allow_html=True)
     
-    # שימוש ב-st.button מעוצב כלינק כדי לשמור על פונקציונליות
-    if st.button("לתפריט הראשי", key="back_link_slim"):
-        st.session_state.step = "menu"
-        st.rerun()
-    
-    st.markdown("</div></div>", unsafe_allow_html=True)
-    
-    # Iframe בפריסה מלאה ללא רווח
+    # Iframe בפריסה מלאה ללא רווח מהסטריפ
     exam_url = "https://fullrealestatebroker-yevuzewxde4obgrpgacrpc.streamlit.app/?embed=true"
     components.iframe(exam_url, height=1000, scrolling=True)
 
@@ -184,10 +172,11 @@ elif st.session_state.step == "study":
     show_header()
     sel = st.selectbox("בחר נושא לימוד:", ["בחר..."] + list(SYLLABUS.keys()))
     col_a, col_b = st.columns([1, 1])
-    if col_a.button("טען נושא") and sel != "בחר...":
-        reset_quiz_state()
-        st.session_state.update({"selected_topic": sel, "step": "lesson_run", "lesson_txt": "", "current_sub": None})
-        st.rerun()
+    if col_a.button("טען נושא"):
+        if sel != "בחר...":
+            reset_quiz_state()
+            st.session_state.update({"selected_topic": sel, "step": "lesson_run", "lesson_txt": "", "current_sub": None})
+            st.rerun()
     if col_b.button("לתפריט הראשי"):
         reset_quiz_state()
         st.session_state.step = "menu"
@@ -207,10 +196,8 @@ elif st.session_state.step == "lesson_run":
             st.session_state.update({"current_sub": s, "lesson_txt": "LOADING"})
             st.rerun()
     if not st.session_state.get("current_sub"):
-        st.write("")
-        if st.button("לתפריט הראשי", key="back_no_sub"):
-            reset_quiz_state()
-            st.session_state.step = "menu"
+        if st.button("חזרה לבחירה"):
+            st.session_state.step = "study"
             st.rerun()
     else:
         if st.session_state.get("lesson_txt") == "LOADING":
@@ -237,7 +224,7 @@ elif st.session_state.step == "lesson_run":
                 else:
                     st.session_state.quiz_finished = True
                     st.rerun()
-            if qc3.button("לתפריט הראשי", key="q_back"):
+            if qc3.button("לתפריט הראשי"):
                 reset_quiz_state()
                 st.session_state.step = "menu"
                 st.rerun()
@@ -254,14 +241,13 @@ elif st.session_state.step == "lesson_run":
                 st.success(f"🏆 ציון: {st.session_state.correct_answers} מתוך 10.")
             ca, cb = st.columns([1, 1])
             if ca.button("📝 שאלון תרגול" if not st.session_state.quiz_finished else "🔄 תרגול חוזר"):
-                if st.session_state.get("lesson_txt") not in ["", "LOADING"]:
-                    with st.spinner("מייצר שאלה..."):
-                        res = fetch_q_ai(st.session_state.current_sub)
-                        if res:
-                            reset_quiz_state()
-                            st.session_state.update({"q_data": res, "quiz_active": True, "q_count": 1, "checked": False})
-                            st.rerun()
-            if cb.button("לתפריט הראשי", key="main_back"):
+                with st.spinner("מייצר שאלה..."):
+                    res = fetch_q_ai(st.session_state.current_sub)
+                    if res:
+                        reset_quiz_state()
+                        st.session_state.update({"q_data": res, "quiz_active": True, "q_count": 1, "checked": False})
+                        st.rerun()
+            if cb.button("לתפריט הראשי"):
                 reset_quiz_state()
                 st.session_state.step = "menu"
                 st.rerun()
