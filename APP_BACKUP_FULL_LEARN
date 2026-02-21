@@ -1,4 +1,4 @@
-# Project: מתווך בקליק | Version: 1213-Safe-Exam-Final-Full-V2 | File: app.py
+# Project: מתווך בקליק | Version: training_full_v01 | File: app.py
 import streamlit as st
 import google.generativeai as genai
 import json
