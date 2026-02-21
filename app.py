@@ -1,4 +1,4 @@
-# Project: מתווך בקליק | Training_full_V07 | 21/02/2026 | 18:12
+# Project: מתווך בקליק | Training_full_V08 | 21/02/2026 | 18:48
 import streamlit as st
 import google.generativeai as genai
 import json
@@ -124,35 +124,28 @@ elif st.session_state.step == "menu":
         st.rerun()
 
 elif st.session_state.step == "exam_frame":
-    # הזרקת CSS אגרסיבית להעלמת המרווח העליון רק בדף זה
+    # הצמדת הכפתור למעלה בקו של ה-Header המקורי
     st.markdown("""
         <style>
             header {visibility: hidden;}
-            .main .block-container { 
-                padding-top: 0px !important; 
-                margin-top: -85px !important; 
-            }
-            [data-testid="stVerticalBlock"] > div:first-child { 
-                padding-top: 0px !important; 
-            }
+            .main .block-container { padding-top: 0px !important; }
         </style>
     """, unsafe_allow_html=True)
     
-    # סטריפ עליון - הכפתור בשמאל (עמודה אחרונה ב-RTL)
+    # עמודה ריקה מימין, כפתור בשמאל
     c_empty, c_back = st.columns([5, 1])
     with c_back:
         if st.button("🏠 לתפריט"):
             st.session_state.step = "menu"
             st.rerun()
     
-    # הצגת אפליקציית הבחינה
+    # פריים הבחינה
     exam_url = f"https://fullrealestatebroker-yevuzewxde4obgrpgacrpc.streamlit.app/?user={st.session_state.user}&embed=true"
-    st.markdown(f"""
-        <iframe src="{exam_url}" style="width:100%; height:100vh; border:none; margin-top:-15px;"></iframe>
-    """, unsafe_allow_html=True)
+    st.markdown(f'<iframe src="{exam_url}" style="width:100%; height:92vh; border:none; margin-top:0px;"></iframe>', unsafe_allow_html=True)
 
 elif st.session_state.step == "study":
     show_header()
+    # (שאר הקוד נשאר ללא שינוי מעוגן 1213...)
     sel = st.selectbox("בחר נושא לימוד:", ["בחר..."] + list(SYLLABUS.keys()))
     col_a, col_b = st.columns([1, 1])
     if col_a.button("טען נושא") and sel != "בחר...":
@@ -169,7 +162,6 @@ elif st.session_state.step == "lesson_run":
     if not st.session_state.get("selected_topic"):
         st.session_state.step = "study"
         st.rerun()
-
     st.header(f"📖 {st.session_state.selected_topic}")
     subs = SYLLABUS.get(st.session_state.selected_topic, [])
     cols = st.columns(len(subs))
@@ -178,9 +170,7 @@ elif st.session_state.step == "lesson_run":
             reset_quiz_state()
             st.session_state.update({"current_sub": s, "lesson_txt": "LOADING"})
             st.rerun()
-
     if not st.session_state.get("current_sub"):
-        st.write("")
         if st.button("לתפריט הראשי", key="back_no_sub"):
             reset_quiz_state()
             st.session_state.step = "menu"
@@ -191,7 +181,6 @@ elif st.session_state.step == "lesson_run":
             st.rerun()
         elif st.session_state.get("lesson_txt"):
             st.markdown(st.session_state.lesson_txt)
-
         if st.session_state.quiz_active and st.session_state.q_data and not st.session_state.quiz_finished:
             st.divider()
             q = st.session_state.q_data
@@ -215,7 +204,6 @@ elif st.session_state.step == "lesson_run":
                 reset_quiz_state()
                 st.session_state.step = "menu"
                 st.rerun()
-
             if st.session_state.checked:
                 if ans == q['correct']:
                     st.success("נכון מאוד!")
@@ -224,7 +212,6 @@ elif st.session_state.step == "lesson_run":
                         st.session_state[f"sc_{st.session_state.q_count}"] = True
                 else: st.error(f"טעות. הנכון הוא: {q['correct']}")
                 st.info(f"הסבר: {q['explain']}")
-
         if (not st.session_state.quiz_active or st.session_state.quiz_finished) and st.session_state.get("current_sub"):
             if st.session_state.quiz_finished:
                 st.success(f"🏆 ציון: {st.session_state.correct_answers} מתוך 10.")
