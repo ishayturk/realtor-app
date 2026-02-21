@@ -1,4 +1,4 @@
-# Project: מתווך בקליק | Version: 1213-Final-Slim-Seamless | File: app.py
+# Project: מתווך בקליק | Version: 1213-Ultra-Slim-Centered | File: app.py
 import streamlit as st
 import google.generativeai as genai
 import json
@@ -14,52 +14,43 @@ if st.query_params.get("nav") == "menu":
     st.session_state.step = "menu"
     st.rerun()
 
-# עיצוב RTL, ניקוי שוליים ועיצוב הסטריפ
+# עיצוב RTL, ניקוי שוליים ועיצוב הסטריפ המדויק
 st.markdown("""
 <style>
     * { direction: rtl; text-align: right; }
     header { visibility: hidden; }
     
-    /* הסטריפ הדק - שורה אחת מהקצה, עובי מינימלי */
+    /* הסטריפ הצר והדק באמת */
     .ultra-slim-strip {
         max-width: 1200px;
-        margin: 1rem auto 0.2rem auto;
+        margin: 0.8rem auto 0 auto; /* שורה אחת מהלמעלה, צמוד לפריים למטה */
         display: flex;
-        justify-content: space-between;
         align-items: center;
-        height: 30px;
-        padding: 0 10px;
-        font-family: sans-serif;
+        height: 25px; /* גובה מינימלי של שורה אחת */
+        padding: 0;
         background-color: transparent;
     }
     
-    .strip-text {
-        font-weight: bold;
-        color: black;
-        font-size: 1rem;
-        margin: 0;
-    }
+    .strip-item-right { flex: 1; text-align: right; font-weight: bold; color: black; font-size: 0.9rem; }
+    .strip-item-center { flex: 1; text-align: center; font-weight: bold; color: black; font-size: 0.9rem; }
+    .strip-item-left { flex: 1; text-align: left; }
     
     .nav-link-text {
         color: black !important;
         text-decoration: none !important;
         font-weight: bold !important;
-        font-size: 1rem;
+        font-size: 0.9rem;
     }
-    .nav-link-text:hover {
-        text-decoration: underline !important;
-    }
+    .nav-link-text:hover { text-decoration: underline !important; }
 
-    /* פריסת ה-Iframe לכל הרוחב ללא שוליים */
+    /* פריסת ה-Iframe לכל הרוחב ללא שוליים כלל */
     .main .block-container {
         padding-top: 0 !important;
         padding-left: 0 !important;
         padding-right: 0 !important;
         max-width: 100% !important;
     }
-    iframe {
-        margin-top: 0 !important;
-    }
+    iframe { margin-top: 0 !important; border: none; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -153,18 +144,18 @@ elif st.session_state.step == "menu":
             st.rerun()
 
 elif st.session_state.step == "exam_frame":
-    # הזרקת הסטריפ כ-HTML טהור (שורה אחת, דקה, צרה)
+    # הזרקת הסטריפ הצר והדק
     st.markdown(f"""
         <div class="ultra-slim-strip">
-            <div class="strip-text">🏠 מתווך בקליק</div>
-            <div class="strip-text">👤 {st.session_state.user}</div>
-            <div class="strip-text">
+            <div class="strip-item-right">🏠 מתווך בקליק</div>
+            <div class="strip-item-center">👤 {st.session_state.user}</div>
+            <div class="strip-item-left">
                 <a href="/?nav=menu" target="_self" class="nav-link-text">לתפריט הראשי</a>
             </div>
         </div>
     """, unsafe_allow_html=True)
     
-    # Iframe בפריסה מלאה ללא רווח מהסטריפ
+    # Iframe בפריסה מלאה
     exam_url = "https://fullrealestatebroker-yevuzewxde4obgrpgacrpc.streamlit.app/?embed=true"
     components.iframe(exam_url, height=1000, scrolling=True)
 
