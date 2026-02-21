@@ -1,4 +1,4 @@
-# Project: מתווך בקליק | Training_full_V08 | 21/02/2026 | 18:48
+# Project: מתווך בקליק | Training_full_V09 | 21/02/2026 | 19:15
 import streamlit as st
 import google.generativeai as genai
 import json
@@ -50,7 +50,7 @@ SYLLABUS = {
     "חוק העונשין": ["עבירות מרמה וזיוף"]
 }
 
-# פונקציות
+# פונקציות עזר
 def reset_quiz_state():
     st.session_state.update({
         "quiz_active": False, "q_data": None, "q_count": 0,
@@ -87,7 +87,7 @@ def stream_ai_lesson(prompt_text):
         return full_text
     except: return "⚠️ תקלה בטעינה."
 
-# Init State
+# אתחול מצב
 if "step" not in st.session_state:
     st.session_state.update({
         "user": None, "step": "login", "lesson_txt": "",
@@ -103,7 +103,7 @@ def show_header():
             <div class="header-user">👤 <b>{st.session_state.user}</b></div>
         </div>""", unsafe_allow_html=True)
 
-# --- Routing ---
+# --- ניתוב דפים ---
 
 if st.session_state.step == "login":
     st.title("🏠 מתווך בקליק")
@@ -124,28 +124,27 @@ elif st.session_state.step == "menu":
         st.rerun()
 
 elif st.session_state.step == "exam_frame":
-    # הצמדת הכפתור למעלה בקו של ה-Header המקורי
+    # CSS ייעודי להצמדת התוכן למעלה
     st.markdown("""
         <style>
-            header {visibility: hidden;}
             .main .block-container { padding-top: 0px !important; }
+            div[data-testid="stVerticalBlock"] > div:first-child { margin-top: 0px !important; }
         </style>
     """, unsafe_allow_html=True)
     
-    # עמודה ריקה מימין, כפתור בשמאל
+    # הסטריפ העליון - כפתור בשמאל (עמודה אחרונה ב-RTL)
     c_empty, c_back = st.columns([5, 1])
     with c_back:
         if st.button("🏠 לתפריט"):
             st.session_state.step = "menu"
             st.rerun()
     
-    # פריים הבחינה
+    # הצגת הפריים של הבחינה
     exam_url = f"https://fullrealestatebroker-yevuzewxde4obgrpgacrpc.streamlit.app/?user={st.session_state.user}&embed=true"
-    st.markdown(f'<iframe src="{exam_url}" style="width:100%; height:92vh; border:none; margin-top:0px;"></iframe>', unsafe_allow_html=True)
+    st.markdown(f'<iframe src="{exam_url}" style="width:100%; height:95vh; border:none; margin-top:-10px;"></iframe>', unsafe_allow_html=True)
 
 elif st.session_state.step == "study":
     show_header()
-    # (שאר הקוד נשאר ללא שינוי מעוגן 1213...)
     sel = st.selectbox("בחר נושא לימוד:", ["בחר..."] + list(SYLLABUS.keys()))
     col_a, col_b = st.columns([1, 1])
     if col_a.button("טען נושא") and sel != "בחר...":
@@ -162,6 +161,7 @@ elif st.session_state.step == "lesson_run":
     if not st.session_state.get("selected_topic"):
         st.session_state.step = "study"
         st.rerun()
+
     st.header(f"📖 {st.session_state.selected_topic}")
     subs = SYLLABUS.get(st.session_state.selected_topic, [])
     cols = st.columns(len(subs))
@@ -170,7 +170,9 @@ elif st.session_state.step == "lesson_run":
             reset_quiz_state()
             st.session_state.update({"current_sub": s, "lesson_txt": "LOADING"})
             st.rerun()
+
     if not st.session_state.get("current_sub"):
+        st.write("")
         if st.button("לתפריט הראשי", key="back_no_sub"):
             reset_quiz_state()
             st.session_state.step = "menu"
@@ -181,6 +183,7 @@ elif st.session_state.step == "lesson_run":
             st.rerun()
         elif st.session_state.get("lesson_txt"):
             st.markdown(st.session_state.lesson_txt)
+
         if st.session_state.quiz_active and st.session_state.q_data and not st.session_state.quiz_finished:
             st.divider()
             q = st.session_state.q_data
@@ -204,6 +207,7 @@ elif st.session_state.step == "lesson_run":
                 reset_quiz_state()
                 st.session_state.step = "menu"
                 st.rerun()
+
             if st.session_state.checked:
                 if ans == q['correct']:
                     st.success("נכון מאוד!")
@@ -212,6 +216,7 @@ elif st.session_state.step == "lesson_run":
                         st.session_state[f"sc_{st.session_state.q_count}"] = True
                 else: st.error(f"טעות. הנכון הוא: {q['correct']}")
                 st.info(f"הסבר: {q['explain']}")
+
         if (not st.session_state.quiz_active or st.session_state.quiz_finished) and st.session_state.get("current_sub"):
             if st.session_state.quiz_finished:
                 st.success(f"🏆 ציון: {st.session_state.correct_answers} מתוך 10.")
