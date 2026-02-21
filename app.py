@@ -1,4 +1,4 @@
-# Project: מתווך בקליק | Version: training_full_V03 | 21/02/2026 | 19:45
+# Project: מתווך בקליק | Version: training_full_V04 | 21/02/2026 | 19:55
 import streamlit as st
 import google.generativeai as genai
 import json
@@ -124,32 +124,37 @@ elif st.session_state.step == "menu":
         st.rerun()
 
 elif st.session_state.step == "exam_frame":
-    # CSS מבודד למבחן - הפיכת כפתור הסטרימליט לציף בשמאל למעלה
+    # שיטת הלינק הגובה מהעוגן שסיפקת, מוסטת לשמאל
     st.markdown("""
     <style>
         header { visibility: hidden !important; }
         .main .block-container { padding: 0 !important; }
-        div[data-testid="stVerticalBlock"] > div:has(button.exam-back-btn) {
-            position: fixed;
-            top: 10px;
-            left: 20px;
-            width: auto !important;
-            z-index: 1001;
+        .nav-link-box { 
+            position: fixed; 
+            top: 10px; 
+            width: 100%; 
+            display: flex; 
+            justify-content: flex-start; 
+            padding-left: 20px;
+            z-index: 1001; 
         }
-        .stButton>button.exam-back-btn {
-            width: auto !important;
-            padding: 2px 20px !important;
-            background: rgba(255,255,255,0.9) !important;
-            color: #555 !important;
-            border: 1px solid #ddd !important;
-            height: 2em !important;
+        .nav-link { 
+            text-decoration: none; 
+            color: #555; 
+            font-weight: bold; 
+            background: rgba(255,255,255,0.8); 
+            padding: 2px 12px; 
+            border-radius: 5px; 
+            border: 1px solid #ddd; 
         }
     </style>
+    <div class="nav-link-box"><a href="./?step=menu" target="_self" class="nav-link">לתפריט הראשי</a></div>
     """, unsafe_allow_html=True)
     
-    # כפתור חזרה אמיתי שמעדכן את ה-state לתפריט הראשי
-    if st.button("לתפריט הראשי", key="exam_back_btn", help="חזרה לתפריט"):
+    # בדיקת פרמטרים לחזרה לתפריט
+    if st.query_params.get("step") == "menu":
         st.session_state.step = "menu"
+        st.query_params.clear()
         st.rerun()
 
     # פריים המבחן
