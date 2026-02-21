@@ -1,4 +1,4 @@
-# Project: מתווך בקליק | Training_full_V10 | 21/02/2026 | 18:15
+# Project: מתווך בקליק | Training_full_V11 | 21/02/2026 | 18:20
 import streamlit as st
 import google.generativeai as genai
 import json
@@ -7,12 +7,10 @@ import re
 # הגדרת דף
 st.set_page_config(page_title="מתווך בקליק", layout="wide")
 
-# עיצוב RTL והעלמת ה-Header של סטרימליט
+# עיצוב RTL כללי (ללא פגיעה במרווחים של שאר האפליקציה)
 st.markdown("""
 <style>
     * { direction: rtl; text-align: right; }
-    header { visibility: hidden; }
-    .main .block-container { padding-top: 0px !important; }
     .header-container { 
         display: flex; 
         align-items: center; 
@@ -124,6 +122,17 @@ elif st.session_state.step == "menu":
         st.rerun()
 
 elif st.session_state.step == "exam_frame":
+    # תיקון מרווחים אגרסיבי רק כאן
+    st.markdown("""
+        <style>
+            header { visibility: hidden; }
+            .main .block-container { 
+                padding-top: 0px !important; 
+                margin-top: -70px !important; 
+            }
+        </style>
+    """, unsafe_allow_html=True)
+    
     # סטריפ עליון - כפתור חזרה לשמאל
     c_empty, c_back = st.columns([5, 1])
     with c_back:
@@ -131,9 +140,9 @@ elif st.session_state.step == "exam_frame":
             st.session_state.step = "menu"
             st.rerun()
     
-    # הצגת הפריים של הבחינה
+    # פריים הבחינה
     exam_url = f"https://fullrealestatebroker-yevuzewxde4obgrpgacrpc.streamlit.app/?user={st.session_state.user}&embed=true"
-    st.markdown(f'<iframe src="{exam_url}" style="width:100%; height:95vh; border:none; margin-top:-10px;"></iframe>', unsafe_allow_html=True)
+    st.markdown(f'<iframe src="{exam_url}" style="width:100%; height:98vh; border:none; margin-top:-10px;"></iframe>', unsafe_allow_html=True)
 
 elif st.session_state.step == "study":
     show_header()
