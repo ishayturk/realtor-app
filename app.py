@@ -1,4 +1,4 @@
-# Project: מתווך בקליק | Training_full_V11 | 21/02/2026 | 18:20
+# Project: מתווך בקליק | Training_full_V12 | 21/02/2026 | 18:25
 import streamlit as st
 import google.generativeai as genai
 import json
@@ -7,7 +7,7 @@ import re
 # הגדרת דף
 st.set_page_config(page_title="מתווך בקליק", layout="wide")
 
-# עיצוב RTL כללי (ללא פגיעה במרווחים של שאר האפליקציה)
+# עיצוב RTL כללי
 st.markdown("""
 <style>
     * { direction: rtl; text-align: right; }
@@ -122,27 +122,43 @@ elif st.session_state.step == "menu":
         st.rerun()
 
 elif st.session_state.step == "exam_frame":
-    # תיקון מרווחים אגרסיבי רק כאן
+    # CSS קיצוני להצמדה לקצה העליון של המסך
     st.markdown("""
         <style>
             header { visibility: hidden; }
             .main .block-container { 
-                padding-top: 0px !important; 
-                margin-top: -70px !important; 
+                padding: 0 !important; 
+                max-width: 100% !important;
+            }
+            /* הפיכת הכפתור לציפה על המסך למעלה */
+            .fixed-btn-container {
+                position: fixed;
+                top: 10px;
+                left: 20px;
+                z-index: 999999;
+                width: 150px;
+            }
+            iframe {
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100vw;
+                height: 100vh;
+                border: none;
             }
         </style>
     """, unsafe_allow_html=True)
     
-    # סטריפ עליון - כפתור חזרה לשמאל
-    c_empty, c_back = st.columns([5, 1])
-    with c_back:
-        if st.button("🏠 לתפריט הראשי"):
-            st.session_state.step = "menu"
-            st.rerun()
+    # שימוש ב-HTML להצבת הכפתור במקום קבוע
+    st.markdown('<div class="fixed-btn-container">', unsafe_allow_html=True)
+    if st.button("🏠 לתפריט הראשי"):
+        st.session_state.step = "menu"
+        st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
     
-    # פריים הבחינה
+    # הפריים של הבחינה תופס הכל
     exam_url = f"https://fullrealestatebroker-yevuzewxde4obgrpgacrpc.streamlit.app/?user={st.session_state.user}&embed=true"
-    st.markdown(f'<iframe src="{exam_url}" style="width:100%; height:98vh; border:none; margin-top:-10px;"></iframe>', unsafe_allow_html=True)
+    st.markdown(f'<iframe src="{exam_url}"></iframe>', unsafe_allow_html=True)
 
 elif st.session_state.step == "study":
     show_header()
