@@ -1,27 +1,24 @@
 # ==========================================
-# Project: מתווך בקליק | Version: 1213-Final-Logic
-# Status: Strict Validation + Fixed UI
+# Project: מתווך בקליק | Version: 1213-Single-Menu-Fixed
+# Status: No Double Menu + Strict Logic + Topic Header
 # ==========================================
 import streamlit as st
 import google.generativeai as genai
 import json, re
 
-# ... (SYLLABUS, fetch_q_ai, stream_ai_lesson נשארים כפי שהם)
+# ... (SYLLABUS, fetch_q_ai, stream_ai_lesson ללא שינוי)
 
-# --- דף הלימוד והשאלון ---
 if st.session_state.step == "lesson_run":
     show_header()
+    
+    # כותרת הנושא נשארת תמיד בראש
     st.header(f"📖 {st.session_state.selected_topic}")
     
-    # כפתורי תתי-נושאים
     subs = SYLLABUS.get(st.session_state.selected_topic, [])
-    cols_sub = st.columns(len(subs))
+    cols = st.columns(len(subs))
     for i, s in enumerate(subs):
-        if cols_sub[i].button(s, key=f"sub_{i}"):
-            st.session_state.update({
-                "current_sub": s, "lesson_txt": "LOADING", 
-                "quiz_active": False, "q_count": 0, "ans_checked": False
-            })
+        if cols[i].button(s, key=f"sub_{i}"):
+            st.session_state.update({"current_sub": s, "lesson_txt": "LOADING", "quiz_active": False, "q_count": 0, "ans_checked": False})
             st.rerun()
 
     if st.session_state.get("lesson_txt") == "LOADING":
@@ -30,20 +27,13 @@ if st.session_state.step == "lesson_run":
     elif st.session_state.get("lesson_txt"):
         st.markdown(st.session_state.lesson_txt)
 
-    # --- הצגת השאלה ---
+    # --- אזור השאלון ---
     user_choice = None
     if st.session_state.quiz_active and st.session_state.q_data and not st.session_state.quiz_finished:
         st.divider()
         q = st.session_state.q_data
         st.subheader(f"📝 שאלה {st.session_state.q_count} מתוך 10")
-        
-        # בחירת תשובה
-        user_choice = st.radio(
-            q['q'], q['options'], 
-            index=None, 
-            key=f"radio_{st.session_state.q_count}",
-            disabled=st.session_state.ans_checked # חסימת שינוי תשובה אחרי בדיקה
-        )
+        user_choice = st.radio(q['q'], q['options'], index=None, key=f"q_{st.session_state.q_count}")
         
         if st.session_state.ans_checked:
             if st.session_state.last_result == "correct": st.success("נכון!")
@@ -54,60 +44,44 @@ if st.session_state.step == "lesson_run":
         st.divider(); st.balloons()
         st.success(f"🏆 סיימת! ענית נכון על {st.session_state.correct_answers} מתוך 10.")
 
-    # --- שורת כפתורים תחתונה (קבועה) ---
+    # --- תפריט כפתורים (בתוך Empty כדי למנוע כפל) ---
     st.divider()
-    st.markdown('<div class="footer-buttons">', unsafe_allow_html=True)
-    f_cols = st.columns([1.2, 1.2, 1.2, 4]) 
+    menu_placeholder = st.empty()
+    
+    with menu_placeholder.container():
+        f1, f2, f3, f4 = st.columns([1.2, 1.2, 1.2, 4])
+        
+        with f1: # 1. בדוק תשובה
+            can_check = st.session_state.quiz_active and not st.session_state.ans_checked and user_choice is not None
+            if st.button("✅ בדוק תשובה", disabled=not can_check):
+                st.session_state.ans_checked = True
+                st.session_state.last_result = "correct" if user_choice == q['correct'] else "wrong"
+                if user_choice == q['correct']: st.session_state.correct_answers += 1
+                st.rerun()
 
-    with f_cols[0]: # 1. בדוק תשובה
-        # פעיל רק אם יש שאלון, לא נבדקה תשובה ובוצעה בחירה
-        can_click_check = (
-            st.session_state.quiz_active and 
-            not st.session_state.ans_checked and 
-            user_choice is not None and 
-            not st.session_state.quiz_finished
-        )
-        if st.button("✅ בדוק תשובה", disabled=not can_click_check):
-            st.session_state.ans_checked = True
-            st.session_state.last_result = "correct" if user_choice == q['correct'] else "wrong"
-            if user_choice == q['correct']: 
-                st.session_state.correct_answers += 1
-            st.rerun()
-
-    with f_cols[1]: # 2. שאלה הבאה / שאלון תרגול
-        if not st.session_state.quiz_active:
-            # כפתור התחלה ראשוני
-            if st.button("📝 שאלון תרגול", disabled=(st.session_state.lesson_txt == "")):
-                with st.spinner("מכין שאלה..."):
-                    res = fetch_q_ai(st.session_state.current_sub)
-                    if res:
-                        st.session_state.update({
-                            "q_data": res, "quiz_active": True, "q_count": 1, 
-                            "correct_answers": 0, "quiz_finished": False, "ans_checked": False
-                        })
-                        st.rerun()
-        else:
-            # כפתור ניווט - פעיל רק אחרי בדיקת תשובה
-            btn_label = "➡️ לשאלה הבאה" if st.session_state.q_count < 10 else "🏁 סיכום שאלון"
-            can_click_next = st.session_state.ans_checked and not st.session_state.quiz_finished
-            
-            if st.button(btn_label, disabled=not can_click_next):
-                if st.session_state.q_count < 10:
-                    with st.spinner("מכין שאלה הבאה..."):
+        with f2: # 2. שאלה הבאה / שאלון תרגול
+            if not st.session_state.quiz_active:
+                if st.button("📝 שאלון תרגול"):
+                    menu_placeholder.empty() # מנקה מיד את התפריט למניעת כפל
+                    with st.spinner("מכין שאלה..."):
                         res = fetch_q_ai(st.session_state.current_sub)
                         if res:
-                            st.session_state.update({
-                                "q_data": res, "q_count": st.session_state.q_count + 1, 
-                                "ans_checked": False
-                            })
+                            st.session_state.update({"q_data": res, "quiz_active": True, "q_count": 1, "correct_answers": 0, "quiz_finished": False, "ans_checked": False})
                             st.rerun()
-                else:
-                    st.session_state.quiz_finished = True
-                    st.rerun()
+            else:
+                btn_txt = "➡️ לשאלה הבאה" if st.session_state.q_count < 10 else "🏁 סיכום שאלון"
+                can_next = st.session_state.ans_checked and not st.session_state.quiz_finished
+                if st.button(btn_txt, disabled=not can_next):
+                    menu_placeholder.empty() # מנקה מיד את התפריט למניעת כפל
+                    if st.session_state.q_count < 10:
+                        with st.spinner("מכין שאלה הבאה..."):
+                            res = fetch_q_ai(st.session_state.current_sub)
+                            if res:
+                                st.session_state.update({"q_data": res, "q_count": st.session_state.q_count + 1, "ans_checked": False})
+                                st.rerun()
+                    else:
+                        st.session_state.quiz_finished = True; st.rerun()
 
-    with f_cols[2]: # 3. חזרה לתפריט
-        if st.button("🏠 לתפריט הראשי"):
-            st.session_state.step = "menu"
-            st.rerun()
-
-    st.markdown('</div>', unsafe_allow_html=True)
+        with f3: # 3. תפריט ראשי
+            if st.button("🏠 לתפריט הראשי"):
+                st.session_state.step = "menu"; st.rerun()
