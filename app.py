@@ -1,4 +1,4 @@
-# Project: מתווך בקליק | Version: 1213-Anchor-Safe-Reset | File: app.py
+# Project: מתווך בקליק | Version: 1213-Anchor-Safe-Reset-V2 | File: app.py
 import streamlit as st
 import google.generativeai as genai
 import json
@@ -66,7 +66,6 @@ def reset_quiz_state():
             "quiz_active": False, "q_data": None, "q_count": 0,
             "checked": False, "quiz_finished": False, "correct_answers": 0
         })
-        # ניקוי בטוח של מפתחות הניקוד
         for key in list(st.session_state.keys()):
             if key.startswith("sc_"):
                 del st.session_state[key]
@@ -128,6 +127,7 @@ if st.session_state.step == "login":
 elif st.session_state.step == "menu":
     show_header()
     c1, c2, _ = st.columns([1.5, 1.5, 3])
+    # כאן הסרתי את כפתור "לתפריט הראשי" המיותר
     if c1.button("📚 לימוד לפי נושאים"):
         st.session_state.step = "study"
         st.rerun()
@@ -138,45 +138,4 @@ elif st.session_state.step == "menu":
 elif st.session_state.step == "exam_frame":
     show_header()
     if st.button("לתפריט הראשי"):
-        st.session_state.step = "menu"
-        st.rerun()
-    u_enc = st.session_state.user.replace(" ", "%20")
-    b_url = "https://fullrealestatebroker-yevuzewxde4obgrpgacrpc.streamlit.app/"
-    st.components.v1.iframe(f"{b_url}?user={u_enc}", height=1000)
-
-elif st.session_state.step == "study":
-    show_header()
-    sel = st.selectbox("בחר נושא לימוד:", ["בחר..."] + list(SYLLABUS.keys()))
-    col_a, col_b = st.columns([1, 1])
-    if col_a.button("טען נושא") and sel != "בחר...":
-        reset_quiz_state()
-        st.session_state.update({"selected_topic": sel, 
-                                 "step": "lesson_run", 
-                                 "lesson_txt": ""})
-        st.rerun()
-    if col_b.button("לתפריט הראשי"):
-        reset_quiz_state()
-        st.session_state.step = "menu"
-        st.rerun()
-
-elif st.session_state.step == "lesson_run":
-    show_header()
-    st.header(f"📖 {st.session_state.selected_topic}")
-    subs = SYLLABUS.get(st.session_state.selected_topic, [])
-    
-    cols = st.columns(len(subs))
-    for i, s in enumerate(subs):
-        if cols[i].button(s, key=f"s_{i}"):
-            reset_quiz_state()
-            st.session_state.update({"current_sub": s, "lesson_txt": "LOADING"})
-            st.rerun()
-
-    if st.session_state.get("lesson_txt") == "LOADING":
-        st.session_state.lesson_txt = stream_ai_lesson(
-            f"הסבר על {st.session_state.current_sub}"
-        )
-        st.rerun()
-    elif st.session_state.get("lesson_txt"):
-        st.markdown(st.session_state.lesson_txt)
-
-    # הצגת שאלון אם הוא פעיל
+        st.session_state.step = "menu
