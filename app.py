@@ -1,4 +1,4 @@
-# Project: מתווך בקליק | Training_full_V09 | 21/02/2026 | 19:15
+# Project: מתווך בקליק | Training_full_V10 | 21/02/2026 | 18:15
 import streamlit as st
 import google.generativeai as genai
 import json
@@ -7,10 +7,12 @@ import re
 # הגדרת דף
 st.set_page_config(page_title="מתווך בקליק", layout="wide")
 
-# עיצוב RTL בסיסי
+# עיצוב RTL והעלמת ה-Header של סטרימליט
 st.markdown("""
 <style>
     * { direction: rtl; text-align: right; }
+    header { visibility: hidden; }
+    .main .block-container { padding-top: 0px !important; }
     .header-container { 
         display: flex; 
         align-items: center; 
@@ -50,7 +52,6 @@ SYLLABUS = {
     "חוק העונשין": ["עבירות מרמה וזיוף"]
 }
 
-# פונקציות עזר
 def reset_quiz_state():
     st.session_state.update({
         "quiz_active": False, "q_data": None, "q_count": 0,
@@ -87,7 +88,6 @@ def stream_ai_lesson(prompt_text):
         return full_text
     except: return "⚠️ תקלה בטעינה."
 
-# אתחול מצב
 if "step" not in st.session_state:
     st.session_state.update({
         "user": None, "step": "login", "lesson_txt": "",
@@ -103,7 +103,7 @@ def show_header():
             <div class="header-user">👤 <b>{st.session_state.user}</b></div>
         </div>""", unsafe_allow_html=True)
 
-# --- ניתוב דפים ---
+# --- Routing ---
 
 if st.session_state.step == "login":
     st.title("🏠 מתווך בקליק")
@@ -124,18 +124,10 @@ elif st.session_state.step == "menu":
         st.rerun()
 
 elif st.session_state.step == "exam_frame":
-    # CSS ייעודי להצמדת התוכן למעלה
-    st.markdown("""
-        <style>
-            .main .block-container { padding-top: 0px !important; }
-            div[data-testid="stVerticalBlock"] > div:first-child { margin-top: 0px !important; }
-        </style>
-    """, unsafe_allow_html=True)
-    
-    # הסטריפ העליון - כפתור בשמאל (עמודה אחרונה ב-RTL)
+    # סטריפ עליון - כפתור חזרה לשמאל
     c_empty, c_back = st.columns([5, 1])
     with c_back:
-        if st.button("🏠 לתפריט"):
+        if st.button("🏠 לתפריט הראשי"):
             st.session_state.step = "menu"
             st.rerun()
     
