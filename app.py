@@ -125,12 +125,13 @@ elif st.session_state.step == "menu":
         st.rerun()
 
 elif st.session_state.step == "exam_frame":
-    # הצרת הסטריפ למינימום רק בדף זה
+    # הצרת הסטריפ למינימום רק בדף זה והסרת מרווחים מיותרים
     st.markdown("""
         <style>
             header {visibility: hidden;}
-            .block-container { padding-top: 0.5rem !important; }
-            /* עיצוב כפתור הניווט בסטריפ - נראה כטקסט נקי ללא קו תחתון */
+            .main .block-container { padding-top: 0.5rem !important; padding-bottom: 0 !important; }
+            iframe { border: none !important; width: 100%; height: 85vh; }
+            /* עיצוב כפתור החזרה בסטריפ עם חץ ימינה */
             div[data-testid="stColumn"] .stButton button {
                 background: none !important;
                 border: none !important;
@@ -143,9 +144,6 @@ elif st.session_state.step == "exam_frame":
                 font-weight: bold !important;
                 display: inline !important;
             }
-            div[data-testid="stColumn"] .stButton button:hover {
-                color: #4F8BFF !important; /* צבע ריחוף עדין לאחידות */
-            }
         </style>
     """, unsafe_allow_html=True)
     
@@ -155,14 +153,15 @@ elif st.session_state.step == "exam_frame":
         with sc1: st.markdown("🏠 **מתווך בקליק**")
         with sc2: st.markdown(f"<p style='text-align:center; margin:0;'>👤 <b>{st.session_state.user}</b></p>", unsafe_allow_html=True)
         with sc3:
-            # כפתור טקסטואלי עם אייקון ועיצוב נקי ללא קו תחתון
-            if st.button("🏠 לתפריט הראשי", key="strip_nav_back"):
+            # שימוש בחץ ימינה במקום אייקון הבית
+            if st.button("לתפריט הראשי →", key="strip_nav_back"):
                 reset_quiz_state()
                 st.session_state.step = "menu"
                 st.rerun()
 
-    st.write("") 
-    st.markdown("### כאן יבואו עמודי הבחינה")
+    # הטמעת האפליקציה השנייה בתוך Iframe
+    exam_url = "https://fullrealestatebroker-yevuzewxde4obgrpgacrpc.streamlit.app/"
+    st.markdown(f'<iframe src="{exam_url}?embed=true"></iframe>', unsafe_allow_html=True)
 
 elif st.session_state.step == "study":
     show_header()
