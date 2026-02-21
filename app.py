@@ -27,6 +27,15 @@ SYLLABUS = {
     "חוק העונשין": ["עבירות מרמה וזיוף"]
 }
 
+# אתחול Session State
+for key, val in {
+    "step": "login", "user": None, "lesson_txt": "", 
+    "quiz_active": False, "ans_checked": False, "q_count": 0,
+    "q_data": None, "correct_answers": 0, "quiz_finished": False
+}.items():
+    if key not in st.session_state:
+        st.session_state[key] = val
+
 def fetch_q_ai(topic):
     try:
         genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
@@ -51,29 +60,23 @@ def stream_ai_lesson(p):
         return full_text
     except: return "⚠️ תקלה בטעינה."
 
-if "step" not in st.session_state:
-    st.session_state.update({
-        "user": None, "step": "login", "lesson_txt": "",
-        "q_data": None, "q_count": 0, "quiz_active": False,
-        "correct_answers": 0, "quiz_finished": False, "ans_checked": False
-    })
-
 def show_header():
     if st.session_state.user:
-        user_name = st.session_state.user
-        h_html = f'<div class="header-container"><div class="header-title">🏠 מתווך בקליק</div><div class="header-user">👤 <b>{user_name}</b></div></div>'
+        u = st.session_state.user
+        h_html = f'<div class="header-container"><div class="header-title">🏠 מתווך בקליק</div><div class="header-user">👤 <b>{u}</b></div></div>'
         st.markdown(h_html, unsafe_allow_html=True)
 
+# ניתוב מסכים
 if st.session_state.step == "login":
     st.title("🏠 מתווך בקליק")
-    u = st.text_input("שם מלא:")
-    if st.button("כניסה") and u:
-        st.session_state.update({"user": u, "step": "menu"}); st.rerun()
+    u_input = st.text_input("שם מלא:")
+    if st.button("כניסה") and u_input:
+        st.session_state.user = u_input
+        st.session_state.step = "menu"
+        st.rerun()
 
 elif st.session_state.step == "menu":
     show_header()
     c1, c2, c3 = st.columns([1.5, 1.5, 3])
     with c1:
-        if st.button("📚 לימוד לפי נושאים"): st.session_state.step = "study"; st.rerun()
-    with c2:
-        if st.button("⏱️ גש/י למבחן"): st.session_state.step = "exam_frame"; st.rerun()
+        if st.button("📚 לימוד לפי נושאים
