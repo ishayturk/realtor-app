@@ -1,6 +1,6 @@
 # ==========================================
-# Project: מתווך בקליק | Version: 1213 + Exam Strip
-# Status: Syntax Fixed (No hidden characters)
+# Project: מתווך בקליק | Version: 1213 + Fixed Top Strip
+# Status: UI Overhaul - Strip at Absolute Top
 # ==========================================
 import streamlit as st
 import google.generativeai as genai
@@ -8,13 +8,24 @@ import json, re
 
 st.set_page_config(page_title="מתווך בקליק", layout="wide")
 
+# הסתרת תפריטי Streamlit ועיצוב הסטריפ בראש הדף
 st.markdown("""
 <style>
+    /* הסתרת כותרת ברירת המחדל של סטרימליט והצמדה למעלה */
+    header {visibility: hidden;}
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    .stApp { margin-top: -80px; }
+
     * { direction: rtl; text-align: right; }
+    
+    /* עיצוב כללי לכפתורים */
+    .stButton>button { width: 100% !important; border-radius: 8px !important; font-weight: bold !important; height: 3em !important; }
+    
+    /* עיצוב כותרת דף הלימוד */
     .header-container { display: flex; align-items: center; gap: 45px; margin-bottom: 30px; }
     .header-title { font-size: 2.5rem !important; font-weight: bold !important; margin: 0 !important; }
     .header-user { font-size: 1.2rem !important; font-weight: 900 !important; color: #31333f; }
-    .stButton>button { width: 100% !important; border-radius: 8px !important; font-weight: bold !important; height: 3em !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -39,8 +50,7 @@ def fetch_q_ai(topic):
         res = m.generate_content(p).text
         match = re.search(r'\{.*\}', res, re.DOTALL)
         if match: return json.loads(match.group())
-    except:
-        return None
+    except: return None
 
 def stream_ai_lesson(p):
     try:
@@ -55,8 +65,7 @@ def stream_ai_lesson(p):
             placeholder.markdown(full_text + "▌")
         placeholder.markdown(full_text)
         return full_text
-    except:
-        return "⚠️ תקלה בטעינה."
+    except: return "⚠️ תקלה בטעינה."
 
 if "step" not in st.session_state:
     st.session_state.update({
@@ -91,17 +100,22 @@ elif st.session_state.step == "menu":
             st.rerun()
 
 elif st.session_state.step == "exam_frame":
-    st.markdown('<div style="margin-top: -50px;"></div>', unsafe_allow_html=True)
-    c_back, c_user, c_logo = st.columns([1, 4, 1.5])
+    # סטריפ עליון - סדר עמודות מימין לשמאל
+    st.markdown('<div style="height: 10px;"></div>', unsafe_allow_html=True)
+    c_logo, c_user, c_back = st.columns([1.5, 4, 1.5])
+    
     with c_logo:
-        st.markdown('<div style="font-weight:bold; font-size:1.1rem; text-align:right;">מתווך בקליק</div>', unsafe_allow_html=True)
+        st.markdown('<div style="font-weight:bold; font-size:1.1rem; text-align:right;">🏠 מתווך בקליק</div>', unsafe_allow_html=True)
+    
     with c_user:
         st.markdown(f'<div style="font-weight:900; font-size:1.1rem; text-align:center;">{st.session_state.user}</div>', unsafe_allow_html=True)
+        
     with c_back:
-        if st.button("Back", key="exam_back"):
+        if st.button("לתפריט הראשי", key="exam_back"):
             st.session_state.step = "menu"
             st.rerun()
 
+    # פריים הבחינה - טעינת האפליקציה השנייה
     u_enc = st.session_state.user.replace(" ", "%20")
     t_url = f"https://fullrealestatebroker-yevuzewxde4obgrpgacrpc.streamlit.app/?user={u_enc}"
     st.components.v1.iframe(t_url, height=1000, scrolling=True)
