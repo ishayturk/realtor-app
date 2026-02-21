@@ -1,4 +1,4 @@
-# Project: מתווך בקליק | Version: training_full_V15 | 21/02/2026 | 23:45
+# Project: מתווך בקליק | Version: training_full_V16 | 21/02/2026 | 23:55
 import streamlit as st
 import google.generativeai as genai
 import json
@@ -13,10 +13,9 @@ if "user" in q_params:
     st.session_state.user = q_params["user"]
     if q_params.get("nav") == "menu":
         st.session_state.step = "menu"
-    # ניקוי ה-URL לאחר הזרקה כדי למנוע לופים בריענון ידני
     st.query_params.clear()
 
-# Init State (אם לא הוזרק מה-URL)
+# Init State
 if "step" not in st.session_state:
     st.session_state.update({
         "user": None, 
@@ -33,8 +32,6 @@ st.markdown("""
     .header-container { display: flex; align-items: center; gap: 45px; margin-bottom: 30px; }
     .header-title { font-size: 2.5rem !important; font-weight: bold !important; margin: 0 !important; }
     .header-user { font-size: 1.2rem !important; font-weight: 900 !important; color: #31333f; }
-    
-    /* כפתורי תפריט ראשי בלבד */
     .main-menu-btns button { 
         width: 100% !important; 
         border-radius: 8px !important; 
@@ -44,7 +41,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# סילבוס (Anchor 1213)
+# סילבוס
 SYLLABUS = {
     "חוק המתווכים": ["רישוי והגבלות", "הגינות וזהירות", "הזמנה ובלעדיות", "פעולות שאינן תיווך"],
     "תקנות המתווכים": ["פרטי הזמנה 1997", "פעולות שיווק 2004", "דמי תיווך"],
@@ -57,6 +54,22 @@ SYLLABUS = {
     "דיני ירושה": ["סדר הירושה", "צוואות"],
     "חוק העונשין": ["עבירות מרמה וזיוף"]
 }
+
+# פונקציית AI (עוגן V01)
+def stream_ai_lesson(prompt_text):
+    try:
+        genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+        model = genai.GenerativeModel('gemini-2.0-flash')
+        response = model.generate_content(prompt_text, stream=True)
+        placeholder = st.empty()
+        full_text = ""
+        for chunk in response:
+            full_text += chunk.text
+            placeholder.markdown(full_text + "▌")
+        placeholder.markdown(full_text)
+        return full_text
+    except Exception as e:
+        return f"⚠️ תקלה בטעינה: {str(e)}"
 
 def show_header():
     if st.session_state.get("user"):
@@ -88,9 +101,7 @@ elif st.session_state.step == "menu":
     st.markdown('</div>', unsafe_allow_html=True)
 
 elif st.session_state.step == "exam_frame":
-    # יצירת הלינק הדינמי עם שם המשתמש
     current_user = st.session_state.user
-    # בניית ה-URL לחזרה - הקידוד מוודא ששמות בעברית יעברו תקין
     back_url = f"/?nav=menu&user={current_user}"
     
     st.markdown(f"""
@@ -130,12 +141,19 @@ elif st.session_state.step == "lesson_run":
     st.header(f"📖 {st.session_state.selected_topic}")
     subs = SYLLABUS.get(st.session_state.selected_topic, [])
     cols = st.columns(len(subs) if len(subs) > 0 else 1)
+    
     for i, s in enumerate(subs):
         if cols[i].button(s, key=f"s_{i}"):
-            st.session_state.update({"current_sub": s})
+            st.session_state.update({"current_sub": s, "lesson_txt": "LOADING"})
             st.rerun()
+    
     if st.session_state.current_sub:
-        st.info(f"מציג תוכן עבור: {st.session_state.current_sub}")
+        st.subheader(f"נושא: {st.session_state.current_sub}")
+        if st.session_state.lesson_txt == "LOADING":
+             st.session_state.lesson_txt = stream_ai_lesson(f"הסבר מפורט על {st.session_state.current_sub} בהקשר של {st.session_state.selected_topic}")
+             st.rerun()
+        st.markdown(st.session_state.lesson_txt)
+    
     if st.button("🏠 חזרה לתפריט"):
         st.session_state.step = "menu"
         st.rerun()
