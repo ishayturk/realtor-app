@@ -1,6 +1,6 @@
 # ==========================================
 # Project: מתווך בקליק | Version: 1213 + Isolated Exam UI
-# Status: Fixed Strip Width & Contextual Menu
+# Status: Fixed Syntax Error in F-String (Line 116)
 # ==========================================
 import streamlit as st
 import google.generativeai as genai
@@ -110,7 +110,4 @@ elif st.session_state.step == "exam_frame":
     c_logo, c_user, c_back = st.columns([1.5, 4, 1.5])
     
     with c_logo:
-        st.markdown('<div style="font-weight:bold; font-size:1.1rem; text-align:right;">🏠 מתווך בקליק</div>', unsafe_allow_html=True)
-    
-    with c_user:
-        st.markdown(f'<div style="font-weight:900; font-size:1.2rem; text-align:center;">
+        st.markdown('<div style="font-
