@@ -1,8 +1,9 @@
-# Project: מתווך בקליק | Version: 1213-Safe-Exam-Final-Full-V2 | File: app.py
+# Project: מתווך בקליק | Version: 1213-Exam-Link-Fixed | File: app.py
 import streamlit as st
 import google.generativeai as genai
 import json
 import re
+import streamlit.components.v1 as components
 
 # הגדרת דף
 st.set_page_config(page_title="מתווך בקליק", layout="wide")
@@ -124,7 +125,7 @@ elif st.session_state.step == "menu":
         st.rerun()
 
 elif st.session_state.step == "exam_frame":
-    # הסתרת הדר המערכת וצמצום מרווחים רק בדף זה
+    # הסתרת הדר וצמצום מרווחים
     st.markdown("""
         <style>
             header {visibility: hidden;}
@@ -132,17 +133,26 @@ elif st.session_state.step == "exam_frame":
         </style>
     """, unsafe_allow_html=True)
     
+    # סטריפ עליון
     _, center_col, _ = st.columns([1, 2, 1])
     with center_col:
         sc1, sc2, sc3 = st.columns([1, 2, 1])
-        with sc1: st.markdown("🏠 **מתווך בקליק**")
-        with sc2: st.markdown(f"<p style='text-align:center;'>👤 <b>{st.session_state.user}</b></p>", unsafe_allow_html=True)
+        with sc1:
+            st.markdown("🏠 **מתווך בקליק**")
+        with sc2:
+            st.markdown(f"<p style='text-align:center;'>👤 <b>{st.session_state.user}</b></p>", 
+                        unsafe_allow_html=True)
         with sc3:
-            if st.button("חזרה", key="exam_back_btn"):
+            # תיקון המלל ל"לתפריט הראשי"
+            if st.button("לתפריט הראשי", key="exam_back_btn"):
                 st.session_state.step = "menu"
                 st.rerun()
+    
     st.write("") 
-    st.markdown("### כאן יבואו עמודי הבחינה")
+    
+    # הטמעת הלינק שסיפקת בתוך Iframe
+    exam_url = "https://fullrealestatebroker-yevuzewxde4obgrpgacrpc.streamlit.app/?embed=true"
+    components.iframe(exam_url, height=800, scrolling=True)
 
 elif st.session_state.step == "study":
     show_header()
@@ -150,7 +160,8 @@ elif st.session_state.step == "study":
     col_a, col_b = st.columns([1, 1])
     if col_a.button("טען נושא") and sel != "בחר...":
         reset_quiz_state()
-        st.session_state.update({"selected_topic": sel, "step": "lesson_run", "lesson_txt": "", "current_sub": None})
+        st.session_state.update({"selected_topic": sel, "step": "lesson_run", 
+                                 "lesson_txt": "", "current_sub": None})
         st.rerun()
     if col_b.button("לתפריט הראשי"):
         reset_quiz_state()
@@ -194,12 +205,15 @@ elif st.session_state.step == "lesson_run":
             if qc1.button("בדוק/י תשובה", disabled=(ans is None or st.session_state.checked)):
                 st.session_state.checked = True
                 st.rerun()
-            if qc2.button("לשאלה הבאה" if st.session_state.q_count < 10 else "🏁 סיכום", disabled=not st.session_state.checked):
+            if qc2.button("לשאלה הבאה" if st.session_state.q_count < 10 else "🏁 סיכום", 
+                         disabled=not st.session_state.checked):
                 if st.session_state.q_count < 10:
                     with st.spinner("טוען..."):
                         res = fetch_q_ai(st.session_state.current_sub)
                         if res:
-                            st.session_state.update({"q_data": res, "q_count": st.session_state.q_count + 1, "checked": False})
+                            st.session_state.update({"q_data": res, 
+                                                     "q_count": st.session_state.q_count + 1, 
+                                                     "checked": False})
                             st.rerun()
                 else:
                     st.session_state.quiz_finished = True
@@ -215,23 +229,12 @@ elif st.session_state.step == "lesson_run":
                     if f"sc_{st.session_state.q_count}" not in st.session_state:
                         st.session_state.correct_answers += 1
                         st.session_state[f"sc_{st.session_state.q_count}"] = True
-                else: st.error(f"טעות. הנכון הוא: {q['correct']}")
+                else:
+                    st.error(f"טעות. הנכון הוא: {q['correct']}")
                 st.info(f"הסבר: {q['explain']}")
 
         if (not st.session_state.quiz_active or st.session_state.quiz_finished) and st.session_state.get("current_sub"):
             if st.session_state.quiz_finished:
                 st.success(f"🏆 ציון: {st.session_state.correct_answers} מתוך 10.")
             ca, cb = st.columns([1, 1])
-            if ca.button("📝 שאלון תרגול" if not st.session_state.quiz_finished else "🔄 תרגול חוזר"):
-                if st.session_state.get("lesson_txt") not in ["", "LOADING"]:
-                    with st.spinner("מייצר שאלה..."):
-                        res = fetch_q_ai(st.session_state.current_sub)
-                        if res:
-                            reset_quiz_state()
-                            st.session_state.update({"q_data": res, "quiz_active": True, "q_count": 1, "checked": False})
-                            st.rerun()
-            if cb.button("לתפריט הראשי", key="main_back"):
-                reset_quiz_state()
-                st.session_state.step = "menu"
-                st.rerun()
-# --- End of File ---
+            if ca.button("📝 שאלון תרגול" if not st.session_state.quiz_finished else "🔄 תרגול חוזר
