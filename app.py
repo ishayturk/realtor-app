@@ -124,52 +124,44 @@ elif st.session_state.step == "menu":
         st.rerun()
 
 elif st.session_state.step == "exam_frame":
-    # הצרת הסטריפ למינימום המוחלט
     st.markdown("""
         <style>
             header {visibility: hidden;}
-            /* ביטול המרווח העליון של Streamlit */
             .main .block-container { 
-                padding-top: 0rem !important; 
+                padding-top: 0.1rem !important; 
                 padding-bottom: 0 !important; 
                 max-width: 100% !important;
             }
-            /* כיווץ גובה העמודות בסטריפ */
             [data-testid="column"] {
                 display: flex;
                 align-items: center;
-                justify-content: center;
-                height: 40px !important;
+                height: 25px !important;
+                margin-top: -15px !important;
             }
-            /* עיצוב כפתור החץ */
-            div.stButton > button:first-child {
+            div.stButton > button {
                 background: none !important;
                 border: none !important;
                 padding: 0 !important;
                 color: black !important;
-                font-size: 1.1rem !important;
+                font-size: 1rem !important;
                 font-weight: bold !important;
                 height: auto !important;
                 width: auto !important;
                 line-height: 1 !important;
             }
-            iframe { border: none !important; width: 100%; height: 92vh; margin-top: -10px; }
+            iframe { border: none !important; width: 100%; height: 96vh; margin-top: -15px; }
         </style>
     """, unsafe_allow_html=True)
     
-    # יצירת הסטריפ הדק
     sc1, sc2, sc3 = st.columns([1, 2, 1])
-    with sc1: 
-        st.markdown("<p style='margin:0; font-weight:bold;'>🏠 מתווך בקליק</p>", unsafe_allow_html=True)
-    with sc2: 
-        st.markdown(f"<p style='margin:0; font-weight:900;'>👤 {st.session_state.user}</p>", unsafe_allow_html=True)
+    with sc1: st.markdown("<p style='margin:0; font-size: 1rem; font-weight:bold;'>🏠 מתווך בקליק</p>", unsafe_allow_html=True)
+    with sc2: st.markdown(f"<p style='text-align:center; margin:0; font-size: 1rem;'>👤 <b>{st.session_state.user}</b></p>", unsafe_allow_html=True)
     with sc3:
-        if st.button("לתפריט הראשי ←", key="strip_nav_back"):
+        if st.button("לתפריט הראשי →", key="strip_nav_back"):
             reset_quiz_state()
             st.session_state.step = "menu"
             st.rerun()
 
-    # הטמעת האפליקציה השנייה
     exam_url = "https://fullrealestatebroker-yevuzewxde4obgrpgacrpc.streamlit.app/"
     st.markdown(f'<iframe src="{exam_url}?embed=true"></iframe>', unsafe_allow_html=True)
 
