@@ -1,4 +1,4 @@
-# Project: מתווך בקליק | Version: training_full_V02 | 21/02/2026 | 19:40
+# Project: מתווך בקליק | Version: training_full_V03 | 21/02/2026 | 19:45
 import streamlit as st
 import google.generativeai as genai
 import json
@@ -7,7 +7,7 @@ import re
 # הגדרת דף
 st.set_page_config(page_title="מתווך בקליק", layout="wide")
 
-# עיצוב RTL בסיסי - עוגן 1213 המקורי (ללא שינוי!)
+# עיצוב RTL בסיסי - עוגן 1213 המקורי
 st.markdown("""
 <style>
     * { direction: rtl; text-align: right; }
@@ -124,38 +124,35 @@ elif st.session_state.step == "menu":
         st.rerun()
 
 elif st.session_state.step == "exam_frame":
-    # שיטת הלינק הגבוה (V1218) בתוך ה-V01, מוסט לשמאל
+    # CSS מבודד למבחן - הפיכת כפתור הסטרימליט לציף בשמאל למעלה
     st.markdown("""
     <style>
         header { visibility: hidden !important; }
         .main .block-container { padding: 0 !important; }
-        .nav-link-box { 
-            position: fixed; 
-            top: 10px; 
-            width: 100%; 
-            display: flex; 
-            justify-content: flex-start; 
-            padding-right: 20px;
-            z-index: 1001; 
+        div[data-testid="stVerticalBlock"] > div:has(button.exam-back-btn) {
+            position: fixed;
+            top: 10px;
+            left: 20px;
+            width: auto !important;
+            z-index: 1001;
         }
-        .nav-link { 
-            text-decoration: none; 
-            color: #555; 
-            font-weight: bold; 
-            background: rgba(255,255,255,0.8); 
-            padding: 2px 12px; 
-            border-radius: 5px; 
-            border: 1px solid #ddd; 
+        .stButton>button.exam-back-btn {
+            width: auto !important;
+            padding: 2px 20px !important;
+            background: rgba(255,255,255,0.9) !important;
+            color: #555 !important;
+            border: 1px solid #ddd !important;
+            height: 2em !important;
         }
     </style>
-    <div class="nav-link-box"><a href="/?step=menu" target="_self" class="nav-link">לתפריט הראשי</a></div>
     """, unsafe_allow_html=True)
     
-    if st.query_params.get("step") == "menu":
+    # כפתור חזרה אמיתי שמעדכן את ה-state לתפריט הראשי
+    if st.button("לתפריט הראשי", key="exam_back_btn", help="חזרה לתפריט"):
         st.session_state.step = "menu"
-        st.query_params.clear()
         st.rerun()
 
+    # פריים המבחן
     base_url = "https://fullrealestatebroker-yevuzewxde4obgrpgacrpc.streamlit.app/"
     exam_url = f"{base_url}?user={st.session_state.user}&embed=true"
     st.markdown(f'<iframe src="{exam_url}" style="width:100%; height:100vh; border:none; margin-top:-50px;"></iframe>', unsafe_allow_html=True)
