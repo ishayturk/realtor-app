@@ -1,32 +1,40 @@
-# Project: מתווך בקליק | Version: 1213-Safe-Exam-Final-Full-V4 | File: app.py
+# Project: מתווך בקליק | Version: 1213-Safe-Exam-Final-Sidebar-Clean | File: app.py
 import streamlit as st
 import google.generativeai as genai
 import json
 import re
 
-# הגדרת דף - שימוש ב-Wide כדי לתת מקסימום מקום לבחינה
+# הגדרת דף
 st.set_page_config(page_title="מתווך בקליק", layout="wide")
 
-# עיצוב RTL וסגנון לסרגל הצד
+# עיצוב RTL בסיסי
 st.markdown("""
 <style>
     * { direction: rtl; text-align: right; }
-    /* ביטול מרווחים מיותרים בראש הדף כשיש פריים */
-    .main .block-container { 
-        padding-top: 0rem !important; 
-        padding-bottom: 0rem !important; 
-        padding-right: 1rem !important;
-        padding-left: 1rem !important;
+    .header-container { 
+        display: flex; 
+        align-items: center; 
+        gap: 45px; 
+        margin-bottom: 30px; 
     }
-    /* עיצוב כפתור החזרה בסרגל הצד */
-    section[data-testid="stSidebar"] .stButton>button {
-        background-color: #f0f2f6 !important;
-        border: 1px solid #d1d5db !important;
-        color: #31333f !important;
-        font-weight: bold !important;
-        margin-top: 20px;
+    .header-title { 
+        font-size: 2.5rem !important; 
+        font-weight: bold !important; 
+        margin: 0 !important; 
     }
-    iframe { border: none !important; width: 100%; height: 98vh; }
+    .header-user { 
+        font-size: 1.2rem !important; 
+        font-weight: 900 !important; 
+        color: #31333f; 
+    }
+    .stButton>button { 
+        width: 100% !important; 
+        border-radius: 8px !important; 
+        font-weight: bold !important; 
+        height: 3em !important; 
+    }
+    /* עיצוב ה-iframe שייצמד למעלה */
+    .exam-frame { border: none !important; width: 100%; height: 98vh; margin-top: -30px; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -44,7 +52,7 @@ SYLLABUS = {
     "חוק העונשין": ["עבירות מרמה וזיוף"]
 }
 
-# פונקציות עזר
+# פונקציות לוגיקה
 def reset_quiz_state():
     st.session_state.update({
         "quiz_active": False, "q_data": None, "q_count": 0,
@@ -81,7 +89,7 @@ def stream_ai_lesson(prompt_text):
         return full_text
     except: return "⚠️ תקלה בטעינה."
 
-# ניהול מצבי אפליקציה
+# אתחול Session
 if "step" not in st.session_state:
     st.session_state.update({
         "user": None, "step": "login", "lesson_txt": "",
@@ -118,19 +126,17 @@ elif st.session_state.step == "menu":
         st.rerun()
 
 elif st.session_state.step == "exam_frame":
-    # תפריט צדדי (Sidebar) לחזרה
+    # תפריט צדדי במקום Header - מופיע רק כאן
     with st.sidebar:
-        st.markdown("### ניווט")
-        if st.button("לתפריט הראשי →", key="sidebar_back"):
+        st.markdown("### ניווט מהיר")
+        if st.button("לתפריט הראשי →", key="btn_exit_exam"):
             reset_quiz_state()
             st.session_state.step = "menu"
             st.rerun()
-        st.divider()
-        st.info("את/ה נמצא/ת כעת במערכת הבחינות.")
-
-    # הצגת הבחינה בפריים על כל המסך המרכזי
+    
+    # iframe של הבחינה ללא Header מעליו
     exam_url = "https://fullrealestatebroker-yevuzewxde4obgrpgacrpc.streamlit.app/"
-    st.markdown(f'<iframe src="{exam_url}?embed=true"></iframe>', unsafe_allow_html=True)
+    st.markdown(f'<iframe src="{exam_url}?embed=true" class="exam-frame"></iframe>', unsafe_allow_html=True)
 
 elif st.session_state.step == "study":
     show_header()
