@@ -1,4 +1,4 @@
-# Project: מתווך בקליק | Version: 1213-Anchor-Safe-Reset-V2 | File: app.py
+# Project: מתווך בקליק | Version: 1213-Anchor-Safe-Reset-V3 | File: app.py
 import streamlit as st
 import google.generativeai as genai
 import json
@@ -127,7 +127,6 @@ if st.session_state.step == "login":
 elif st.session_state.step == "menu":
     show_header()
     c1, c2, _ = st.columns([1.5, 1.5, 3])
-    # כאן הסרתי את כפתור "לתפריט הראשי" המיותר
     if c1.button("📚 לימוד לפי נושאים"):
         st.session_state.step = "study"
         st.rerun()
@@ -138,4 +137,5 @@ elif st.session_state.step == "menu":
 elif st.session_state.step == "exam_frame":
     show_header()
     if st.button("לתפריט הראשי"):
-        st.session_state.step = "menu
+        st.session_state.step = "menu"
+        st.rerun()
