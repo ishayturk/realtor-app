@@ -1,4 +1,4 @@
-# Project: מתווך בקליק | Version: 1213-Strip-Fixed-Final | File: app.py
+# Project: מתווך בקליק | Version: 1213-Ultra-Slim-Strip | File: app.py
 import streamlit as st
 import google.generativeai as genai
 import json
@@ -35,11 +35,16 @@ st.markdown("""
         height: 3em !important; 
     }
     
-    /* תיבת הגבלה לסטריפ כדי שיהיה צר וממורכז */
-    .narrow-strip {
+    /* סטריפ דק מאוד (עובי 2 שורות גג) */
+    .ultra-slim-strip {
         max-width: 1200px;
-        margin: 0 auto;
-        padding: 10px 0;
+        margin: 1rem auto 0 auto; /* שורה אחת מהלמעלה */
+        height: 40px; /* גובה מינימלי */
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: None; /* ללא קו מפריד לפי הבקשה */
+        padding: 0 10px;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -132,12 +137,12 @@ elif st.session_state.step == "menu":
         st.rerun()
 
 elif st.session_state.step == "exam_frame":
-    # הזרקת CSS לביטול שוליים מהקונטיינר הראשי בלבד
+    # CSS לביטול שוליים והסתרת הדר (כדי שהפריים יצמד למעלה)
     st.markdown("""
         <style>
             header {visibility: hidden;}
             .main .block-container {
-                padding-top: 1rem !important;
+                padding-top: 0 !important;
                 padding-left: 0 !important;
                 padding-right: 0 !important;
                 max-width: 100% !important;
@@ -145,23 +150,27 @@ elif st.session_state.step == "exam_frame":
         </style>
     """, unsafe_allow_html=True)
     
-    # שימוש בדיב "צר" עבור הסטריפ העליון בלבד
-    st.markdown('<div class="narrow-strip">', unsafe_allow_html=True)
-    sc1, sc2, sc3 = st.columns([1, 2, 1])
-    with sc1:
-        st.markdown("🏠 **מתווך בקליק**")
-    with sc2:
-        st.markdown(f"<p style='text-align:center;'>👤 <b>{st.session_state.user}</b></p>", 
-                    unsafe_allow_html=True)
-    with sc3:
-        if st.button("לתפריט הראשי", key="exam_back_btn"):
-            st.session_state.step = "menu"
-            st.rerun()
-    st.markdown('</div>', unsafe_allow_html=True)
+    # בניית הסטריפ הדק
+    st.markdown(f"""
+        <div class="ultra-slim-strip">
+            <div style="font-weight: bold;">🏠 מתווך בקליק</div>
+            <div style="font-weight: bold;">👤 {st.session_state.user}</div>
+            <div id="back-link"></div>
+        </div>
+    """, unsafe_allow_html=True)
     
-    # Iframe בפריסה מלאה ללא הגבלה
+    # כפתור חזרה שמוצמד לסטריפ בצד (שימוש ב-columns מצומצמות מאוד ליישור)
+    _, strip_box, _ = st.columns([1, 4, 1])
+    with strip_box:
+        sc1, sc2, sc3 = st.columns([1, 2, 1])
+        with sc3:
+            if st.button("לתפריט הראשי", key="exam_back_btn"):
+                st.session_state.step = "menu"
+                st.rerun()
+    
+    # Iframe בפריסה מלאה ללא רווח
     exam_url = "https://fullrealestatebroker-yevuzewxde4obgrpgacrpc.streamlit.app/?embed=true"
-    components.iframe(exam_url, height=950, scrolling=True)
+    components.iframe(exam_url, height=1000, scrolling=True)
 
 elif st.session_state.step == "study":
     show_header()
@@ -191,62 +200,4 @@ elif st.session_state.step == "lesson_run":
             st.rerun()
     if not st.session_state.get("current_sub"):
         st.write("")
-        if st.button("לתפריט הראשי", key="back_no_sub"):
-            reset_quiz_state()
-            st.session_state.step = "menu"
-            st.rerun()
-    else:
-        if st.session_state.get("lesson_txt") == "LOADING":
-            st.session_state.lesson_txt = stream_ai_lesson(f"הסבר על {st.session_state.current_sub}")
-            st.rerun()
-        elif st.session_state.get("lesson_txt"):
-            st.markdown(st.session_state.lesson_txt)
-        if st.session_state.quiz_active and st.session_state.q_data and not st.session_state.quiz_finished:
-            st.divider()
-            q = st.session_state.q_data
-            st.subheader(f"📝 שאלה {st.session_state.q_count} מתוך 10")
-            ans = st.radio(q['q'], q['options'], index=None, key=f"q_{st.session_state.q_count}")
-            qc1, qc2, qc3 = st.columns([2, 2, 2])
-            if qc1.button("בדוק/י תשובה", disabled=(ans is None or st.session_state.checked)):
-                st.session_state.checked = True
-                st.rerun()
-            if qc2.button("לשאלה הבאה" if st.session_state.q_count < 10 else "🏁 סיכום", disabled=not st.session_state.checked):
-                if st.session_state.q_count < 10:
-                    with st.spinner("טוען..."):
-                        res = fetch_q_ai(st.session_state.current_sub)
-                        if res:
-                            st.session_state.update({"q_data": res, "q_count": st.session_state.q_count + 1, "checked": False})
-                            st.rerun()
-                else:
-                    st.session_state.quiz_finished = True
-                    st.rerun()
-            if qc3.button("לתפריט הראשי", key="q_back"):
-                reset_quiz_state()
-                st.session_state.step = "menu"
-                st.rerun()
-            if st.session_state.checked:
-                if ans == q['correct']:
-                    st.success("נכון מאוד!")
-                    if f"sc_{st.session_state.q_count}" not in st.session_state:
-                        st.session_state.correct_answers += 1
-                        st.session_state[f"sc_{st.session_state.q_count}"] = True
-                else: st.error(f"טעות. הנכון הוא: {q['correct']}")
-                st.info(f"הסבר: {q['explain']}")
-        if (not st.session_state.quiz_active or st.session_state.quiz_finished) and st.session_state.get("current_sub"):
-            if st.session_state.quiz_finished:
-                st.success(f"🏆 ציון: {st.session_state.correct_answers} מתוך 10.")
-            ca, cb = st.columns([1, 1])
-            if ca.button("📝 שאלון תרגול" if not st.session_state.quiz_finished else "🔄 תרגול חוזר"):
-                if st.session_state.get("lesson_txt") not in ["", "LOADING"]:
-                    with st.spinner("מייצר שאלה..."):
-                        res = fetch_q_ai(st.session_state.current_sub)
-                        if res:
-                            reset_quiz_state()
-                            st.session_state.update({"q_data": res, "quiz_active": True, "q_count": 1, "checked": False})
-                            st.rerun()
-            if cb.button("לתפריט הראשי", key="main_back"):
-                reset_quiz_state()
-                st.session_state.step = "menu"
-                st.rerun()
-
-# --- End of File ---
+        if st.button("לתפריט הראשי", key
