@@ -1,4 +1,4 @@
-# שאלון
+# שאלון - לוגיקה בלבד
     user_choice = None
     if st.session_state.quiz_active and st.session_state.q_data and not st.session_state.quiz_finished:
         st.divider()
@@ -17,6 +17,7 @@
         st.divider(); st.balloons()
         st.success(f"🏆 סיימת! ענית נכון על {st.session_state.correct_answers} מתוך 10.")
 
+    # תפריט כפתורים בשתי שורות (המבנה המקורי שלך)
     st.divider()
     f1, f2, f3 = st.columns([2, 2, 4])
     with f1:
@@ -32,18 +33,16 @@
                             st.session_state.update({"q_data": res, "quiz_active": True, "q_count": 1, "correct_answers": 0, "quiz_finished": False, "ans_checked": False})
                             st.rerun()
             elif not st.session_state.quiz_finished:
-                # כפתור בדוק תשובה - דיסאבל עד שבוחרים תשובה
-                check_disabled = (user_choice is None or st.session_state.ans_checked)
-                if st.button("✅ בדוק תשובה", disabled=check_disabled):
+                # בדיקת תשובה - אקטיבי רק אם נבחרה תשובה וטרם נבדקה
+                if st.button("✅ בדיקת תשובה", disabled=(user_choice is None or st.session_state.ans_checked)):
                     st.session_state.ans_checked = True
                     st.session_state.last_result = "correct" if user_choice == q['correct'] else "wrong"
                     if user_choice == q['correct']: st.session_state.correct_answers += 1
                     st.rerun()
                 
-                # כפתור שאלה הבאה - אקטיבי רק לאחר לחיצה על בדוק תשובה
+                # שאלה הבאה - אקטיבי רק לאחר בדיקה
                 if st.session_state.q_count < 10:
-                    next_disabled = not st.session_state.ans_checked
-                    if st.button("➡️ שאלה הבאה", disabled=next_disabled):
+                    if st.button("➡️ שאלה הבאה", disabled=not st.session_state.ans_checked):
                         with st.spinner(f"מכין שאלה {st.session_state.q_count + 1}..."):
                             res = fetch_q_ai(st.session_state.current_sub)
                             if res:
