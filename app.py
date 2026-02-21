@@ -1,6 +1,6 @@
 # ==========================================
-# Project: מתווך בקליק | Version: 1213 + Final Strip
-# Status: Syntax Verified | Protocol: Clean Code
+# Project: מתווך בקליק | Version: 1213 + Final Strip Fix
+# Status: Syntax Verified | Protocol: Clean Code (Short Lines)
 # ==========================================
 import streamlit as st
 import google.generativeai as genai
@@ -14,19 +14,27 @@ st.markdown("""<style>
         width: 100% !important; border-radius: 8px !important; 
         font-weight: bold !important; height: 3em !important; 
     }
-    .header-container { display: flex; align-items: center; gap: 45px; margin-bottom: 30px; }
-    .header-title { font-size: 2.5rem !important; font-weight: bold !important; margin: 0 !important; }
-    .header-user { font-size: 1.2rem !important; font-weight: 900 !important; color: #31333f; }
+    .header-container { 
+        display: flex; align-items: center; gap: 45px; margin-bottom: 30px; 
+    }
+    .header-title { 
+        font-size: 2.5rem !important; font-weight: bold !important; 
+        margin: 0 !important; 
+    }
+    .header-user { 
+        font-size: 1.2rem !important; font-weight: 900 !important; 
+        color: #31333f; 
+    }
 </style>""", unsafe_allow_html=True)
 
 SYLLABUS = {
-    "חוק המתווכים": ["רישוי והגבלות", "הגינות וזהירות", "הזמנה ובלעדיות", "פעולות שאינן תיווך"],
+    "חוק המתווכים": ["רישוי והגבלות", "הגינות וזהירות", "הזמנה ובלעדיות"],
     "תקנות המתווכים": ["פרטי הזמנה 1997", "פעולות שיווק 2004", "דמי תיווך"],
-    "חוק המקרקעין": ["בעלות וזכויות", "בתים משותפים", "עסקאות נוגדות", "הערות אזהרה", "שכירות וזיקה"],
-    "חוק המכר (דירות)": ["מפרט וגילוי", "בדק ואחריות", "איחור במסירה", "הבטחת השקעות"],
-    "חוק החוזים": ["כריתת חוזה", "פגמים בחוזה", "תרופות והפרה", "ביטול והשבה"],
-    "חוק התכנון והבנייה": ["היתרים ושימוש חורג", "היטל השבחה", "תוכניות מתאר", "מוסדות התכנון"],
-    "חוק מיסוי מקרקעין": ["מס שבח (חישוב ופפורים)", "מס רכישה", "הקלות לדירת מגורים", "שווי שוק"],
+    "חוק המקרקעין": ["בעלות וזכויות", "בתים משותפים", "עסקאות נוגדות"],
+    "חוק המכר (דירות)": ["מפרט וגילוי", "בדק ואחריות", "איחור במסירה"],
+    "חוק החוזים": ["כריתת חוזה", "פגמים בחוזה", "תרופות והפרה"],
+    "חוק התכנון והבנייה": ["היתרים ושימוש חורג", "היטל השבחה"],
+    "חוק מיסוי מקרקעין": ["מס שבח", "מס רכישה", "הקלות"],
     "חוק הגנת הצרכן": ["ביטול עסקה", "הטעיה בפרסום"],
     "דיני ירושה": ["סדר הירושה", "צוואות"],
     "חוק העונשין": ["עבירות מרמה וזיוף"]
@@ -68,8 +76,8 @@ if "step" not in st.session_state:
 def show_header():
     if st.session_state.user:
         u_name = st.session_state.user
-        h_html = f'<div class="header-container"><div class="header-title">🏠 מתווך בקליק</div>' \
-                 f'<div class="header-user">👤 <b>{u_name}</b></div></div>'
+        h_html = f'<div class="header-container"><div>🏠 מתווך בקליק</div>' \
+                 f'<div>👤 <b>{u_name}</b></div></div>'
         st.markdown(h_html, unsafe_allow_html=True)
 
 if st.session_state.step == "login":
@@ -97,7 +105,7 @@ elif st.session_state.step == "exam_frame":
         #MainMenu {visibility: hidden !important;}
         footer {visibility: hidden !important;}
         .stApp { margin-top: -85px; }
-        [data-testid="stHorizontalBlock"] { max-width: 500px; margin: 0 auto; }
+        [data-testid="stHorizontalBlock"] { max-width: 450px; margin: 0 auto; }
     </style>""", unsafe_allow_html=True)
     st.markdown('<div style="height: 15px;"></div>', unsafe_allow_html=True)
     c_logo, c_user, c_back = st.columns([1, 1, 1])
@@ -115,7 +123,8 @@ elif st.session_state.step == "study":
     show_header()
     sel = st.selectbox("בחר נושא:", ["בחר..."] + list(SYLLABUS.keys()))
     if sel != "בחר..." and st.button("טען נושא"):
-        st.session_state.update({"selected_topic": sel, "step": "lesson_run", "lesson_txt": ""})
+        st.session_state.update({"selected_topic": sel, "step": "lesson_run"})
+        st.session_state.lesson_txt = ""
         st.rerun()
 
 elif st.session_state.step == "lesson_run":
@@ -125,7 +134,8 @@ elif st.session_state.step == "lesson_run":
     cols = st.columns(len(subs))
     for i, s in enumerate(subs):
         if cols[i].button(s, key=f"sub_{i}"):
-            st.session_state.update({"current_sub": s, "lesson_txt": "LOADING", "quiz_active": False, "q_count": 0})
+            st.session_state.update({"current_sub": s, "lesson_txt": "LOADING"})
+            st.session_state.update({"quiz_active": False, "q_count": 0})
             st.rerun()
     if st.session_state.get("lesson_txt") == "LOADING":
         st.session_state.lesson_txt = stream_ai_lesson(f"שיעור על {st.session_state.current_sub}")
@@ -159,4 +169,19 @@ elif st.session_state.step == "lesson_run":
                 if st.button("📝 שאלון תרגול"):
                     res = fetch_q_ai(st.session_state.current_sub)
                     if res:
-                        st.session_state.update({"q_data": res, "quiz_active": True, "q_count": 1, "correct_answers":
+                        st.session_state.update({"q_data": res, "quiz_active": True})
+                        st.session_state.update({"q_count": 1, "correct_answers": 0})
+                        st.session_state.update({"quiz_finished": False})
+                        st.rerun()
+            elif not st.session_state.quiz_finished:
+                if st.session_state.q_count < 10:
+                    if st.button("➡️ שאלה הבאה"):
+                        res = fetch_q_ai(st.session_state.current_sub)
+                        if res:
+                            st.session_state.update({"q_data": res})
+                            st.session_state.q_count += 1
+                            st.rerun()
+                else:
+                    if st.button("🏁 סיכום שאלון"):
+                        st.session_state.quiz_finished = True
+                        st.rerun()
