@@ -69,7 +69,7 @@ def fetch_q_ai(topic):
         m = genai.GenerativeModel('gemini-2.0-flash')
         p = (
             f"צור שאלה אמריקאית קשה על {topic}. "
-            f"החזר JSON: {{'q':'','options':['','','',''],'correct':'','explain':''}}"
+            "החזר JSON: {'q':'','options':['','','',''],'correct':'','explain':''}"
         )
         res = m.generate_content(p).text
         match = re.search(r'\{.*\}', res, re.DOTALL)
@@ -84,7 +84,7 @@ def stream_ai_lesson(p):
         m = genai.GenerativeModel('gemini-2.0-flash')
         full_p = (
             f"{p}. כתוב שיעור הכנה מעמיק ומפורט "
-            f"למבחן המתווכים עם סעיפי חוק ודוגמאות."
+            "למבחן המתווכים עם סעיפי חוק ודוגמאות."
         )
         response = m.generate_content(full_p, stream=True)
         placeholder = st.empty()
@@ -99,4 +99,71 @@ def stream_ai_lesson(p):
 
 if "step" not in st.session_state:
     st.session_state.update({
-        "
+        "user": None, "step": "login", "lesson_txt": "",
+        "q_data": None, "q_count": 0, "quiz_active": False,
+        "correct_answers": 0, "quiz_finished": False, "ans_checked": False
+    })
+
+def show_header():
+    if st.session_state.user:
+        h_html = (
+            '<div class="header-container">'
+            '<div class="header-title">🏠 מתווך בקליק</div>'
+            f'<div class="header-user">👤 <b>{st.session_state.user}</b></div>'
+            '</div>'
+        )
+        st.markdown(h_html, unsafe_allow_html=True)
+
+if st.session_state.step == "login":
+    st.title("🏠 מתווך בקליק")
+    u = st.text_input("שם מלא:")
+    if st.button("כניסה") and u:
+        st.session_state.update({"user": u, "step": "menu"})
+        st.rerun()
+
+elif st.session_state.step == "menu":
+    show_header()
+    c1, c2, c3 = st.columns([1.5, 1.5, 3])
+    with c1:
+        if st.button("📚 לימוד לפי נושאים"): 
+            st.session_state.step = "study"
+            st.rerun()
+    with c2:
+        if st.button("⏱️ גש/י למבחן"): 
+            st.session_state.step = "exam_frame"
+            st.rerun()
+
+elif st.session_state.step == "exam_frame":
+    c_back, c_name, c_logo = st.columns([1, 1, 6])
+    with c_back:
+        if st.button("🏠 חזרה"): 
+            st.session_state.step = "menu"
+            st.rerun()
+    st.divider()
+    u_enc = st.session_state.user.replace(" ", "%20")
+    # תיקון שבירת השורה עבור ה-URL
+    b_url = "https://fullrealestatebroker-yevuzewxde4obgrpgacrpc"
+    t_url = f"{b_url}.streamlit.app/?user={u_enc}"
+    st.components.v1.iframe(t_url, height=900, scrolling=True)
+
+elif st.session_state.step == "study":
+    show_header()
+    sel = st.selectbox("בחר נושא:", ["בחר..."] + list(SYLLABUS.keys()))
+    if sel != "בחר..." and st.button("טען נושא"):
+        st.session_state.update({
+            "selected_topic": sel, 
+            "step": "lesson_run", 
+            "lesson_txt": ""
+        })
+        st.rerun()
+
+elif st.session_state.step == "lesson_run":
+    show_header()
+    st.header(f"📖 {st.session_state.selected_topic}")
+    subs = SYLLABUS.get(st.session_state.selected_topic, [])
+    cols = st.columns(len(subs))
+    for i, s in enumerate(subs):
+        if cols[i].button(s, key=f"sub_{i}"):
+            st.session_state.update({
+                "current_sub": s, "lesson_txt": "LOADING", 
+                "quiz_active": False, "q_count": 0, "ans_
