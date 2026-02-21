@@ -1,5 +1,5 @@
 # ==========================================
-# Project: מתווך בקליק | Version: 1213
+# Project: מתווך בקליק | Version: 1213-Final
 # Status: Clean Code Protocol Applied
 # ==========================================
 import streamlit as st
@@ -8,7 +8,7 @@ import json, re
 
 st.set_page_config(page_title="מתווך בקליק", layout="wide")
 
-# עיצוב בסיסי - שבירת שורות ארוכות ב-CSS
+# עיצוב בסיסי לכל האפליקציה
 BASE_CSS = """
 <style>
     * { direction: rtl; text-align: right; }
@@ -44,10 +44,12 @@ SYLLABUS = {
         "הערות אזהרה", "שכירות וזיקה"
     ],
     "חוק המכר (דירות)": [
-        "מפרט וגילוי", "בדק ואחריות", "איחור במסירה", "הבטחת השקעות"
+        "מפרט וגילוי", "בדק ואחריות", 
+        "איחור במסירה", "הבטחת השקעות"
     ],
     "חוק החוזים": [
-        "כריתת חוזה", "פגמים בחוזה", "תרופות והפרה", "ביטול והשבה"
+        "כריתת חוזה", "פגמים בחוזה", 
+        "תרופות והפרה", "ביטול והשבה"
     ],
     "חוק התכנון והבנייה": [
         "היתרים ושימוש חורג", "היטל השבחה", 
@@ -116,63 +118,3 @@ elif st.session_state.step == "menu":
     with c1:
         if st.button("📚 לימוד לפי נושאים"):
             st.session_state.step = "study"
-            st.rerun()
-    with c2:
-        if st.button("⏱️ גש/י למבחן"):
-            st.session_state.step = "exam_frame"
-            st.rerun()
-
-elif st.session_state.step == "exam_frame":
-    # הסתרת תפריטים ומרכוז הסטריפ - שבירת שורות ל-Git
-    EXAM_CSS = """
-    <style>
-        header {visibility: hidden !important;}
-        #MainMenu {visibility: hidden !important;}
-        footer {visibility: hidden !important;}
-        .stApp { margin-top: -85px; }
-        [data-testid="stHorizontalBlock"] { 
-            max-width: 1200px; margin: 0 auto; padding: 0 20px; 
-        }
-    </style>
-    """
-    st.markdown(EXAM_CSS, unsafe_allow_html=True)
-    st.markdown('<div style="height: 15px;"></div>', unsafe_allow_html=True)
-    
-    c_logo, c_user, c_back = st.columns([1.5, 4, 1.5])
-    with c_logo:
-        st.markdown('<b>🏠 מתווך בקליק</b>', unsafe_allow_html=True)
-    with c_user:
-        st.markdown(f'<div style="font-weight:900; text-align:center;">' \
-                    f'{st.session_state.user}</div>', unsafe_allow_html=True)
-    with c_back:
-        if st.button("לתפריט הראשי", key="exam_back"):
-            st.session_state.step = "menu"
-            st.rerun()
-
-    u_enc = st.session_state.user.replace(" ", "%20")
-    t_url = f"https://fullrealestatebroker-yevuzewxde4obgrpgacrpc.streamlit.app/" \
-            f"?user={u_enc}"
-    st.components.v1.iframe(t_url, height=1000, scrolling=True)
-
-elif st.session_state.step == "study":
-    show_header()
-    sel = st.selectbox("בחר נושא:", ["בחר..."] + list(SYLLABUS.keys()))
-    if sel != "בחר..." and st.button("טען נושא"):
-        st.session_state.update({
-            "selected_topic": sel, "step": "lesson_run", "lesson_txt": ""
-        })
-        st.rerun()
-
-elif st.session_state.step == "lesson_run":
-    show_header()
-    st.header(f"📖 {st.session_state.selected_topic}")
-    subs = SYLLABUS.get(st.session_state.selected_topic, [])
-    cols = st.columns(len(subs))
-    for i, s in enumerate(subs):
-        if cols[i].button(s, key=f"sub_{i}"):
-            st.session_state.update({
-                "current_sub": s, "lesson_txt": "LOADING", 
-                "quiz_active": False, "q_count": 0
-            })
-            st.rerun()
-    # ... שאר לוגיקת הלימוד נשמרת ללא שינוי ...
