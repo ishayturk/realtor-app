@@ -1,78 +1,38 @@
-# Project: מתווך בקליק | Version: 1213-Safe-Exam-Strict-Clean | File: app.py
+# Project: מתווך בקליק | Version: 1213-Original-Restored-Exam-Fix | File: app.py
 import streamlit as st
 import google.generativeai as genai
 import json
 import re
 
-# הגדרת דף - סגירת סרגל צד כברירת מחדל למניעת עיוות
-st.set_page_config(page_title="מתווך בקליק", layout="wide", initial_sidebar_state="collapsed")
+# הגדרת דף - שומר על המבנה המקורי
+st.set_page_config(page_title="מתווך בקליק", layout="wide")
 
-# עיצוב CSS - ללא סטריפים חיצוניים, שימוש ב-Header קיים וקיר שקוף
+# עיצוב CSS המקורי של עוגן 1213 (ללא שינויים)
 st.markdown("""
 <style>
-    /* הגדרות RTL כלליות */
     * { direction: rtl; text-align: right; }
-    
-    /* ה-Header המקורי של הלמידה (Anchor 1213) */
     .header-container { 
         display: flex; 
         align-items: center; 
         gap: 45px; 
         margin-bottom: 30px; 
     }
-    .header-title { font-size: 2.5rem !important; font-weight: bold !important; margin: 0 !important; }
-    .header-user { font-size: 1.2rem !important; font-weight: 900 !important; color: #31333f; }
-
-    /* --- הגדרות ייחודיות למצב מבחן --- */
-    
-    /* ביטול מוחלט של ה-Sidebar והכפתור המעוות >> */
-    [data-testid="stSidebar"], [data-testid="stSidebarCollapseButton"] { display: none !important; }
-    
-    /* קיר שקוף מימין למניעת מריחה של ה-iframe */
-    .invisible-barrier {
-        position: fixed;
-        top: 0;
-        right: 0;
-        width: 20px;
-        height: 100vh;
-        z-index: 999998;
-        background: transparent;
+    .header-title { 
+        font-size: 2.5rem !important; 
+        font-weight: bold !important; 
+        margin: 0 !important; 
     }
-
-    /* הזרקת טקסט "לתפריט הראשי" לתוך ה-Header המובנה */
-    .header-link-container {
-        position: fixed;
-        top: 10px;
-        left: 0;
-        width: 100%;
-        display: flex;
-        justify-content: center;
-        z-index: 999999;
-        pointer-events: none;
+    .header-user { 
+        font-size: 1.2rem !important; 
+        font-weight: 900 !important; 
+        color: #31333f; 
     }
-    .header-link {
-        pointer-events: auto;
-        text-decoration: none;
-        color: #555;
-        font-size: 15px;
-        font-weight: 500;
-        background: rgba(255,255,255,0.7);
-        padding: 2px 10px;
-        border-radius: 5px;
+    .stButton>button { 
+        width: 100% !important; 
+        border-radius: 8px !important; 
+        font-weight: bold !important; 
+        height: 3em !important; 
     }
-
-    /* iframe שתופס 100% מהגובה ומתחיל מהטופ */
-    .full-iframe {
-        border: none !important;
-        width: 100%;
-        height: 100vh;
-        display: block;
-        margin-top: -50px; /* קיזוז ה-Header המובנה של Streamlit */
-    }
-
-    /* הסרת רווחים של Streamlit */
-    .block-container { padding: 0 !important; max-width: 100% !important; }
-    header { visibility: hidden; } /* מסתיר את ה-Header המקורי כדי שלא יפריע לקישור שלנו */
 </style>
 """, unsafe_allow_html=True)
 
@@ -90,9 +50,9 @@ SYLLABUS = {
     "חוק העונשין": ["עבירות מרמה וזיוף"]
 }
 
-# לוגיקה פנימית (Anchor 1213)
-if "step" not in st.session_state:
-    st.session_state.update({"user": None, "step": "login"})
+# פונקציות (Anchor 1213)
+def reset_quiz_state():
+    st.session_state.update({"quiz_active": False, "quiz_finished": False, "checked": False, "q_count": 0})
 
 def show_header():
     if st.session_state.get("user"):
@@ -100,6 +60,10 @@ def show_header():
             <div class="header-title">🏠 מתווך בקליק</div>
             <div class="header-user">👤 <b>{st.session_state.user}</b></div>
         </div>""", unsafe_allow_html=True)
+
+# אתחול State
+if "step" not in st.session_state:
+    st.session_state.update({"user": None, "step": "login"})
 
 # --- ניתוב ---
 
@@ -116,4 +80,41 @@ elif st.session_state.step == "menu":
     c1, c2, _ = st.columns([1.5, 1.5, 3])
     if c1.button("📚 לימוד לפי נושאים"):
         st.session_state.step = "study"
-        st.rerun
+        st.rerun()
+    if c2.button("⏱️ גש/י למבחן"):
+        st.session_state.step = "exam_frame"
+        st.rerun()
+
+elif st.session_state.step == "exam_frame":
+    # 1. הזרקת ה-CSS של המבחן באופן מבודד (רק כאן)
+    st.markdown("""
+    <style>
+        header { visibility: hidden; }
+        .block-container { padding-top: 0 !important; padding-bottom: 0 !important; }
+        .nav-link-box { position: fixed; top: 10px; width: 100%; display: flex; justify-content: center; z-index: 1000; }
+        .nav-link { text-decoration: none; color: #666; font-weight: bold; background: white; padding: 2px 10px; border-radius: 5px; border: 1px solid #ccc; }
+        .right-barrier { position: fixed; right: 0; top: 0; width: 15px; height: 100vh; z-index: 999; background: transparent; }
+    </style>
+    <div class="right-barrier"></div>
+    <div class="nav-link-box"><a href="/?step=menu" target="_self" class="nav-link">לתפריט הראשי</a></div>
+    """, unsafe_allow_html=True)
+
+    if st.query_params.get("step") == "menu":
+        st.session_state.step = "menu"
+        st.query_params.clear()
+        st.rerun()
+
+    # 2. ה-Iframe
+    base_url = "https://fullrealestatebroker-yevuzewxde4obgrpgacrpc.streamlit.app/"
+    exam_url = f"{base_url}?user={st.session_state.user}&embed=true"
+    st.markdown(f'<iframe src="{exam_url}" style="width:100%; height:100vh; border:none; margin-top:-50px;"></iframe>', unsafe_allow_html=True)
+
+elif st.session_state.step == "study":
+    show_header()
+    sel = st.selectbox("בחר נושא לימוד:", ["בחר..."] + list(SYLLABUS.keys()))
+    if st.button("טען נושא") and sel != "בחר...":
+        st.session_state.selected_topic = sel
+        st.rerun()
+    if st.button("🏠 לתפריט הראשי"):
+        st.session_state.step = "menu"
+        st.rerun()
