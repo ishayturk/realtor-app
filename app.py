@@ -1,4 +1,4 @@
-# Project: מתווך בקליק | Version: training_full_V04 | 21/02/2026 | 19:55
+# Project: מתווך בקליק | Version: training_full_V05 | 21/02/2026 | 20:15
 import streamlit as st
 import google.generativeai as genai
 import json
@@ -44,7 +44,7 @@ SYLLABUS = {
     "חוק המכר (דירות)": ["מפרט וגילוי", "בדק ואחריות", "איחור במסירה", "הבטחת השקעות"],
     "חוק החוזים": ["כריתת חוזה", "פגמים בחוזה", "תרופות והפרה", "ביטול והשבה"],
     "חוק התכנון והבנייה": ["היתרים ושימוש חורג", "היטל השבחה", "תוכניות מתאר", "מוסדות התכנון"],
-    "חוק מיסוי מקרקעין": ["מס שבח (חישוב ופטורים)", "מס רכישה", "הקלות לדירת מגורים", "שווי שוק"],
+    "חוק מיסוי מקרקעין": ["מס שבח (חישוב ופפורים)", "מס רכישה", "הקלות לדירת מגורים", "שווי שוק"],
     "חוק הגנת הצרכן": ["ביטול עסקה", "הטעיה בפרסום"],
     "דיני ירושה": ["סדר הירושה", "צוואות"],
     "חוק העונשין": ["עבירות מרמה וזיוף"]
@@ -124,7 +124,13 @@ elif st.session_state.step == "menu":
         st.rerun()
 
 elif st.session_state.step == "exam_frame":
-    # שיטת הלינק הגובה מהעוגן שסיפקת, מוסטת לשמאל
+    # לוגיקת הניווט - בודק אם הקישור נלחץ (דרך ה-URL) לפני רינדור ה-iframe
+    if st.query_params.get("nav") == "menu":
+        st.session_state.step = "menu"
+        st.query_params.clear()
+        st.rerun()
+
+    # עיצוב הלינק הגבוה (נשאר לינק, לא הופך לכפתור סטרימליט)
     st.markdown("""
     <style>
         header { visibility: hidden !important; }
@@ -148,14 +154,10 @@ elif st.session_state.step == "exam_frame":
             border: 1px solid #ddd; 
         }
     </style>
-    <div class="nav-link-box"><a href="./?step=menu" target="_self" class="nav-link">לתפריט הראשי</a></div>
+    <div class="nav-link-box">
+        <a href="?nav=menu" target="_self" class="nav-link">לתפריט הראשי</a>
+    </div>
     """, unsafe_allow_html=True)
-    
-    # בדיקת פרמטרים לחזרה לתפריט
-    if st.query_params.get("step") == "menu":
-        st.session_state.step = "menu"
-        st.query_params.clear()
-        st.rerun()
 
     # פריים המבחן
     base_url = "https://fullrealestatebroker-yevuzewxde4obgrpgacrpc.streamlit.app/"
