@@ -1,6 +1,6 @@
 # ==========================================
-# Project: מתווך בקליק | Version: 1213-Final-Fix
-# Status: No Double Footer + Guaranteed Spinner
+# Project: מתווך בקליק | Version: 1213-Fixed-Syntax
+# Status: No Double Footer + Fixed Line Length
 # ==========================================
 import streamlit as st
 import google.generativeai as genai
@@ -67,7 +67,6 @@ def show_header():
         h_html = f'<div class="header-container"><div class="header-title">🏠 מתווך בקליק</div><div class="header-user">👤 <b>{st.session_state.user}</b></div></div>'
         st.markdown(h_html, unsafe_allow_html=True)
 
-# --- ניהול דפים ---
 if st.session_state.step == "login":
     st.title("🏠 מתווך בקליק")
     u = st.text_input("שם מלא:")
@@ -125,29 +124,43 @@ elif st.session_state.step == "lesson_run":
         ans = st.radio(q['q'], q['options'], index=None, key=f"q_{st.session_state.q_count}")
         if st.button("✅ בדיקת תשובה"):
             st.session_state.show_ans = True
-            if ans == q['correct']: st.success("נכון!"); st.session_state.correct_answers += 1
-            else: st.error(f"טעות. התשובה היא: {q['correct']}")
+            if ans == q['correct']:
+                st.success("נכון!")
+                st.session_state.correct_answers += 1
+            else:
+                st.error(f"טעות. התשובה היא: {q['correct']}")
             st.info(f"הסבר: {q['explain']}")
 
     if st.session_state.quiz_finished:
         st.divider(); st.balloons()
         st.success(f"🏆 סיכום: ענית נכון על {st.session_state.correct_answers} מתוך 10 שאלות.")
 
-    # פוטר מאוחד בתוך empty container כדי למנוע כפילויות בזמן טעינה
     footer_placeholder = st.empty()
-    
     with footer_placeholder.container():
         st.divider()
         f1, f2, f3 = st.columns([2, 2, 4])
         with f1:
-            if st.button("🏠 חזרה לתפריט"): st.session_state.step = "menu"; st.rerun()
-        
+            if st.button("🏠 חזרה לתפריט"):
+                st.session_state.step = "menu"; st.rerun()
         with f2:
             if st.session_state.lesson_txt and st.session_state.lesson_txt != "LOADING":
                 if not st.session_state.quiz_active:
                     if st.button("📝 שאלון תרגול"):
-                        footer_placeholder.empty() # מנקה את הכפתורים מיד
+                        footer_placeholder.empty()
                         with st.spinner("מייצר שאלה 1..."):
                             res = fetch_q_ai(st.session_state.current_sub)
-                            if res: 
-                                st.session_state.
+                            if res:
+                                st.session_state.update({"q_data": res, "quiz_active": True, "q_count": 1, "show_ans": False, "correct_answers": 0, "quiz_finished": False})
+                                st.rerun()
+                elif not st.session_state.quiz_finished:
+                    if st.session_state.q_count < 10:
+                        if st.button("➡️ שאלה הבאה"):
+                            footer_placeholder.empty()
+                            with st.spinner(f"מייצר שאלה {st.session_state.q_count + 1}..."):
+                                res = fetch_q_ai(st.session_state.current_sub)
+                                if res:
+                                    st.session_state.update({"q_data": res, "q_count": st.session_state.q_count + 1, "show_ans": False})
+                                    st.rerun()
+                    else:
+                        if st.button("🏁 סיכום שאלון"):
+                            st.session_state.quiz_finished = True; st.rerun()
