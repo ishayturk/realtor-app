@@ -1,6 +1,6 @@
 # ==========================================
-# Project: מתווך בקליק | Version: 1213-STABLE
-# Status: Fixed Quiz Crash + Deep Content
+# Project: מתווך בקליק | Version: 1213-Original-Style
+# Status: Original UI + Simple Navigation
 # ==========================================
 import streamlit as st
 import google.generativeai as genai
@@ -35,7 +35,7 @@ def fetch_q_ai(topic):
     try:
         genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
         m = genai.GenerativeModel('gemini-2.0-flash')
-        p = f"צור שאלה אמריקאית קשה על {topic}. החזר אך ורק JSON: {{'q':'','options':['','','',''],'correct':'','explain':''}}"
+        p = f"צור שאלה אמריקאית קשה על {topic}. החזר JSON: {{'q':'','options':['','','',''],'correct':'','explain':''}}"
         res = m.generate_content(p).text
         match = re.search(r'\{.*\}', res, re.DOTALL)
         if match: return json.loads(match.group())
@@ -47,8 +47,7 @@ def stream_ai_lesson(p):
         m = genai.GenerativeModel('gemini-2.0-flash')
         full_p = f"{p}. כתוב שיעור הכנה מעמיק ומפורט למבחן המתווכים עם סעיפי חוק ודוגמאות."
         response = m.generate_content(full_p, stream=True)
-        placeholder = st.empty()
-        full_text = ""
+        placeholder = st.empty(); full_text = ""
         for chunk in response:
             full_text += chunk.text
             placeholder.markdown(full_text + "▌")
@@ -60,7 +59,7 @@ if "step" not in st.session_state:
     st.session_state.update({
         "user": None, "step": "login", "lesson_txt": "",
         "q_data": None, "q_count": 0, "quiz_active": False,
-        "show_ans": False, "correct_answers": 0, "quiz_finished": False
+        "correct_answers": 0, "quiz_finished": False
     })
 
 def show_header():
@@ -68,7 +67,6 @@ def show_header():
         h_html = f'<div class="header-container"><div class="header-title">🏠 מתווך בקליק</div><div class="header-user">👤 <b>{st.session_state.user}</b></div></div>'
         st.markdown(h_html, unsafe_allow_html=True)
 
-# --- דפים ---
 if st.session_state.step == "login":
     st.title("🏠 מתווך בקליק")
     u = st.text_input("שם מלא:")
@@ -84,12 +82,9 @@ elif st.session_state.step == "menu":
         if st.button("⏱️ גש/י למבחן"): st.session_state.step = "exam_frame"; st.rerun()
 
 elif st.session_state.step == "exam_frame":
-    st.markdown('<div style="margin-top: -30px;"></div>', unsafe_allow_html=True)
-    c_back, c_name, c_logo, c_sp = st.columns([1, 1, 1, 5])
+    c_back, c_name, c_logo = st.columns([1, 1, 6])
     with c_back:
         if st.button("🏠 חזרה"): st.session_state.step = "menu"; st.rerun()
-    with c_name: st.markdown(f"**👤 {st.session_state.user}**")
-    with c_logo: st.markdown("**🏠 מתווך בקליק**")
     st.divider()
     u_enc = st.session_state.user.replace(" ", "%20")
     t_url = f"https://fullrealestatebroker-yevuzewxde4obgrpgacrpc.streamlit.app/?user={u_enc}"
@@ -99,14 +94,13 @@ elif st.session_state.step == "study":
     show_header()
     sel = st.selectbox("בחר נושא:", ["בחר..."] + list(SYLLABUS.keys()))
     if sel != "בחר..." and st.button("טען נושא"):
-        st.session_state.update({"selected_topic": sel, "step": "lesson_run", "lesson_txt": "", "quiz_active": False})
+        st.session_state.update({"selected_topic": sel, "step": "lesson_run", "lesson_txt": ""})
         st.rerun()
 
 elif st.session_state.step == "lesson_run":
     show_header()
-    topic = st.session_state.selected_topic
-    st.header(f"📖 {topic}")
-    subs = SYLLABUS.get(topic, [])
+    st.header(f"📖 {st.session_state.selected_topic}")
+    subs = SYLLABUS.get(st.session_state.selected_topic, [])
     cols = st.columns(len(subs))
     for i, s in enumerate(subs):
         if cols[i].button(s, key=f"sub_{i}"):
@@ -119,11 +113,12 @@ elif st.session_state.step == "lesson_run":
     elif st.session_state.get("lesson_txt"):
         st.markdown(st.session_state.lesson_txt)
 
+    # הצגת שאלה
     if st.session_state.quiz_active and st.session_state.q_data and not st.session_state.quiz_finished:
         st.divider()
         q = st.session_state.q_data
         st.subheader(f"📝 שאלה {st.session_state.q_count} מתוך 10")
-        ans = st.radio(q['q'], q['options'], index=None, key=f"q_radio_{st.session_state.q_count}")
+        ans = st.radio(q['q'], q['options'], index=None, key=f"q_{st.session_state.q_count}")
         if st.button("✅ בדיקת תשובה"):
             if ans == q['correct']:
                 st.success("נכון!")
@@ -134,30 +129,25 @@ elif st.session_state.step == "lesson_run":
 
     if st.session_state.quiz_finished:
         st.divider(); st.balloons()
-        st.success(f"🏆 סיכום: ענית נכון על {st.session_state.correct_answers} מתוך 10 שאלות.")
+        st.success(f"🏆 סיימת! ענית נכון על {st.session_state.correct_answers} מתוך 10.")
 
+    # תפריט תחתון פשוט
     st.divider()
     f1, f2, f3 = st.columns([2, 2, 4])
     with f1:
-        if st.button("🏠 חזרה לתפריט"):
-            st.session_state.step = "menu"; st.rerun()
+        if st.button("🏠 חזרה לתפריט"): st.session_state.step = "menu"; st.rerun()
     with f2:
-        if st.session_state.lesson_txt and st.session_state.lesson_txt != "LOADING":
+        if st.session_state.get("lesson_txt") and st.session_state.lesson_txt != "LOADING":
             if not st.session_state.quiz_active:
                 if st.button("📝 שאלון תרגול"):
-                    with st.spinner("מכין שאלה 1..."):
+                    with st.spinner("מכין שאלה..."):
                         res = fetch_q_ai(st.session_state.current_sub)
-                        if res:
-                            st.session_state.update({"q_data": res, "quiz_active": True, "q_count": 1, "correct_answers": 0, "quiz_finished": False})
-                            st.rerun()
+                        if res: st.session_state.update({"q_data": res, "quiz_active": True, "q_count": 1, "correct_answers": 0, "quiz_finished": False}); st.rerun()
             elif not st.session_state.quiz_finished:
                 if st.session_state.q_count < 10:
                     if st.button("➡️ שאלה הבאה"):
-                        with st.spinner(f"מכין שאלה {st.session_state.q_count + 1}..."):
+                        with st.spinner("מכין שאלה הבאה..."):
                             res = fetch_q_ai(st.session_state.current_sub)
-                            if res:
-                                st.session_state.update({"q_data": res, "q_count": st.session_state.q_count + 1})
-                                st.rerun()
+                            if res: st.session_state.update({"q_data": res, "q_count": st.session_state.q_count + 1}); st.rerun()
                 else:
-                    if st.button("🏁 סיכום שאלון"):
-                        st.session_state.quiz_finished = True; st.rerun()
+                    if st.button("🏁 סיכום שאלון"): st.session_state.quiz_finished = True; st.rerun()
