@@ -1,6 +1,6 @@
 # ==========================================
-# Project: מתווך בקליק | Version: 1213-Final-Quiz
-# Status: Study + Persistent Navigation + 10Q Quiz
+# Project: מתווך בקליק | Version: 1213-Final-Fix
+# Status: No Double Footer + Guaranteed Spinner
 # ==========================================
 import streamlit as st
 import google.generativeai as genai
@@ -40,6 +40,7 @@ def fetch_q_ai(topic):
         match = re.search(r'\{.*\}', res, re.DOTALL)
         if match: return json.loads(match.group())
     except: return None
+    return None
 
 def stream_ai_lesson(p):
     try:
@@ -132,19 +133,21 @@ elif st.session_state.step == "lesson_run":
         st.divider(); st.balloons()
         st.success(f"🏆 סיכום: ענית נכון על {st.session_state.correct_answers} מתוך 10 שאלות.")
 
-    st.divider()
-    f1, f2, f3 = st.columns([2, 2, 4])
-    with f1:
-        if st.button("🏠 חזרה לתפריט"): st.session_state.step = "menu"; st.rerun()
-    with f2:
-        if st.session_state.lesson_txt and st.session_state.lesson_txt != "LOADING":
-            if not st.session_state.quiz_active:
-                if st.button("📝 שאלון תרגול"):
-                    res = fetch_q_ai(st.session_state.current_sub)
-                    if res: st.session_state.update({"q_data": res, "quiz_active": True, "q_count": 1, "show_ans": False, "correct_answers": 0, "quiz_finished": False}); st.rerun()
-            elif st.session_state.q_count < 10:
-                if st.button("➡️ שאלה הבאה"):
-                    res = fetch_q_ai(st.session_state.current_sub)
-                    if res: st.session_state.update({"q_data": res, "q_count": st.session_state.q_count + 1, "show_ans": False}); st.rerun()
-            elif not st.session_state.quiz_finished:
-                if st.button("🏁 סיכום שאלון"): st.session_state.quiz_finished = True; st.rerun()
+    # פוטר מאוחד בתוך empty container כדי למנוע כפילויות בזמן טעינה
+    footer_placeholder = st.empty()
+    
+    with footer_placeholder.container():
+        st.divider()
+        f1, f2, f3 = st.columns([2, 2, 4])
+        with f1:
+            if st.button("🏠 חזרה לתפריט"): st.session_state.step = "menu"; st.rerun()
+        
+        with f2:
+            if st.session_state.lesson_txt and st.session_state.lesson_txt != "LOADING":
+                if not st.session_state.quiz_active:
+                    if st.button("📝 שאלון תרגול"):
+                        footer_placeholder.empty() # מנקה את הכפתורים מיד
+                        with st.spinner("מייצר שאלה 1..."):
+                            res = fetch_q_ai(st.session_state.current_sub)
+                            if res: 
+                                st.session_state.
