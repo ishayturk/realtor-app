@@ -1,9 +1,11 @@
-# Project: מתווך בקליק | Version: 1221-G1-Final-Strict | File: app.py
+# Project: מתווך בקליק | Version: 1218-G6-Final-Full | File: app.py
+# Anchor: 1218-G6 | Complete logic: Study + AI Lesson + Exam Frame
 import streamlit as st
 import google.generativeai as genai
 import json
 import re
 
+# הגדרת דף
 st.set_page_config(page_title="מתווך בקליק", layout="wide", initial_sidebar_state="collapsed")
 
 # --- CSS CORE (עוגן 1213) ---
@@ -14,20 +16,6 @@ st.markdown("""
     .header-title { font-size: 2.5rem !important; font-weight: bold !important; margin: 0 !important; }
     .header-user { font-size: 1.2rem !important; font-weight: 900 !important; color: #31333f; }
     .stButton>button { width: 100% !important; border-radius: 8px !important; font-weight: bold !important; height: 3em !important; }
-    
-    /* עיצוב הסטריפ העליון במצב מבחן בלבד */
-    .exam-strip {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 5px 20px;
-        background: white;
-        border-bottom: 1px solid #eee;
-        height: 50px;
-        position: sticky;
-        top: 0;
-        z-index: 999;
-    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -44,10 +32,30 @@ SYLLABUS = {
     "חוק העונשין": ["עבירות מרמה וזיוף"]
 }
 
+# --- לוגיקת AI (עוגן 1213) ---
+def stream_ai_lesson(prompt_text):
+    try:
+        genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+        model = genai.GenerativeModel('gemini-2.0-flash')
+        response = model.generate_content(f"כתוב שיעור הכנה מעמיק למבחן המתווכים על: {prompt_text}", stream=True)
+        placeholder = st.empty()
+        full_text = ""
+        for chunk in response:
+            full_text += chunk.text
+            placeholder.markdown(full_text + "▌")
+        placeholder.markdown(full_text)
+        return full_text
+    except:
+        return "⚠️ תקלה בטעינת השיעור. וודא ש-API KEY מוגדר."
+
 if "step" not in st.session_state:
     st.session_state.update({"user": None, "step": "login", "selected_topic": None, "current_sub": None, "lesson_txt": ""})
 
-# --- ROUTING ---
+def show_header():
+    if st.session_state.user:
+        st.markdown(f'<div class="header-container"><div class="header-title">🏠 מתווך בקליק</div><div class="header-user">👤 <b>{st.session_state.user}</b></div></div>', unsafe_allow_html=True)
+
+# --- ניתוב ---
 
 if st.session_state.step == "login":
     st.title("🏠 מתווך בקליק")
@@ -58,37 +66,46 @@ if st.session_state.step == "login":
         st.rerun()
 
 elif st.session_state.step == "menu":
-    st.markdown(f'<div class="header-container"><div class="header-title">🏠 מתווך בקליק</div><div class="header-user">👤 <b>{st.session_state.user}</b></div></div>', unsafe_allow_html=True)
+    show_header()
     c1, c2, _ = st.columns([1.5, 1.5, 3])
-    if c1.button("📚 לימוד לפי נושאים"): st.session_state.step = "study"; st.rerun()
-    if c2.button("⏱️ גש/י למבחן"): st.session_state.step = "exam_frame"; st.rerun()
+    if c1.button("📚 לימוד לפי נושאים"):
+        st.session_state.step = "study"
+        st.rerun()
+    if c2.button("⏱️ גש/י למבחן"):
+        st.session_state.step = "exam_frame"
+        st.rerun()
 
 elif st.session_state.step == "exam_frame":
-    st.markdown("<style>header { visibility: hidden !important; } .block-container { padding: 0 !important; }</style>", unsafe_allow_html=True)
-    
-    # הסטריפ העליון (מדרגת שורה אחת מתחת לקצה העליון כפי שביקשת)
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col1:
-        if st.button("← חזרה"): st.session_state.step = "menu"; st.rerun()
-    with col2:
+    # סטריפ עליון במבחן
+    col_back, col_user, col_logo = st.columns([1, 2, 1])
+    with col_back:
+        if st.button("← חזרה"):
+            st.session_state.step = "menu"
+            st.rerun()
+    with col_user:
         st.markdown(f"<p style='text-align:center; font-weight:bold; padding-top:10px;'>{st.session_state.user}</p>", unsafe_allow_html=True)
-    with col3:
+    with col_logo:
         st.markdown("<p style='text-align:right; font-weight:bold; padding-top:10px;'>🏠 מתווך בקליק</p>", unsafe_allow_html=True)
     
+    st.markdown("<style>header { visibility: hidden !important; } .block-container { padding-top: 0 !important; }</style>", unsafe_allow_html=True)
     exam_url = f"https://fullrealestatebroker-yevuzewxde4obgrpgacrpc.streamlit.app/?user={st.session_state.user}&embed=true"
-    st.markdown(f'<iframe src="{exam_url}" style="width:100%; height:92vh; border:none; margin-top:0;"></iframe>', unsafe_allow_html=True)
+    st.markdown(f'<iframe src="{exam_url}" style="width:100%; height:92vh; border:none;"></iframe>', unsafe_allow_html=True)
 
 elif st.session_state.step == "study":
-    st.markdown(f'<div class="header-container"><div class="header-title">🏠 מתווך בקליק</div><div class="header-user">👤 <b>{st.session_state.user}</b></div></div>', unsafe_allow_html=True)
-    sel = st.selectbox("בחר נושא:", ["בחר..."] + list(SYLLABUS.keys()))
+    show_header()
+    sel = st.selectbox("בחר נושא לימוד:", ["בחר..."] + list(SYLLABUS.keys()))
     if st.button("טען נושא") and sel != "בחר...":
         st.session_state.update({"selected_topic": sel, "step": "lesson_run", "lesson_txt": "", "current_sub": None})
         st.rerun()
-    if st.button("🏠 חזרה"): st.session_state.step = "menu"; st.rerun()
+    if st.button("🏠 חזרה"):
+        st.session_state.step = "menu"
+        st.rerun()
 
 elif st.session_state.step == "lesson_run":
-    st.markdown(f'<div class="header-container"><div class="header-title">🏠 מתווך בקליק</div><div class="header-user">👤 <b>{st.session_state.user}</b></div></div>', unsafe_allow_html=True)
+    show_header()
     st.header(f"📖 {st.session_state.selected_topic}")
+    
+    # עימוד תתי-נושאים מקורי (Columns)
     subs = SYLLABUS.get(st.session_state.selected_topic, [])
     cols = st.columns(len(subs))
     for i, s in enumerate(subs):
@@ -98,10 +115,16 @@ elif st.session_state.step == "lesson_run":
     
     if st.session_state.current_sub:
         st.divider()
-        st.subheader(st.session_state.current_sub)
-        # לוגיקת ה-AI נשארת כאן (השמטתי לקיצור, היא קיימת בקוד שלך)
+        st.subheader(f"נושא: {st.session_state.current_sub}")
+        if st.session_state.lesson_txt == "LOADING":
+            st.session_state.lesson_txt = stream_ai_lesson(st.session_state.current_sub)
+            st.rerun()
+        else:
+            st.markdown(st.session_state.lesson_txt)
 
-    if st.button("🏠 לתפריט הראשי"): st.session_state.step = "menu"; st.rerun()
+    if st.button("🏠 לתפריט הראשי"):
+        st.session_state.step = "menu"
+        st.rerun()
 
 # --- End of File ---
-# Version: 1221-G1 | Date: 2026-02-21
+# Version: 1218-G6-Final | Date: 2026-02-21
