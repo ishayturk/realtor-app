@@ -1,7 +1,7 @@
 # ==========================================
 # Project: מתווך בקליק | Version: 1213-Anchor-Updated
-# Last Update: 21/02/2026 | 11:48 (Jerusalem Time GMT+2)
-# Status: Top Strip Fixed | Protocol: Full File Delivery
+# Last Update: 21/02/2026 | 12:15 (Jerusalem Time GMT+2)
+# Status: Final Strip Fix | Protocol: Full File Delivery
 # ==========================================
 import streamlit as st
 import google.generativeai as genai
@@ -36,8 +36,8 @@ def fetch_q_ai(topic):
     try:
         genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
         m = genai.GenerativeModel('gemini-2.0-flash')
-        p = f"צור שאלה אמריקאית קשה על {topic}. החזר JSON: " \
-            f"{{'q':'','options':['','','',''],'correct':'','explain':''}}"
+        p = (f"צור שאלה אמריקאית קשה על {topic}. החזר JSON: "
+             f"{{'q':'','options':['','','',''],'correct':'','explain':''}}")
         res = m.generate_content(p).text
         match = re.search(r'\{.*\}', res, re.DOTALL)
         if match: return json.loads(match.group())
@@ -67,9 +67,9 @@ if "step" not in st.session_state:
 def show_header():
     if st.session_state.user:
         u = st.session_state.user
-        h_html = f'<div class="header-container">' \
-                 f'<div class="header-title">🏠 מתווך בקליק</div>' \
-                 f'<div class="header-user">👤 <b>{u}</b></div></div>'
+        h_html = (f'<div class="header-container">'
+                  f'<div class="header-title">🏠 מתווך בקליק</div>'
+                  f'<div class="header-user">👤 <b>{u}</b></div></div>')
         st.markdown(h_html, unsafe_allow_html=True)
 
 if st.session_state.step == "login":
@@ -90,26 +90,27 @@ elif st.session_state.step == "menu":
 
 elif st.session_state.step == "exam_frame":
     st.markdown("""<style>
-        header {visibility: hidden; height: 0px;}
-        .block-container {padding-top: 0rem !important; padding-bottom: 0rem !important;}
-        .stApp { margin-top: -100px; }
+        header {visibility: hidden !important; height: 0 !important;}
+        .block-container {padding-top: 1.5rem !important; padding-bottom: 0rem !important;}
+        .stApp { margin-top: -30px; }
+        .exam-txt { font-size: 1.1rem; font-weight: bold; margin: 0; }
     </style>""", unsafe_allow_html=True)
     
-    st.markdown('<div style="height: 10px;"></div>', unsafe_allow_html=True)
-    
-    cols = st.columns([2, 2, 2])
-    with cols[0]:
-        st.markdown('<b>🏠 מתווך בקליק</b>', unsafe_allow_html=True)
-    with cols[1]:
-        st.markdown(f'<center><b>{st.session_state.user}</b></center>', 
+    c_right, c_mid, c_left = st.columns([2, 2, 2])
+    with c_right:
+        st.markdown('<p class="exam-txt">🏠 מתווך בקליק</p>', unsafe_allow_html=True)
+    with c_mid:
+        u_name = st.session_state.user
+        st.markdown(f'<p class="exam-txt" style="text-align:center;">{u_name}</p>', 
                     unsafe_allow_html=True)
-    with cols[2]:
+    with c_left:
         if st.button("לתפריט הראשי", key="back_exam"):
             st.session_state.step = "menu"; st.rerun()
 
     u_enc = st.session_state.user.replace(" ", "%20")
-    t_url = f"https://fullrealestatebroker-yevuzewxde4obgrpgacrpc.streamlit.app/?user={u_enc}"
-    st.components.v1.iframe(t_url, height=1200, scrolling=True)
+    t_url = (f"https://fullrealestatebroker-yevuzewxde4obgrpgacrpc.streamlit.app/"
+             f"?user={u_enc}")
+    st.components.v1.iframe(t_url, height=1100, scrolling=True)
 
 elif st.session_state.step == "study":
     show_header()
@@ -151,26 +152,3 @@ elif st.session_state.step == "lesson_run":
     st.divider()
     f1, f2, f3 = st.columns([2, 2, 4])
     with f1:
-        if st.button("🏠 חזרה לתפריט"): st.session_state.step = "menu"; st.rerun()
-    with f2:
-        if st.session_state.get("lesson_txt") and st.session_state.lesson_txt != "LOADING":
-            if not st.session_state.quiz_active:
-                if st.button("📝 שאלון תרגול"):
-                    with st.spinner("מכין שאלה..."):
-                        res = fetch_q_ai(st.session_state.current_sub)
-                        if res: 
-                            st.session_state.update({"q_data": res, "quiz_active": True, 
-                                                   "q_count": 1, "correct_answers": 0, 
-                                                   "quiz_finished": False})
-                            st.rerun()
-            elif not st.session_state.quiz_finished:
-                if st.session_state.q_count < 10:
-                    if st.button("➡️ שאלה הבאה"):
-                        with st.spinner("מכין שאלה הבאה..."):
-                            res = fetch_q_ai(st.session_state.current_sub)
-                            if res: 
-                                st.session_state.update({"q_data": res, 
-                                                       "q_count": st.session_state.q_count + 1})
-                                st.rerun()
-                else:
-                    if st.button("🏁 סיכום שאלון"): st.session_state.quiz_finished = True; st.rerun()
