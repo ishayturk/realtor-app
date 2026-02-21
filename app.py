@@ -1,42 +1,36 @@
-# Project: מתווך בקליק | Version: 1213-Safe-Exam-Final-Full-V3 | File: app.py
+# Project: מתווך בקליק | Version: 1213-Safe-Exam-Final-Full-V4 | File: app.py
 import streamlit as st
 import google.generativeai as genai
 import json
 import re
 
-# הגדרת דף
+# הגדרת דף - שימוש ב-Wide כדי לתת מקסימום מקום לבחינה
 st.set_page_config(page_title="מתווך בקליק", layout="wide")
 
-# עיצוב RTL בסיסי
+# עיצוב RTL וסגנון לסרגל הצד
 st.markdown("""
 <style>
     * { direction: rtl; text-align: right; }
-    .header-container { 
-        display: flex; 
-        align-items: center; 
-        gap: 45px; 
-        margin-bottom: 30px; 
+    /* ביטול מרווחים מיותרים בראש הדף כשיש פריים */
+    .main .block-container { 
+        padding-top: 0rem !important; 
+        padding-bottom: 0rem !important; 
+        padding-right: 1rem !important;
+        padding-left: 1rem !important;
     }
-    .header-title { 
-        font-size: 2.5rem !important; 
-        font-weight: bold !important; 
-        margin: 0 !important; 
+    /* עיצוב כפתור החזרה בסרגל הצד */
+    section[data-testid="stSidebar"] .stButton>button {
+        background-color: #f0f2f6 !important;
+        border: 1px solid #d1d5db !important;
+        color: #31333f !important;
+        font-weight: bold !important;
+        margin-top: 20px;
     }
-    .header-user { 
-        font-size: 1.2rem !important; 
-        font-weight: 900 !important; 
-        color: #31333f; 
-    }
-    .stButton>button { 
-        width: 100% !important; 
-        border-radius: 8px !important; 
-        font-weight: bold !important; 
-        height: 3em !important; 
-    }
+    iframe { border: none !important; width: 100%; height: 98vh; }
 </style>
 """, unsafe_allow_html=True)
 
-# סילבוס
+# סילבוס (לפי עוגן 1213)
 SYLLABUS = {
     "חוק המתווכים": ["רישוי והגבלות", "הגינות וזהירות", "הזמנה ובלעדיות", "פעולות שאינן תיווך"],
     "תקנות המתווכים": ["פרטי הזמנה 1997", "פעולות שיווק 2004", "דמי תיווך"],
@@ -50,7 +44,7 @@ SYLLABUS = {
     "חוק העונשין": ["עבירות מרמה וזיוף"]
 }
 
-# פונקציות
+# פונקציות עזר
 def reset_quiz_state():
     st.session_state.update({
         "quiz_active": False, "q_data": None, "q_count": 0,
@@ -87,7 +81,7 @@ def stream_ai_lesson(prompt_text):
         return full_text
     except: return "⚠️ תקלה בטעינה."
 
-# Init State
+# ניהול מצבי אפליקציה
 if "step" not in st.session_state:
     st.session_state.update({
         "user": None, "step": "login", "lesson_txt": "",
@@ -103,7 +97,7 @@ def show_header():
             <div class="header-user">👤 <b>{st.session_state.user}</b></div>
         </div>""", unsafe_allow_html=True)
 
-# --- Routing ---
+# --- ניתוב דפים ---
 
 if st.session_state.step == "login":
     st.title("🏠 מתווך בקליק")
@@ -124,44 +118,17 @@ elif st.session_state.step == "menu":
         st.rerun()
 
 elif st.session_state.step == "exam_frame":
-    st.markdown("""
-        <style>
-            header {visibility: hidden;}
-            .main .block-container { 
-                padding-top: 0.1rem !important; 
-                padding-bottom: 0 !important; 
-                max-width: 100% !important;
-            }
-            [data-testid="column"] {
-                display: flex;
-                align-items: center;
-                height: 25px !important;
-                margin-top: -15px !important;
-            }
-            div.stButton > button {
-                background: none !important;
-                border: none !important;
-                padding: 0 !important;
-                color: black !important;
-                font-size: 1rem !important;
-                font-weight: bold !important;
-                height: auto !important;
-                width: auto !important;
-                line-height: 1 !important;
-            }
-            iframe { border: none !important; width: 100%; height: 96vh; margin-top: -15px; }
-        </style>
-    """, unsafe_allow_html=True)
-    
-    sc1, sc2, sc3 = st.columns([1, 2, 1])
-    with sc1: st.markdown("<p style='margin:0; font-size: 1rem; font-weight:bold;'>🏠 מתווך בקליק</p>", unsafe_allow_html=True)
-    with sc2: st.markdown(f"<p style='text-align:center; margin:0; font-size: 1rem;'>👤 <b>{st.session_state.user}</b></p>", unsafe_allow_html=True)
-    with sc3:
-        if st.button("לתפריט הראשי →", key="strip_nav_back"):
+    # תפריט צדדי (Sidebar) לחזרה
+    with st.sidebar:
+        st.markdown("### ניווט")
+        if st.button("לתפריט הראשי →", key="sidebar_back"):
             reset_quiz_state()
             st.session_state.step = "menu"
             st.rerun()
+        st.divider()
+        st.info("את/ה נמצא/ת כעת במערכת הבחינות.")
 
+    # הצגת הבחינה בפריים על כל המסך המרכזי
     exam_url = "https://fullrealestatebroker-yevuzewxde4obgrpgacrpc.streamlit.app/"
     st.markdown(f'<iframe src="{exam_url}?embed=true"></iframe>', unsafe_allow_html=True)
 
