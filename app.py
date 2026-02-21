@@ -1,4 +1,4 @@
-# Project: מתווך בקליק | Version: 1213-Ultra-Slim-Strip | File: app.py
+# Project: מתווך בקליק | Version: 1213-Ultra-Slim-Final | File: app.py
 import streamlit as st
 import google.generativeai as genai
 import json
@@ -35,16 +35,27 @@ st.markdown("""
         height: 3em !important; 
     }
     
-    /* סטריפ דק מאוד (עובי 2 שורות גג) */
-    .ultra-slim-strip {
+    /* סטריפ דק מאוד - שורה אחת מהקצה, עובי 2 שורות */
+    .exam-strip {
         max-width: 1200px;
-        margin: 1rem auto 0 auto; /* שורה אחת מהלמעלה */
-        height: 40px; /* גובה מינימלי */
+        margin: 1rem auto 0.5rem auto;
         display: flex;
         justify-content: space-between;
         align-items: center;
-        border-bottom: None; /* ללא קו מפריד לפי הבקשה */
-        padding: 0 10px;
+        padding: 5px 20px;
+        height: 40px;
+        color: black;
+    }
+    .nav-link-btn {
+        color: black !important;
+        text-decoration: none !important;
+        font-weight: bold !important;
+        background: none !important;
+        border: none !important;
+        padding: 0 !important;
+        cursor: pointer !important;
+        font-family: inherit !important;
+        font-size: 1rem !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -137,7 +148,7 @@ elif st.session_state.step == "menu":
         st.rerun()
 
 elif st.session_state.step == "exam_frame":
-    # CSS לביטול שוליים והסתרת הדר (כדי שהפריים יצמד למעלה)
+    # CSS לביטול שוליים והסתרת הדר של המארח
     st.markdown("""
         <style>
             header {visibility: hidden;}
@@ -150,23 +161,20 @@ elif st.session_state.step == "exam_frame":
         </style>
     """, unsafe_allow_html=True)
     
-    # בניית הסטריפ הדק
+    # בניית הסטריפ בשורה אחת דקה
     st.markdown(f"""
-        <div class="ultra-slim-strip">
-            <div style="font-weight: bold;">🏠 מתווך בקליק</div>
-            <div style="font-weight: bold;">👤 {st.session_state.user}</div>
-            <div id="back-link"></div>
-        </div>
+        <div class="exam-strip">
+            <div style="font-weight: bold; flex: 1; text-align: right;">🏠 מתווך בקליק</div>
+            <div style="font-weight: bold; flex: 2; text-align: center;">👤 {st.session_state.user}</div>
+            <div style="flex: 1; text-align: left;">
     """, unsafe_allow_html=True)
     
-    # כפתור חזרה שמוצמד לסטריפ בצד (שימוש ב-columns מצומצמות מאוד ליישור)
-    _, strip_box, _ = st.columns([1, 4, 1])
-    with strip_box:
-        sc1, sc2, sc3 = st.columns([1, 2, 1])
-        with sc3:
-            if st.button("לתפריט הראשי", key="exam_back_btn"):
-                st.session_state.step = "menu"
-                st.rerun()
+    # שימוש ב-st.button מעוצב כלינק כדי לשמור על פונקציונליות
+    if st.button("לתפריט הראשי", key="back_link_slim"):
+        st.session_state.step = "menu"
+        st.rerun()
+    
+    st.markdown("</div></div>", unsafe_allow_html=True)
     
     # Iframe בפריסה מלאה ללא רווח
     exam_url = "https://fullrealestatebroker-yevuzewxde4obgrpgacrpc.streamlit.app/?embed=true"
