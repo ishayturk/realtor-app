@@ -1,4 +1,4 @@
-# Project: מתווך בקליק | Training_full_V04 | 21/02/2026 | 17:58
+# Project: מתווך בקליק | Training_full_V05 | 21/02/2026 | 18:02
 import streamlit as st
 import google.generativeai as genai
 import json
@@ -7,7 +7,7 @@ import re
 # הגדרת דף
 st.set_page_config(page_title="מתווך בקליק", layout="wide")
 
-# עיצוב RTL בסיסי
+# עיצוב RTL בסיסי - משפיע על כל האפליקציה
 st.markdown("""
 <style>
     * { direction: rtl; text-align: right; }
@@ -33,8 +33,6 @@ st.markdown("""
         font-weight: bold !important; 
         height: 3em !important; 
     }
-    /* הסרת מרווחים מיותרים בפריים המבחן */
-    .block-container { padding-top: 2rem; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -48,7 +46,7 @@ SYLLABUS = {
     "חוק התכנון והבנייה": ["היתרים ושימוש חורג", "היטל השבחה", "תוכניות מתאר", "מוסדות התכנון"],
     "חוק מיסוי מקרקעין": ["מס שבח (חישוב ופפורים)", "מס רכישה", "הקלות לדירת מגורים", "שווי שוק"],
     "חוק הגנת הצרכן": ["ביטול עסקה", "הטעיה בפרסום"],
-    "דיני ירושה": ["סדר הירוחה", "צוואות"],
+    "דיני ירושה": ["סדר הירושה", "צוואות"],
     "חוק העונשין": ["עבירות מרמה וזיוף"]
 }
 
@@ -126,25 +124,25 @@ elif st.session_state.step == "menu":
         st.rerun()
 
 elif st.session_state.step == "exam_frame":
-    # סטריפ עליון צר - כפתור חזרה צמוד לשמאל
+    # CSS ספציפי למצב בחינה בלבד - ביטול מרווחים למעלה
     st.markdown("""
         <style>
             header {visibility: hidden;}
-            .block-container { padding-top: 1rem !important; }
+            .main .block-container { padding-top: 0px !important; }
+            iframe { margin-top: -10px; }
         </style>
     """, unsafe_allow_html=True)
     
-    col_empty, col_back = st.columns([4, 1])
-    with col_back:
-        if st.button("🏠 לתפריט הראשי"):
+    # סטריפ עליון - כפתור חזרה צמוד לשמאל (עמודה אחרונה ב-RTL)
+    c_empty, c_back = st.columns([5, 1])
+    with c_back:
+        if st.button("🏠 לתפריט"):
             st.session_state.step = "menu"
             st.rerun()
     
-    # הצגת אפליקציית הבחינה בפריים
+    # פריים מלא של אפליקציית הבחינה
     exam_url = f"https://fullrealestatebroker-yevuzewxde4obgrpgacrpc.streamlit.app/?user={st.session_state.user}&embed=true"
-    st.markdown(f"""
-        <iframe src="{exam_url}" style="width:100%; height:90vh; border:none; margin-top:10px;"></iframe>
-    """, unsafe_allow_html=True)
+    st.markdown(f'<iframe src="{exam_url}" style="width:100%; height:95vh; border:none;"></iframe>', unsafe_allow_html=True)
 
 elif st.session_state.step == "study":
     show_header()
