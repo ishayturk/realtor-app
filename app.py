@@ -8,7 +8,7 @@ import json, re
 
 st.set_page_config(page_title="מתווך בקליק", layout="wide")
 
-# עיצוב בסיסי (תפריט גלוי כברירת מחדל)
+# עיצוב בסיסי
 st.markdown("""<style>
     * { direction: rtl; text-align: right; }
     .stButton>button { 
@@ -29,13 +29,19 @@ st.markdown("""<style>
 </style>""", unsafe_allow_html=True)
 
 SYLLABUS = {
-    "חוק המתווכים": ["רישוי והגבלות", "הגינות וזהירות", "הזמנה ובלעדיות", "פעולות שאינן תיווך"],
+    "חוק המתווכים": ["רישוי והגבלות", "הגינות וזהירות", "הזמנה ובלעדיות", 
+                     "פעולות שאינן תיווך"],
     "תקנות המתווכים": ["פרטי הזמנה 1997", "פעולות שיווק 2004", "דמי תיווך"],
-    "חוק המקרקעין": ["בעלות וזכויות", "בתים משותפים", "עסקאות נוגדות", "הערות אזהרה", "שכירות וזיקה"],
-    "חוק המכר (דירות)": ["מפרט וגילוי", "בדק ואחריות", "איחור במסירה", "הבטחת השקעות"],
-    "חוק החוזים": ["כריתת חוזה", "פגמים בחוזה", "תרופות והפרה", "ביטול והשבה"],
-    "חוק התכנון והבנייה": ["היתרים ושימוש חורג", "היטל השבחה", "תוכניות מתאר", "מוסדות התכנון"],
-    "חוק מיסוי מקרקעין": ["מס שבח (חישוב ופפורים)", "מס רכישה", "הקלות לדירת מגורים", "שווי שוק"],
+    "חוק המקרקעין": ["בעלות וזכויות", "בתים משותפים", "עסקאות נוגדות", 
+                     "הערות אזהרה", "שכירות וזיקה"],
+    "חוק המכר (דירות)": ["מפרט וגילוי", "בדק ואחריות", "איחור במסירה", 
+                          "הבטחת השקעות"],
+    "חוק החוזים": ["כריתת חוזה", "פגמים בחוזה", "תרופות והפרה", 
+                   "ביטול והשבה"],
+    "חוק התכנון והבנייה": ["היתרים ושימוש חורג", "היטל השבחה", 
+                           "תוכניות מתאר", "מוסדות התכנון"],
+    "חוק מיסוי מקרקעין": ["מס שבח (חישוב ופפורים)", "מס רכישה", 
+                          "הקלות לדירת מגורים", "שווי שוק"],
     "חוק הגנת הצרכן": ["ביטול עסקה", "הטעיה בפרסום"],
     "דיני ירושה": ["סדר הירושה", "צוואות"],
     "חוק העונשין": ["עבירות מרמה וזיוף"]
@@ -102,40 +108,43 @@ elif st.session_state.step == "menu":
             st.rerun()
 
 elif st.session_state.step == "exam_frame":
-    # הסתרת תפריטים וצמצום רוחב הסטריפ בלבד
     st.markdown("""<style>
         header {visibility: hidden !important;}
         #MainMenu {visibility: hidden !important;}
         footer {visibility: hidden !important;}
         .stApp { margin-top: -85px; }
-        /* מרכוז הסטריפ ומניעת מריחה */
+        /* סטריפ צר וממורכז */
         [data-testid="stHorizontalBlock"] { 
-            max-width: 1000px; margin: 0 auto; padding: 0 10px; 
+            max-width: 600px; margin: 0 auto; 
         }
     </style>""", unsafe_allow_html=True)
     
     st.markdown('<div style="height: 15px;"></div>', unsafe_allow_html=True)
-    c_logo, c_user, c_back = st.columns([1.5, 4, 1.5])
+    # יחס עמודות שמקרב את האלמנטים אחד לשני (טאב או שניים)
+    c_logo, c_user, c_back = st.columns([2, 2, 2])
     with c_logo: 
-        st.markdown('<b>🏠 מתווך בקליק</b>', unsafe_allow_html=True)
+        st.markdown('<div style="text-align:right;"><b>🏠 מתווך בקליק</b></div>', 
+                    unsafe_allow_html=True)
     with c_user:
         u_label = f'<div style="text-align:center; font-weight:900;">' \
                   f'{st.session_state.user}</div>'
         st.markdown(u_label, unsafe_allow_html=True)
     with c_back:
-        if st.button("לתפריט הראשי", key="exam_back"):
+        if st.button("חזרה", key="exam_back"):
             st.session_state.step = "menu"
             st.rerun()
             
     u_enc = st.session_state.user.replace(" ", "%20")
-    t_url = f"https://fullrealestatebroker-yevuzewxde4obgrpgacrpc.streamlit.app/?user={u_enc}"
+    t_url = f"https://fullrealestatebroker-yevuzewxde4obgrpgacrpc.streamlit.app/" \
+            f"?user={u_enc}"
     st.components.v1.iframe(t_url, height=1000, scrolling=True)
 
 elif st.session_state.step == "study":
     show_header()
     sel = st.selectbox("בחר נושא:", ["בחר..."] + list(SYLLABUS.keys()))
     if sel != "בחר..." and st.button("טען נושא"):
-        st.session_state.update({"selected_topic": sel, "step": "lesson_run", "lesson_txt": ""})
+        st.session_state.update({"selected_topic": sel, 
+                                 "step": "lesson_run", "lesson_txt": ""})
         st.rerun()
 
 elif st.session_state.step == "lesson_run":
@@ -145,31 +154,36 @@ elif st.session_state.step == "lesson_run":
     cols = st.columns(len(subs))
     for i, s in enumerate(subs):
         if cols[i].button(s, key=f"sub_{i}"):
-            st.session_state.update({"current_sub": s, "lesson_txt": "LOADING", "quiz_active": False, "q_count": 0})
+            st.session_state.update({"current_sub": s, "lesson_txt": "LOADING", 
+                                     "quiz_active": False, "q_count": 0})
             st.rerun()
 
     if st.session_state.get("lesson_txt") == "LOADING":
-        st.session_state.lesson_txt = stream_ai_lesson(f"שיעור על {st.session_state.current_sub}")
+        st.session_state.lesson_txt = stream_ai_lesson(
+            f"שיעור על {st.session_state.current_sub}")
         st.rerun()
     elif st.session_state.get("lesson_txt"):
         st.markdown(st.session_state.lesson_txt)
 
-    if st.session_state.quiz_active and st.session_state.q_data and not st.session_state.quiz_finished:
-        st.divider()
-        q = st.session_state.q_data
-        st.subheader(f"📝 שאלה {st.session_state.q_count} מתוך 10")
-        ans = st.radio(q['q'], q['options'], index=None, key=f"q_{st.session_state.q_count}")
-        if st.button("✅ בדיקת תשובה"):
-            if ans == q['correct']:
-                st.success("נכון!")
-                st.session_state.correct_answers += 1
-            else:
-                st.error(f"טעות. התשובה היא: {q['correct']}")
-            st.info(f"הסבר: {q['explain']}")
+    if st.session_state.quiz_active and st.session_state.q_data:
+        if not st.session_state.quiz_finished:
+            st.divider()
+            q = st.session_state.q_data
+            st.subheader(f"📝 שאלה {st.session_state.q_count} מתוך 10")
+            ans = st.radio(q['q'], q['options'], index=None, 
+                           key=f"q_{st.session_state.q_count}")
+            if st.button("✅ בדיקת תשובה"):
+                if ans == q['correct']:
+                    st.success("נכון!")
+                    st.session_state.correct_answers += 1
+                else:
+                    st.error(f"טעות. התשובה היא: {q['correct']}")
+                st.info(f"הסבר: {q['explain']}")
 
     if st.session_state.quiz_finished:
         st.divider(); st.balloons()
-        st.success(f"🏆 סיימת! ענית נכון על {st.session_state.correct_answers} מתוך 10.")
+        st.success(f"🏆 סיימת! ענית נכון על " \
+                   f"{st.session_state.correct_answers} מתוך 10.")
 
     st.divider()
     f1, f2, f3 = st.columns([2, 2, 4])
@@ -178,24 +192,5 @@ elif st.session_state.step == "lesson_run":
             st.session_state.step = "menu"
             st.rerun()
     with f2:
-        if st.session_state.get("lesson_txt") and st.session_state.lesson_txt != "LOADING":
-            if not st.session_state.quiz_active:
-                if st.button("📝 שאלון תרגול"):
-                    res = fetch_q_ai(st.session_state.current_sub)
-                    if res:
-                        st.session_state.update({
-                            "q_data": res, "quiz_active": True, "q_count": 1, 
-                            "correct_answers": 0, "quiz_finished": False
-                        })
-                        st.rerun()
-            elif not st.session_state.quiz_finished:
-                if st.session_state.q_count < 10:
-                    if st.button("➡️ שאלה הבאה"):
-                        res = fetch_q_ai(st.session_state.current_sub)
-                        if res:
-                            st.session_state.update({"q_data": res, "q_count": st.session_state.q_count + 1})
-                            st.rerun()
-                else:
-                    if st.button("🏁 סיכום שאלון"):
-                        st.session_state.quiz_finished = True
-                        st.rerun()
+        if st.session_state.get("lesson_txt") and \
+           st.
