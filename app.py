@@ -1,4 +1,4 @@
-# Project: מתווך בקליק | File: app.py | Version: 1218-G8-Final-Fix
+# Project: מתווך בקליק | File: app.py | Version: 1218-G12-Final-Memory
 import streamlit as st
 import google.generativeai as genai
 import json
@@ -7,7 +7,7 @@ import re
 # הגדרת דף
 st.set_page_config(page_title="מתווך בקליק", layout="wide", initial_sidebar_state="collapsed")
 
-# --- CSS CORE (עוגן 1213) ---
+# --- CSS CORE (עוגן 1213 + תיקון שורה אחת) ---
 st.markdown("""
 <style>
     * { direction: rtl; text-align: right; }
@@ -15,6 +15,19 @@ st.markdown("""
     .header-title { font-size: 2.5rem !important; font-weight: bold !important; margin: 0 !important; }
     .header-user { font-size: 1.2rem !important; font-weight: 900 !important; color: #31333f; }
     .stButton>button { width: 100% !important; border-radius: 8px !important; font-weight: bold !important; height: 3em !important; }
+    
+    /* הצגת כפתורי תתי-נושאים בשורה אחת רציפה */
+    div[data-testid="stHorizontalBlock"] {
+        display: flex;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        gap: 10px;
+        justify-content: flex-start;
+    }
+    div[data-testid="stHorizontalBlock"] > div {
+        flex: 0 0 auto !important;
+        min-width: fit-content !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -32,11 +45,11 @@ SYLLABUS = {
 }
 
 # --- לוגיקת AI ---
-def stream_ai_lesson(prompt_text):
+def stream_ai_lesson(topic):
     try:
         genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
         model = genai.GenerativeModel('gemini-2.0-flash')
-        response = model.generate_content(f"כתוב שיעור הכנה למבחן המתווכים על: {prompt_text}", stream=True)
+        response = model.generate_content(f"כתוב שיעור הכנה למבחן המתווכים על: {topic}", stream=True)
         placeholder = st.empty()
         full_text = ""
         for chunk in response:
@@ -44,7 +57,7 @@ def stream_ai_lesson(prompt_text):
             placeholder.markdown(full_text + "▌")
         placeholder.markdown(full_text)
         return full_text
-    except: return "⚠️ תקלה בטעינה."
+    except: return "⚠️ תקלה בטעינת השיעור."
 
 def fetch_q_ai(topic):
     try:
@@ -56,7 +69,10 @@ def fetch_q_ai(topic):
         return json.loads(match.group()) if match else None
     except: return None
 
-# אתחול
+# --- ניהול זיכרון שאלות ---
+if "q_memory" not in st.session_state:
+    st.session_state.q_memory = [] # שומר עד 25 שאלות
+
 if "step" not in st.session_state:
     st.session_state.update({"user": None, "step": "login", "selected_topic": None, "current_sub": None, "lesson_txt": ""})
 
@@ -64,7 +80,7 @@ def show_header():
     if st.session_state.user:
         st.markdown(f'<div class="header-container"><div class="header-title">🏠 מתווך בקליק</div><div class="header-user">👤 <b>{st.session_state.user}</b></div></div>', unsafe_allow_html=True)
 
-# --- ניתוב ---
+# --- ניתוב דפים ---
 if st.session_state.step == "login":
     st.title("🏠 מתווך בקליק")
     u_in = st.text_input("שם מלא:")
@@ -85,7 +101,7 @@ elif st.session_state.step == "exam_frame":
         if st.button("🏠 לתפריט הראשי"): st.session_state.step = "menu"; st.rerun()
     with col_user: st.markdown(f"<p style='text-align:center; font-weight:bold; padding-top:10px;'>{st.session_state.user}</p>", unsafe_allow_html=True)
     with col_logo: st.markdown("<p style='text-align:right; font-weight:bold; padding-top:10px;'>🏠 מתווך בקליק</p>", unsafe_allow_html=True)
-    st.markdown("<style>header { visibility: hidden !important; } .block-container { padding-top: 0 !important; }</style>", unsafe_allow_html=True)
+    st.markdown("<style>header { visibility: hidden !important; } .block-container { padding: 0 !important; }</style>", unsafe_allow_html=True)
     exam_url = f"https://fullrealestatebroker-yevuzewxde4obgrpgacrpc.streamlit.app/?user={st.session_state.user}&embed=true"
     st.markdown(f'<iframe src="{exam_url}" style="width:100%; height:92vh; border:none;"></iframe>', unsafe_allow_html=True)
 
@@ -100,11 +116,12 @@ elif st.session_state.step == "study":
 elif st.session_state.step == "lesson_run":
     show_header()
     st.header(f"📖 {st.session_state.selected_topic}")
+    
     subs = SYLLABUS.get(st.session_state.selected_topic, [])
     cols = st.columns(len(subs))
     for i, s in enumerate(subs):
         if cols[i].button(s, key=f"s_{i}"):
-            st.session_state.update({"current_sub": s, "lesson_txt": "LOADING"})
+            st.session_state.update({"current_sub": s, "lesson_txt": "LOADING", "quiz_active": False})
             st.rerun()
     
     if st.session_state.current_sub:
@@ -114,14 +131,31 @@ elif st.session_state.step == "lesson_run":
             st.rerun()
         else:
             st.markdown(st.session_state.lesson_txt)
+            
             if st.button("📝 שאלת תרגול"):
-                res = fetch_q_ai(st.session_state.current_sub)
-                if res: st.session_state.q_data = res; st.session_state.quiz_active = True; st.rerun()
+                with st.spinner("מייצר שאלת תרגול..."):
+                    res = fetch_q_ai(st.session_state.current_sub)
+                    if res:
+                        st.session_state.q_data = res
+                        st.session_state.quiz_active = True
+                        # הוספה לזיכרון וניהול תור של 25
+                        st.session_state.q_memory.append(res)
+                        if len(st.session_state.q_memory) > 25:
+                            st.session_state.q_memory.pop(0)
+                        st.rerun()
+            
             if st.session_state.get("quiz_active"):
                 q = st.session_state.q_data
-                choice = st.radio(q['q'], q['options'])
-                if st.button("בדוק"):
-                    if choice == q['correct']: st.success("נכון!")
-                    else: st.error(f"טעות. הנכון: {q['correct']}")
+                st.info(f"❓ {q['q']}")
+                ans = st.radio("בחר תשובה:", q['options'], key="quiz_radio")
+                if st.button("בדוק תשובה"):
+                    if ans == q['correct']: st.success("כל הכבוד! תשובה נכונה.")
+                    else: st.error(f"לא נכון. התשובה היא: {q['correct']}")
+                    st.write(f"**הסבר:** {q['explain']}")
 
     if st.button("🏠 לתפריט הראשי", key="final_back"): st.session_state.step = "menu"; st.rerun()
+
+# --- End of File ---
+# File ID: C-01
+# Anchor: 1213
+# Version: 1218-G12-Final-Memory | Date: 2026-02-21
