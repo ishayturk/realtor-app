@@ -1,4 +1,4 @@
-# Project: מתווך בקליק | Training_full_V03 | 21/02/2026 | 17:55
+# Project: מתווך בקליק | Training_full_V04 | 21/02/2026 | 17:58
 import streamlit as st
 import google.generativeai as genai
 import json
@@ -33,6 +33,8 @@ st.markdown("""
         font-weight: bold !important; 
         height: 3em !important; 
     }
+    /* הסרת מרווחים מיותרים בפריים המבחן */
+    .block-container { padding-top: 2rem; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -44,9 +46,9 @@ SYLLABUS = {
     "חוק המכר (דירות)": ["מפרט וגילוי", "בדק ואחריות", "איחור במסירה", "הבטחת השקעות"],
     "חוק החוזים": ["כריתת חוזה", "פגמים בחוזה", "תרופות והפרה", "ביטול והשבה"],
     "חוק התכנון והבנייה": ["היתרים ושימוש חורג", "היטל השבחה", "תוכניות מתאר", "מוסדות התכנון"],
-    "חוק מיסוי מקרקעין": ["מס שבח (חישוב ופטורים)", "מס רכישה", "הקלות לדירת מגורים", "שווי שוק"],
+    "חוק מיסוי מקרקעין": ["מס שבח (חישוב ופפורים)", "מס רכישה", "הקלות לדירת מגורים", "שווי שוק"],
     "חוק הגנת הצרכן": ["ביטול עסקה", "הטעיה בפרסום"],
-    "דיני ירושה": ["סדר הירושה", "צוואות"],
+    "דיני ירושה": ["סדר הירוחה", "צוואות"],
     "חוק העונשין": ["עבירות מרמה וזיוף"]
 }
 
@@ -124,26 +126,25 @@ elif st.session_state.step == "menu":
         st.rerun()
 
 elif st.session_state.step == "exam_frame":
-    # הגדרות CSS ייעודיות למצב פריים בחינה - הצמדה למעלה וביטול מרווחים
+    # סטריפ עליון צר - כפתור חזרה צמוד לשמאל
     st.markdown("""
         <style>
             header {visibility: hidden;}
-            .main .block-container { padding-top: 0px !important; padding-bottom: 0px !important; padding-left: 0px !important; padding-right: 0px !important; }
-            div[data-testid="stVerticalBlock"] > div:first-child { margin-top: 0px !important; }
-            iframe { margin-top: -5px; }
+            .block-container { padding-top: 1rem !important; }
         </style>
     """, unsafe_allow_html=True)
     
-    # הסטריפ העליון: עמודה ימנית ריקה גדולה, עמודה שמאלית קטנה לכפתור
-    col_empty, col_back = st.columns([6, 1])
+    col_empty, col_back = st.columns([4, 1])
     with col_back:
-        if st.button("🏠 לתפריט"):
+        if st.button("🏠 לתפריט הראשי"):
             st.session_state.step = "menu"
             st.rerun()
     
-    # הזרקת ה-Iframe
+    # הצגת אפליקציית הבחינה בפריים
     exam_url = f"https://fullrealestatebroker-yevuzewxde4obgrpgacrpc.streamlit.app/?user={st.session_state.user}&embed=true"
-    st.markdown(f'<iframe src="{exam_url}" style="width:100%; height:96vh; border:none;"></iframe>', unsafe_allow_html=True)
+    st.markdown(f"""
+        <iframe src="{exam_url}" style="width:100%; height:90vh; border:none; margin-top:10px;"></iframe>
+    """, unsafe_allow_html=True)
 
 elif st.session_state.step == "study":
     show_header()
