@@ -1,4 +1,4 @@
-# Project: מתווך בקליק | Version: 1213-Safe-Exam-Final-Full-V2 | File: app.py
+# Project: מתווך בקליק | Version: training_full_V02 | 21/02/2026 | 19:10
 import streamlit as st
 import google.generativeai as genai
 import json
@@ -7,7 +7,7 @@ import re
 # הגדרת דף
 st.set_page_config(page_title="מתווך בקליק", layout="wide")
 
-# עיצוב RTL בסיסי
+# עיצוב RTL בסיסי - בדיוק כפי שסיפקת ב-V01
 st.markdown("""
 <style>
     * { direction: rtl; text-align: right; }
@@ -124,25 +124,25 @@ elif st.session_state.step == "menu":
         st.rerun()
 
 elif st.session_state.step == "exam_frame":
-    # הסתרת הדר המערכת וצמצום מרווחים רק בדף זה
+    # הזרקת CSS מבודדת רק לדף זה כדי להצמיד ללמעלה ולהעלים את ה-Header של סטרימליט
     st.markdown("""
         <style>
             header {visibility: hidden;}
-            .block-container { padding-top: 1rem !important; }
+            .main .block-container { padding-top: 0px !important; margin-top: -85px !important; }
+            .back-col { text-align: left; direction: ltr; }
         </style>
     """, unsafe_allow_html=True)
     
-    _, center_col, _ = st.columns([1, 2, 1])
-    with center_col:
-        sc1, sc2, sc3 = st.columns([1, 2, 1])
-        with sc1: st.markdown("🏠 **מתווך בקליק**")
-        with sc2: st.markdown(f"<p style='text-align:center;'>👤 <b>{st.session_state.user}</b></p>", unsafe_allow_html=True)
-        with sc3:
-            if st.button("חזרה", key="exam_back_btn"):
-                st.session_state.step = "menu"
-                st.rerun()
-    st.write("") 
-    st.markdown("### כאן יבואו עמודי הבחינה")
+    # שורה עליונה עם כפתור חזרה בשמאל
+    cols = st.columns([5, 1])
+    with cols[1]:
+        if st.button("חזרה", key="exam_back_btn"):
+            st.session_state.step = "menu"
+            st.rerun()
+            
+    # פריים הבחינה
+    exam_url = f"https://fullrealestatebroker-yevuzewxde4obgrpgacrpc.streamlit.app/?user={st.session_state.user}&embed=true"
+    st.markdown(f'<iframe src="{exam_url}" style="width:100%; height:100vh; border:none;"></iframe>', unsafe_allow_html=True)
 
 elif st.session_state.step == "study":
     show_header()
@@ -234,4 +234,5 @@ elif st.session_state.step == "lesson_run":
                 reset_quiz_state()
                 st.session_state.step = "menu"
                 st.rerun()
-# --- End of File ---
+
+# סוף קובץ
