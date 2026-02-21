@@ -1,7 +1,7 @@
 # ==========================================
 # Project: מתווך בקליק | Version: 1213-Anchor-Updated
-# Last Update: 21/02/2026 | 12:45 (Jerusalem Time GMT+2)
-# Status: Syntax Integrity Guaranteed | Protocol: Full File Delivery
+# Last Update: 21/02/2026 | 13:00 (Jerusalem Time GMT+2)
+# Status: Centered Strip Fix | Protocol: Full File Delivery
 # ==========================================
 import streamlit as st
 import google.generativeai as genai
@@ -9,8 +9,7 @@ import json, re
 
 st.set_page_config(page_title="מתווך בקליק", layout="wide")
 
-# CSS בסיסי
-css_main = """
+st.markdown("""
 <style>
     * { direction: rtl; text-align: right; }
     .header-container { display: flex; align-items: center; gap: 45px; margin-bottom: 30px; }
@@ -18,9 +17,10 @@ css_main = """
     .header-user { font-size: 1.2rem !important; font-weight: 900 !important; color: #31333f; }
     .stButton>button { width: 100% !important; border-radius: 8px !important; 
                        font-weight: bold !important; height: 3em !important; }
+    /* עיצוב כפתור חזרה קטן לסטריפ */
+    .back-btn-strip > div > button { height: 2em !important; width: auto !important; padding: 0 20px !important; }
 </style>
-"""
-st.markdown(css_main, unsafe_allow_html=True)
+""", unsafe_allow_html=True)
 
 SYLLABUS = {
     "חוק המתווכים": ["רישוי והגבלות", "הגינות וזהירות", "הזמנה ובלעדיות", "פעולות שאינן תיווך"],
@@ -76,8 +76,6 @@ def show_header():
                  f'<div class="header-user">👤 <b>{u}</b></div></div>'
         st.markdown(h_html, unsafe_allow_html=True)
 
-# --- לוגיקה של שלבי האפליקציה ---
-
 if st.session_state.step == "login":
     st.title("🏠 מתווך בקליק")
     u_in = st.text_input("שם מלא:")
@@ -102,19 +100,26 @@ elif st.session_state.step == "exam_frame":
         header {visibility: hidden !important; height: 0 !important;}
         .block-container {padding-top: 1.5rem !important; padding-bottom: 0rem !important;}
         .stApp { margin-top: -30px; }
-        .exam-txt { font-size: 1.1rem; font-weight: bold; margin: 0; }
+        .centered-strip { display: flex; justify-content: center; align-items: center; gap: 40px; }
+        .exam-txt { font-size: 1.1rem; font-weight: bold; margin: 0; white-space: nowrap; }
     </style>""", unsafe_allow_html=True)
     
-    cr, cm, cl = st.columns([2, 2, 2])
-    with cr:
-        st.markdown('<p class="exam-txt">🏠 מתווך בקליק</p>', unsafe_allow_html=True)
-    with cm:
-        st.markdown(f'<p class="exam-txt" style="text-align:center;">{st.session_state.user}</p>', 
-                    unsafe_allow_html=True)
-    with cl:
-        if st.button("לתפריט הראשי", key="back_exam"):
-            st.session_state.step = "menu"
-            st.rerun()
+    # יצירת הסטריפ הממורכז עם רווחים (טאבים)
+    # שימוש ב-3 עמודות כשהאמצעית היא העיקרית למירכוז
+    _, strip_col, _ = st.columns([1, 4, 1])
+    with strip_col:
+        col1, col2, col3 = st.columns([1, 1, 1])
+        with col1:
+             st.markdown('<p class="exam-txt">🏠 מתווך בקליק</p>', unsafe_allow_html=True)
+        with col2:
+             st.markdown(f'<p class="exam-txt" style="text-align:center;">{st.session_state.user}</p>', 
+                         unsafe_allow_html=True)
+        with col3:
+             st.markdown('<div class="back-btn-strip">', unsafe_allow_html=True)
+             if st.button("חזרה לתפריט", key="back_exam"):
+                 st.session_state.step = "menu"
+                 st.rerun()
+             st.markdown('</div>', unsafe_allow_html=True)
 
     u_enc = st.session_state.user.replace(" ", "%20")
     b_url = "https://fullrealestatebroker-yevuzewxde4obgrpgacrpc.streamlit.app/"
@@ -155,39 +160,3 @@ elif st.session_state.step == "lesson_run":
                 st.session_state.correct_answers += 1
             else:
                 st.error(f"טעות. התשובה היא: {q['correct']}")
-            st.info(f"הסבר: {q['explain']}")
-    
-    if st.session_state.quiz_finished:
-        st.divider(); st.balloons()
-        st.success(f"🏆 סיימת! ענית נכון על {st.session_state.correct_answers} מתוך 10.")
-    
-    st.divider()
-    f1, f2, f3 = st.columns([2, 2, 4])
-    with f1:
-        if st.button("🏠 חזרה לתפריט"):
-            st.session_state.step = "menu"
-            st.rerun()
-    with f2:
-        if st.session_state.get("lesson_txt") and st.session_state.lesson_txt != "LOADING":
-            if not st.session_state.quiz_active:
-                if st.button("📝 שאלון תרגול"):
-                    with st.spinner("מכין שאלה..."):
-                        res = fetch_q_ai(st.session_state.current_sub)
-                        if res: 
-                            st.session_state.update({"q_data": res, "quiz_active": True, 
-                                                   "q_count": 1, "correct_answers": 0, 
-                                                   "quiz_finished": False})
-                            st.rerun()
-            elif not st.session_state.quiz_finished:
-                if st.session_state.q_count < 10:
-                    if st.button("➡️ שאלה הבאה"):
-                        with st.spinner("מכין שאלה הבאה..."):
-                            res = fetch_q_ai(st.session_state.current_sub)
-                            if res: 
-                                st.session_state.update({"q_data": res, 
-                                                       "q_count": st.session_state.q_count + 1})
-                                st.rerun()
-                else:
-                    if st.button("🏁 סיכום שאלון"):
-                        st.session_state.update({"quiz_finished": True})
-                        st.rerun()
