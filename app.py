@@ -1,19 +1,19 @@
-# Project: מתווך בקליק | Version: 1213-Safe-Exam-Final-Hamburger-V8 | File: app.py
+# Project: מתווך בקליק | Version: 1213-Safe-Exam-Strict-Clean | File: app.py
 import streamlit as st
 import google.generativeai as genai
 import json
 import re
 
-# הגדרת דף - Wide Mode למקסימום מרחב
+# הגדרת דף - סגירת סרגל צד כברירת מחדל למניעת עיוות
 st.set_page_config(page_title="מתווך בקליק", layout="wide", initial_sidebar_state="collapsed")
 
-# עיצוב CSS - פתרון ההמבורגר והצמדת ה-iframe
+# עיצוב CSS - ללא סטריפים חיצוניים, שימוש ב-Header קיים וקיר שקוף
 st.markdown("""
 <style>
     /* הגדרות RTL כלליות */
     * { direction: rtl; text-align: right; }
     
-    /* ה-Header המקורי של מערכת הלמידה */
+    /* ה-Header המקורי של הלמידה (Anchor 1213) */
     .header-container { 
         display: flex; 
         align-items: center; 
@@ -22,46 +22,61 @@ st.markdown("""
     }
     .header-title { font-size: 2.5rem !important; font-weight: bold !important; margin: 0 !important; }
     .header-user { font-size: 1.2rem !important; font-weight: 900 !important; color: #31333f; }
+
+    /* --- הגדרות ייחודיות למצב מבחן --- */
     
-    /* הצמדת ה-iframe לקצה העליון במצב מבחן */
-    [data-testid="stAppViewBlockContainer"] {
-        padding-top: 0rem !important;
-        padding-bottom: 0rem !important;
-        padding-left: 0rem !important;
-        padding-right: 0rem !important;
+    /* ביטול מוחלט של ה-Sidebar והכפתור המעוות >> */
+    [data-testid="stSidebar"], [data-testid="stSidebarCollapseButton"] { display: none !important; }
+    
+    /* קיר שקוף מימין למניעת מריחה של ה-iframe */
+    .invisible-barrier {
+        position: fixed;
+        top: 0;
+        right: 0;
+        width: 20px;
+        height: 100vh;
+        z-index: 999998;
+        background: transparent;
     }
 
-    /* עיצוב ה-iframe */
-    .exam-iframe {
+    /* הזרקת טקסט "לתפריט הראשי" לתוך ה-Header המובנה */
+    .header-link-container {
+        position: fixed;
+        top: 10px;
+        left: 0;
+        width: 100%;
+        display: flex;
+        justify-content: center;
+        z-index: 999999;
+        pointer-events: none;
+    }
+    .header-link {
+        pointer-events: auto;
+        text-decoration: none;
+        color: #555;
+        font-size: 15px;
+        font-weight: 500;
+        background: rgba(255,255,255,0.7);
+        padding: 2px 10px;
+        border-radius: 5px;
+    }
+
+    /* iframe שתופס 100% מהגובה ומתחיל מהטופ */
+    .full-iframe {
         border: none !important;
         width: 100%;
         height: 100vh;
-        margin: 0;
-        padding: 0;
         display: block;
+        margin-top: -50px; /* קיזוז ה-Header המובנה של Streamlit */
     }
 
-    /* כפתור המבורגר צף - לא תופס מקום במבנה הדף */
-    .hamburger-anchor {
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        z-index: 999999;
-        background: white;
-        border-radius: 50%;
-        width: 45px;
-        height: 45px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.3);
-        cursor: pointer;
-        border: 2px solid #31333f;
-    }
+    /* הסרת רווחים של Streamlit */
+    .block-container { padding: 0 !important; max-width: 100% !important; }
+    header { visibility: hidden; } /* מסתיר את ה-Header המקורי כדי שלא יפריע לקישור שלנו */
 </style>
 """, unsafe_allow_html=True)
 
-# סילבוס (לפי עוגן 1213)
+# סילבוס (Anchor 1213)
 SYLLABUS = {
     "חוק המתווכים": ["רישוי והגבלות", "הגינות וזהירות", "הזמנה ובלעדיות", "פעולות שאינן תיווך"],
     "תקנות המתווכים": ["פרטי הזמנה 1997", "פעולות שיווק 2004", "דמי תיווך"],
@@ -76,50 +91,8 @@ SYLLABUS = {
 }
 
 # לוגיקה פנימית (Anchor 1213)
-def reset_quiz_state():
-    st.session_state.update({
-        "quiz_active": False, "q_data": None, "q_count": 0,
-        "checked": False, "quiz_finished": False, "correct_answers": 0
-    })
-    for key in list(st.session_state.keys()):
-        if key.startswith("sc_"):
-            del st.session_state[key]
-
-def fetch_q_ai(topic):
-    try:
-        genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-        model = genai.GenerativeModel('gemini-2.0-flash')
-        json_fmt = "{'q': '','options': ['','','',''], 'correct': '', 'explain': ''}"
-        prompt = (f"צור שאלה אמריקאית אחת קשה על {topic} למבחן המתווכים. "
-                  f"החזר אך ורק בפורמט JSON: {json_fmt}")
-        response = model.generate_content(prompt)
-        match = re.search(r'\{.*\}', response.text, re.DOTALL)
-        return json.loads(match.group()) if match else None
-    except: return None
-
-def stream_ai_lesson(prompt_text):
-    try:
-        genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-        model = genai.GenerativeModel('gemini-2.0-flash')
-        full_p = f"{prompt_text}. כתוב שיעור הכנה מעמיק למבחן המתווכים."
-        response = model.generate_content(full_p, stream=True)
-        placeholder = st.empty()
-        full_text = ""
-        for chunk in response:
-            full_text += chunk.text
-            placeholder.markdown(full_text + "▌")
-        placeholder.markdown(full_text)
-        return full_text
-    except: return "⚠️ תקלה בטעינה."
-
-# אתחול State
 if "step" not in st.session_state:
-    st.session_state.update({
-        "user": None, "step": "login", "lesson_txt": "",
-        "selected_topic": None, "current_sub": None,
-        "quiz_active": False, "quiz_finished": False,
-        "checked": False, "correct_answers": 0, "q_count": 0, "q_data": None
-    })
+    st.session_state.update({"user": None, "step": "login"})
 
 def show_header():
     if st.session_state.get("user"):
@@ -128,7 +101,7 @@ def show_header():
             <div class="header-user">👤 <b>{st.session_state.user}</b></div>
         </div>""", unsafe_allow_html=True)
 
-# --- ניתוב דפים ---
+# --- ניתוב ---
 
 if st.session_state.step == "login":
     st.title("🏠 מתווך בקליק")
@@ -143,115 +116,4 @@ elif st.session_state.step == "menu":
     c1, c2, _ = st.columns([1.5, 1.5, 3])
     if c1.button("📚 לימוד לפי נושאים"):
         st.session_state.step = "study"
-        st.rerun()
-    if c2.button("⏱️ גש/י למבחן"):
-        st.session_state.step = "exam_frame"
-        st.rerun()
-
-elif st.session_state.step == "exam_frame":
-    # שימוש ב-Sidebar של Streamlit כ"המבורגר" - הוא נפתח רק בלחיצה
-    with st.sidebar:
-        st.title("🏠 ניווט")
-        st.write(f"משתמש: {st.session_state.user}")
-        st.divider()
-        if st.button("חזרה לתפריט הראשי"):
-            reset_quiz_state()
-            st.session_state.step = "menu"
-            st.rerun()
-
-    # ה-iframe נצמד לקצה העליון כי ה-Padding בוטל ב-CSS
-    base_url = "https://fullrealestatebroker-yevuzewxde4obgrpgacrpc.streamlit.app/"
-    exam_url = f"{base_url}?user={st.session_state.user}&embed=true"
-    st.markdown(f'<iframe src="{exam_url}" class="exam-iframe"></iframe>', unsafe_allow_html=True)
-
-elif st.session_state.step == "study":
-    show_header()
-    sel = st.selectbox("בחר נושא לימוד:", ["בחר..."] + list(SYLLABUS.keys()))
-    col_a, col_b = st.columns([1, 1])
-    if col_a.button("טען נושא") and sel != "בחר...":
-        reset_quiz_state()
-        st.session_state.update({"selected_topic": sel, "step": "lesson_run", "lesson_txt": "", "current_sub": None})
-        st.rerun()
-    if col_b.button("🏠 לתפריט הראשי"):
-        reset_quiz_state()
-        st.session_state.step = "menu"
-        st.rerun()
-
-elif st.session_state.step == "lesson_run":
-    show_header()
-    if not st.session_state.get("selected_topic"):
-        st.session_state.step = "study"
-        st.rerun()
-
-    st.header(f"📖 {st.session_state.selected_topic}")
-    subs = SYLLABUS.get(st.session_state.selected_topic, [])
-    cols = st.columns(len(subs))
-    for i, s in enumerate(subs):
-        if cols[i].button(s, key=f"s_{i}"):
-            reset_quiz_state()
-            st.session_state.update({"current_sub": s, "lesson_txt": "LOADING"})
-            st.rerun()
-
-    if not st.session_state.get("current_sub"):
-        st.write("")
-        if st.button("🏠 לתפריט הראשי", key="back_no_sub"):
-            reset_quiz_state()
-            st.session_state.step = "menu"
-            st.rerun()
-    else:
-        if st.session_state.get("lesson_txt") == "LOADING":
-            st.session_state.lesson_txt = stream_ai_lesson(f"הסבר על {st.session_state.current_sub}")
-            st.rerun()
-        elif st.session_state.get("lesson_txt"):
-            st.markdown(st.session_state.lesson_txt)
-
-        if st.session_state.quiz_active and st.session_state.q_data and not st.session_state.quiz_finished:
-            st.divider()
-            q = st.session_state.q_data
-            st.subheader(f"📝 שאלה {st.session_state.q_count} מתוך 10")
-            ans = st.radio(q['q'], q['options'], index=None, key=f"q_{st.session_state.q_count}")
-            qc1, qc2, qc3 = st.columns([2, 2, 2])
-            if qc1.button("בדוק/י תשובה", disabled=(ans is None or st.session_state.checked)):
-                st.session_state.checked = True
-                st.rerun()
-            if qc2.button("לשאלה הבאה" if st.session_state.q_count < 10 else "🏁 סיכום", disabled=not st.session_state.checked):
-                if st.session_state.q_count < 10:
-                    with st.spinner("טוען..."):
-                        res = fetch_q_ai(st.session_state.current_sub)
-                        if res:
-                            st.session_state.update({"q_data": res, "q_count": st.session_state.q_count + 1, "checked": False})
-                            st.rerun()
-                else:
-                    st.session_state.quiz_finished = True
-                    st.rerun()
-            if qc3.button("🏠 לתפריט הראשי", key="q_back"):
-                reset_quiz_state()
-                st.session_state.step = "menu"
-                st.rerun()
-
-            if st.session_state.checked:
-                if ans == q['correct']:
-                    st.success("נכון מאוד!")
-                    if f"sc_{st.session_state.q_count}" not in st.session_state:
-                        st.session_state.correct_answers += 1
-                        st.session_state[f"sc_{st.session_state.q_count}"] = True
-                else: st.error(f"טעות. הנכון הוא: {q['correct']}")
-                st.info(f"הסבר: {q['explain']}")
-
-        if (not st.session_state.quiz_active or st.session_state.quiz_finished) and st.session_state.get("current_sub"):
-            if st.session_state.quiz_finished:
-                st.success(f"🏆 ציון: {st.session_state.correct_answers} מתוך 10.")
-            ca, cb = st.columns([1, 1])
-            if ca.button("📝 שאלון תרגול" if not st.session_state.quiz_finished else "🔄 תרגול חוזר"):
-                if st.session_state.get("lesson_txt") not in ["", "LOADING"]:
-                    with st.spinner("מייצר שאלה..."):
-                        res = fetch_q_ai(st.session_state.current_sub)
-                        if res:
-                            reset_quiz_state()
-                            st.session_state.update({"q_data": res, "quiz_active": True, "q_count": 1, "checked": False})
-                            st.rerun()
-            if cb.button("🏠 לתפריט הראשי", key="main_back"):
-                reset_quiz_state()
-                st.session_state.step = "menu"
-                st.rerun()
-# --- End of File ---
+        st.rerun
