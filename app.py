@@ -1,4 +1,4 @@
-# Project: מתווך בקליק | Version: training_full_V10 | 21/02/2026 | 21:58
+# Project: מתווך בקליק | Version: training_full_V12 | 21/02/2026 | 22:30
 import streamlit as st
 import google.generativeai as genai
 import json
@@ -15,12 +15,12 @@ st.markdown("""
     .header-title { font-size: 2.5rem !important; font-weight: bold !important; margin: 0 !important; }
     .header-user { font-size: 1.2rem !important; font-weight: 900 !important; color: #31333f; }
     
-    /* כפתורים כלליים בתפריט הראשי */
-    .main-btn button { width: 100% !important; border-radius: 8px !important; font-weight: bold !important; height: 3em !important; }
+    /* עיצוב כפתורי תפריט ראשי */
+    .main-menu-btns button { width: 100% !important; border-radius: 8px !important; font-weight: bold !important; height: 3em !important; }
 </style>
 """, unsafe_allow_html=True)
 
-# סילבוס
+# סילבוס (Anchor 1213)
 SYLLABUS = {
     "חוק המתווכים": ["רישוי והגבלות", "הגינות וזהירות", "הזמנה ובלעדיות", "פעולות שאינן תיווך"],
     "תקנות המתווכים": ["פרטי הזמנה 1997", "פעולות שיווק 2004", "דמי תיווך"],
@@ -34,7 +34,7 @@ SYLLABUS = {
     "חוק העונשין": ["עבירות מרמה וזיוף"]
 }
 
-# פונקציות AI (עוגן V01)
+# פונקציות בסיס
 def stream_ai_lesson(prompt_text):
     try:
         genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
@@ -69,7 +69,7 @@ if st.session_state.step == "login":
 
 elif st.session_state.step == "menu":
     show_header()
-    st.markdown('<div class="main-btn">', unsafe_allow_html=True)
+    st.markdown('<div class="main-menu-btns">', unsafe_allow_html=True)
     c1, c2, _ = st.columns([1.5, 1.5, 3])
     if c1.button("📚 לימוד לפי נושאים"):
         st.session_state.step = "study"
@@ -80,60 +80,28 @@ elif st.session_state.step == "menu":
     st.markdown('</div>', unsafe_allow_html=True)
 
 elif st.session_state.step == "exam_frame":
+    # הלינק בשורה 0 שמעלה את דף הכניסה מחדש
     st.markdown("""
     <style>
         header { visibility: hidden !important; }
         .main .block-container { padding: 0 !important; }
-        div.stButton > button:first-child[key="zero_btn"] {
-            position: fixed; top: 0; left: 0; z-index: 999999;
-            width: auto !important; height: auto !important;
-            padding: 2px 12px !important; background-color: #f8f9fb !important;
-            border: 1px solid #d1d4d9 !important; border-top: none !important;
-            border-left: none !important; border-radius: 0 0 5px 0 !important;
-            font-size: 12px !important; color: #555 !important;
+        
+        .zero-nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 1000000;
+            background: #f8f9fb;
+            border: 1px solid #ccc;
+            border-top: none;
+            border-left: none;
+            padding: 2px 12px;
+            border-radius: 0 0 5px 0;
+        }
+        .zero-nav a {
+            text-decoration: none;
+            color: #555;
+            font-size: 12px;
+            font-weight: bold;
         }
     </style>
-    """, unsafe_allow_html=True)
-
-    if st.button("לתפריט הראשי", key="zero_btn"):
-        st.session_state.step = "menu"
-        st.rerun()
-
-    base_url = "https://fullrealestatebroker-yevuzewxde4obgrpgacrpc.streamlit.app/"
-    exam_url = f"{base_url}?user={st.session_state.user}&embed=true"
-    st.markdown(f'<iframe src="{exam_url}" style="width:100%; height:100vh; border:none; margin-top:-45px;"></iframe>', unsafe_allow_html=True)
-
-elif st.session_state.step == "study":
-    show_header()
-    sel = st.selectbox("בחר נושא לימוד:", ["בחר..."] + list(SYLLABUS.keys()))
-    c_a, c_b = st.columns([1, 1])
-    if c_a.button("טען נושא") and sel != "בחר...":
-        st.session_state.update({"selected_topic": sel, "step": "lesson_run", "lesson_txt": "", "current_sub": None})
-        st.rerun()
-    if c_b.button("לתפריט הראשי"):
-        st.session_state.step = "menu"
-        st.rerun()
-
-elif st.session_state.step == "lesson_run":
-    show_header()
-    st.header(f"📖 {st.session_state.selected_topic}")
-    subs = SYLLABUS.get(st.session_state.selected_topic, [])
-    # יצירת כפתורים שלא נמתחים ל-100%
-    cols = st.columns(len(subs) if len(subs) > 0 else 1)
-    for i, s in enumerate(subs):
-        if cols[i].button(s, key=f"s_{i}"):
-            st.session_state.update({"current_sub": s, "lesson_txt": "LOADING"})
-            st.rerun()
-    
-    if st.session_state.current_sub:
-        st.subheader(f"נושא: {st.session_state.current_sub}")
-        if st.session_state.lesson_txt == "LOADING":
-             st.session_state.lesson_txt = stream_ai_lesson(f"הסבר על {st.session_state.current_sub}")
-             st.rerun()
-        st.markdown(st.session_state.lesson_txt)
-    
-    if st.button("🏠 חזרה לתפריט", key="final_back"):
-        st.session_state.step = "menu"
-        st.rerun()
-
-# סוף קובץ
