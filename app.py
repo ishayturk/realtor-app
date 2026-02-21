@@ -1,5 +1,5 @@
 # ==========================================
-# Project: מתווך בקליק | Version: 1213-Final
+# Project: מתווך בקליק | Version: 1213 + Strip Fix
 # Status: Clean Code Protocol Applied
 # ==========================================
 import streamlit as st
@@ -8,8 +8,8 @@ import json, re
 
 st.set_page_config(page_title="מתווך בקליק", layout="wide")
 
-# עיצוב בסיסי לכל האפליקציה
-BASE_CSS = """
+# עיצוב בסיסי לכל האפליקציה (תפריט סטרימליט גלוי)
+st.markdown("""
 <style>
     * { direction: rtl; text-align: right; }
     .stButton>button { 
@@ -28,37 +28,16 @@ BASE_CSS = """
         color: #31333f; 
     }
 </style>
-"""
-st.markdown(BASE_CSS, unsafe_allow_html=True)
+""", unsafe_allow_html=True)
 
 SYLLABUS = {
-    "חוק המתווכים": [
-        "רישוי והגבלות", "הגינות וזהירות", 
-        "הזמנה ובלעדיות", "פעולות שאינן תיווך"
-    ],
-    "תקנות המתווכים": [
-        "פרטי הזמנה 1997", "פעולות שיווק 2004", "דמי תיווך"
-    ],
-    "חוק המקרקעין": [
-        "בעלות וזכויות", "בתים משותפים", "עסקאות נוגדות", 
-        "הערות אזהרה", "שכירות וזיקה"
-    ],
-    "חוק המכר (דירות)": [
-        "מפרט וגילוי", "בדק ואחריות", 
-        "איחור במסירה", "הבטחת השקעות"
-    ],
-    "חוק החוזים": [
-        "כריתת חוזה", "פגמים בחוזה", 
-        "תרופות והפרה", "ביטול והשבה"
-    ],
-    "חוק התכנון והבנייה": [
-        "היתרים ושימוש חורג", "היטל השבחה", 
-        "תוכניות מתאר", "מוסדות התכנון"
-    ],
-    "חוק מיסוי מקרקעין": [
-        "מס שבח (חישוב ופפורים)", "מס רכישה", 
-        "הקלות לדירת מגורים", "שווי שוק"
-    ],
+    "חוק המתווכים": ["רישוי והגבלות", "הגינות וזהירות", "הזמנה ובלעדיות", "פעולות שאינן תיווך"],
+    "תקנות המתווכים": ["פרטי הזמנה 1997", "פעולות שיווק 2004", "דמי תיווך"],
+    "חוק המקרקעין": ["בעלות וזכויות", "בתים משותפים", "עסקאות נוגדות", "הערות אזהרה", "שכירות וזיקה"],
+    "חוק המכר (דירות)": ["מפרט וגילוי", "בדק ואחריות", "איחור במסירה", "הבטחת השקעות"],
+    "חוק החוזים": ["כריתת חוזה", "פגמים בחוזה", "תרופות והפרה", "ביטול והשבה"],
+    "חוק התכנון והבנייה": ["היתרים ושימוש חורג", "היטל השבחה", "תוכניות מתאר", "מוסדות התכנון"],
+    "חוק מיסוי מקרקעין": ["מס שבח (חישוב ופפורים)", "מס רכישה", "הקלות לדירת מגורים", "שווי שוק"],
     "חוק הגנת הצרכן": ["ביטול עסקה", "הטעיה בפרסום"],
     "דיני ירושה": ["סדר הירושה", "צוואות"],
     "חוק העונשין": ["עבירות מרמה וזיוף"]
@@ -68,8 +47,8 @@ def fetch_q_ai(topic):
     try:
         genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
         m = genai.GenerativeModel('gemini-2.0-flash')
-        p = f"צור שאלה אמריקאית קשה על {topic}. " \
-            f"החזר JSON: {{'q':'','options':['','','',''],'correct':'','explain':''}}"
+        p = f"צור שאלה אמריקאית קשה על {topic}. החזר JSON: " \
+            f"{{'q':'','options':['','','',''],'correct':'','explain':''}}"
         res = m.generate_content(p).text
         match = re.search(r'\{.*\}', res, re.DOTALL)
         if match: return json.loads(match.group())
@@ -79,7 +58,7 @@ def stream_ai_lesson(p):
     try:
         genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
         m = genai.GenerativeModel('gemini-2.0-flash')
-        full_p = f"{p}. כתוב שיעור הכנה מעמיק למבחן המתווכים."
+        full_p = f"{p}. כתוב שיעור הכנה מעמיק ומפורט למבחן המתווכים."
         response = m.generate_content(full_p, stream=True)
         placeholder = st.empty()
         full_text = ""
@@ -114,7 +93,6 @@ if st.session_state.step == "login":
 
 elif st.session_state.step == "menu":
     show_header()
-    c1, c2, _ = st.columns([1.5, 1.5, 3])
+    c1, c2, c3 = st.columns([1.5, 1.5, 3])
     with c1:
-        if st.button("📚 לימוד לפי נושאים"):
-            st.session_state.step = "study"
+        if st
