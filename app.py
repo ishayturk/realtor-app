@@ -1,4 +1,4 @@
-# Project: מתווך בקליק | Version: 1213-Exam-Link-Fixed | File: app.py
+# Project: מתווך בקליק | Version: 1213-Seamless-Final | File: app.py
 import streamlit as st
 import google.generativeai as genai
 import json
@@ -34,6 +34,14 @@ st.markdown("""
         font-weight: bold !important; 
         height: 3em !important; 
     }
+    /* סגנון ללינק טקסטואלי בסטריפ */
+    .nav-link {
+        color: black !important;
+        text-decoration: none !important;
+        font-weight: bold;
+        cursor: pointer;
+        font-size: 1.1rem;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -51,7 +59,7 @@ SYLLABUS = {
     "חוק העונשין": ["עבירות מרמה וזיוף"]
 }
 
-# פונקציות
+# פונקציות עזר
 def reset_quiz_state():
     st.session_state.update({
         "quiz_active": False, "q_data": None, "q_count": 0,
@@ -125,34 +133,38 @@ elif st.session_state.step == "menu":
         st.rerun()
 
 elif st.session_state.step == "exam_frame":
-    # הסתרת הדר וצמצום מרווחים
+    # הזרקת CSS לביטול שוליים והסתרת הדר
     st.markdown("""
         <style>
             header {visibility: hidden;}
-            .block-container { padding-top: 1rem !important; }
+            .main .block-container {
+                padding-top: 1rem !important;
+                padding-left: 0 !important;
+                padding-right: 0 !important;
+                max-width: 100% !important;
+            }
+            iframe { width: 100% !important; }
         </style>
     """, unsafe_allow_html=True)
     
-    # סטריפ עליון
-    _, center_col, _ = st.columns([1, 2, 1])
+    # סטריפ עליון מיושר (שימוש ב-columns פנימיות לטובת יישור ורטיקלי)
+    _, center_col, _ = st.columns([0.1, 2, 0.1])
     with center_col:
         sc1, sc2, sc3 = st.columns([1, 2, 1])
         with sc1:
-            st.markdown("🏠 **מתווך בקליק**")
+            st.markdown("<p style='margin-top:10px;'>🏠 <b>מתווך בקליק</b></p>", unsafe_allow_html=True)
         with sc2:
-            st.markdown(f"<p style='text-align:center;'>👤 <b>{st.session_state.user}</b></p>", 
+            st.markdown(f"<p style='text-align:center; margin-top:10px;'>👤 <b>{st.session_state.user}</b></p>", 
                         unsafe_allow_html=True)
         with sc3:
-            # תיקון המלל ל"לתפריט הראשי"
-            if st.button("לתפריט הראשי", key="exam_back_btn"):
+            # לינק טקסטואלי במקום כפתור
+            if st.button("לתפריט הראשי", key="exam_back_btn", help="חזרה לתפריט"):
                 st.session_state.step = "menu"
                 st.rerun()
     
-    st.write("") 
-    
-    # הטמעת הלינק שסיפקת בתוך Iframe
+    # Iframe ברוחב מלא
     exam_url = "https://fullrealestatebroker-yevuzewxde4obgrpgacrpc.streamlit.app/?embed=true"
-    components.iframe(exam_url, height=800, scrolling=True)
+    components.iframe(exam_url, height=900, scrolling=True)
 
 elif st.session_state.step == "study":
     show_header()
