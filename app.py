@@ -150,4 +150,55 @@ elif st.session_state.step == "lesson_run":
     cols = st.columns(len(sub_topics))
     for i, sub in enumerate(sub_topics):
         if cols[i].button(sub, key=f"sub_{i}"):
-            st.session_state.current_sub =
+            st.session_state.current_sub = sub
+            st.session_state.lesson_txt = "LOADING"
+            st.session_state.quiz_active = False
+            st.session_state.q_count = 0
+            st.rerun()
+
+    if st.session_state.get("lesson_txt") == "LOADING":
+        st.session_state.lesson_txt = stream_ai_lesson(f"הסבר מפורט על {st.session_state.current_sub}")
+        st.rerun()
+    elif st.session_state.get("lesson_txt"):
+        st.markdown(st.session_state.lesson_txt)
+    
+    if st.session_state.quiz_active and st.session_state.q_data and not st.session_state.quiz_finished:
+        st.divider()
+        q = st.session_state.q_data
+        st.subheader(f"📝 שאלה {st.session_state.q_count} מתוך 10")
+        answer = st.radio(q['q'], q['options'], index=None, key=f"q_{st.session_state.q_count}")
+        if st.button("✅ בדיקת תשובה"):
+            if answer == q['correct']:
+                st.success("נכון מאוד!")
+                st.session_state.correct_answers += 1
+            else:
+                st.error(f"טעות. התשובה הנכונה היא: {q['correct']}")
+            st.info(f"הסבר: {q['explain']}")
+
+    if st.session_state.quiz_finished:
+        st.divider()
+        st.balloons()
+        st.success(f"🏆 סיימת את השאלון! ענית נכון על {st.session_state.correct_answers} מתוך 10.")
+
+    st.divider()
+    f1, f2, f3 = st.columns([2, 2, 4])
+    with f1:
+        if st.button("🏠 חזרה לתפריט"):
+            st.session_state.step = "menu"
+            st.rerun()
+    with f2:
+        if st.session_state.get("lesson_txt") and st.session_state.lesson_txt != "LOADING":
+            if not st.session_state.quiz_active:
+                if st.button("📝 שאלון תרגול"):
+                    with st.spinner("מייצר שאלה..."):
+                        res = fetch_q_ai(st.session_state.current_sub)
+                        if res:
+                            st.session_state.update({"q_data": res, "quiz_active": True, "q_count": 1, "correct_answers": 0, "quiz_finished": False})
+                            st.rerun()
+            elif not st.session_state.quiz_finished:
+                if st.session_state.q_count < 10:
+                    if st.button("➡️ שאלה הבאה"):
+                        with st.spinner("מייצר שאלה הבאה..."):
+                            res = fetch_q_ai(st.session_state.current_sub)
+                            if res:
+                                st.session_state.q_
