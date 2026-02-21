@@ -1,13 +1,42 @@
-# Project: מתווך בקליק | Training_full_V19 | 21/02/2026 | 18:55
+# Project: מתווך בקליק | Version: training_full_V21 | 21/02/2026 | 19:00
 import streamlit as st
 import google.generativeai as genai
 import json
 import re
 
-# הגדרת דף בסיסית - ללא שום הגדרות CSS גלובליות שעלולות להרוס את הלמידה
+# הגדרת דף
 st.set_page_config(page_title="מתווך בקליק", layout="wide")
 
-# סילבוס (לפי עוגן 1213 - ללא שינוי)
+# עיצוב RTL בסיסי
+st.markdown("""
+<style>
+    * { direction: rtl; text-align: right; }
+    .header-container { 
+        display: flex; 
+        align-items: center; 
+        gap: 45px; 
+        margin-bottom: 30px; 
+    }
+    .header-title { 
+        font-size: 2.5rem !important; 
+        font-weight: bold !important; 
+        margin: 0 !important; 
+    }
+    .header-user { 
+        font-size: 1.2rem !important; 
+        font-weight: 900 !important; 
+        color: #31333f; 
+    }
+    .stButton>button { 
+        width: 100% !important; 
+        border-radius: 8px !important; 
+        font-weight: bold !important; 
+        height: 3em !important; 
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# סילבוס
 SYLLABUS = {
     "חוק המתווכים": ["רישוי והגבלות", "הגינות וזהירות", "הזמנה ובלעדיות", "פעולות שאינן תיווך"],
     "תקנות המתווכים": ["פרטי הזמנה 1997", "פעולות שיווק 2004", "דמי תיווך"],
@@ -21,31 +50,71 @@ SYLLABUS = {
     "חוק העונשין": ["עבירות מרמה וזיוף"]
 }
 
-# פונקציות עזר
+# פונקציות
 def reset_quiz_state():
     st.session_state.update({
         "quiz_active": False, "q_data": None, "q_count": 0,
         "checked": False, "quiz_finished": False, "correct_answers": 0
     })
+    for key in list(st.session_state.keys()):
+        if key.startswith("sc_"):
+            del st.session_state[key]
 
+def fetch_q_ai(topic):
+    try:
+        genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+        model = genai.GenerativeModel('gemini-2.0-flash')
+        json_fmt = "{'q': '','options': ['','','',''], 'correct': '', 'explain': ''}"
+        prompt = (f"צור שאלה אמריקאית אחת קשה על {topic} למבחן המתווכים. "
+                  f"החזר אך ורק בפורמט JSON: {json_fmt}")
+        response = model.generate_content(prompt)
+        match = re.search(r'\{.*\}', response.text, re.DOTALL)
+        return json.loads(match.group()) if match else None
+    except: return None
+
+def stream_ai_lesson(prompt_text):
+    try:
+        genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+        model = genai.GenerativeModel('gemini-2.0-flash')
+        full_p = f"{prompt_text}. כתוב שיעור הכנה מעמיק למבחן המתווכים."
+        response = model.generate_content(full_p, stream=True)
+        placeholder = st.empty()
+        full_text = ""
+        for chunk in response:
+            full_text += chunk.text
+            placeholder.markdown(full_text + "▌")
+        placeholder.markdown(full_text)
+        return full_text
+    except: return "⚠️ תקלה בטעינה."
+
+# Init State
 if "step" not in st.session_state:
     st.session_state.update({
-        "user": None, "step": "login", "lesson_txt": "", 
-        "selected_topic": None, "current_sub": None
+        "user": None, "step": "login", "lesson_txt": "",
+        "selected_topic": None, "current_sub": None,
+        "quiz_active": False, "quiz_finished": False,
+        "checked": False, "correct_answers": 0, "q_count": 0, "q_data": None
     })
+
+def show_header():
+    if st.session_state.get("user"):
+        st.markdown(f"""<div class="header-container">
+            <div class="header-title">🏠 מתווך בקליק</div>
+            <div class="header-user">👤 <b>{st.session_state.user}</b></div>
+        </div>""", unsafe_allow_html=True)
 
 # --- Routing ---
 
 if st.session_state.step == "login":
-    st.markdown("<h1 style='text-align: right; direction: rtl;'>🏠 מתווך בקליק</h1>", unsafe_allow_html=True)
-    u_in = st.text_input("שם מלא:", key="login_name")
+    st.title("🏠 מתווך בקליק")
+    u_in = st.text_input("שם מלא:")
     if st.button("כניסה") and u_in:
         st.session_state.user = u_in
         st.session_state.step = "menu"
         st.rerun()
 
 elif st.session_state.step == "menu":
-    st.markdown(f"<div style='text-align: right; direction: rtl;'><h1>🏠 מתווך בקליק</h1><p>שלום, {st.session_state.user}</p></div>", unsafe_allow_html=True)
+    show_header()
     c1, c2, _ = st.columns([1.5, 1.5, 3])
     if c1.button("📚 לימוד לפי נושאים"):
         st.session_state.step = "study"
@@ -54,37 +123,4 @@ elif st.session_state.step == "menu":
         st.session_state.step = "exam_frame"
         st.rerun()
 
-elif st.session_state.step == "exam_frame":
-    # הזרקת CSS מבודדת אך ורק לדף הזה - כדי לא להרוס את שאר המערכת
-    st.markdown("""
-        <style>
-            header { visibility: hidden !important; }
-            .main .block-container { 
-                padding-top: 0px !important; 
-                margin-top: -80px !important; 
-            }
-            /* יישור הכפתור לשמאל */
-            .stButton>button { float: left !important; width: auto !important; }
-        </style>
-    """, unsafe_allow_html=True)
-    
-    # שורה עליונה עם כפתור בשמאל
-    col_empty, col_back = st.columns([5, 1])
-    with col_back:
-        if st.button("🏠 לתפריט הראשי"):
-            st.session_state.step = "menu"
-            st.rerun()
-    
-    # הבחינה
-    exam_url = f"https://fullrealestatebroker-yevuzewxde4obgrpgacrpc.streamlit.app/?user={st.session_state.user}&embed=true"
-    st.markdown(f'<iframe src="{exam_url}" style="width:100%; height:100vh; border:none;"></iframe>', unsafe_allow_html=True)
-
-elif st.session_state.step == "study":
-    # לוגיקת למידה נקייה (ללא margin שלילי)
-    st.markdown(f"<div style='text-align: right; direction: rtl;'><h1>📚 לימוד: {st.session_state.user}</h1></div>", unsafe_allow_html=True)
-    if st.button("חזרה לתפריט"):
-        st.session_state.step = "menu"
-        st.rerun()
-    # (כאן יבוא המשך קוד הלמידה שלך כפי שהיה במקור)
-
-# סוף קובץ
+elif st.session_state.step ==
