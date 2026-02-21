@@ -1,4 +1,4 @@
-# Project: מתווך בקליק | Version: 1213-Safe-Exam-Final-Full-V2-SlimStrip | File: app.py
+# Project: מתווך בקליק | Version: 1213-Safe-Exam-Final-Full-V2-UltraSlim | File: app.py
 import streamlit as st
 import google.generativeai as genai
 import json
@@ -6,6 +6,12 @@ import re
 
 # הגדרת דף
 st.set_page_config(page_title="מתווך בקליק", layout="wide")
+
+# בדיקת ניווט חזרה דרך פרמטר ב-URL (כדי שהלינק הטקסטואלי יעבוד)
+if st.query_params.get("nav") == "menu":
+    st.query_params.clear()
+    st.session_state.step = "menu"
+    st.rerun()
 
 # עיצוב RTL בסיסי
 st.markdown("""
@@ -33,15 +39,13 @@ st.markdown("""
         font-weight: bold !important; 
         height: 3em !important; 
     }
-    /* עיצוב לינק טקסטואלי נקי עבור הסטריפ */
-    .nav-link-simple {
+    /* עיצוב לינק טקסטואלי נקי לחלוטין - ללא נפח של כפתור */
+    .nav-link-pure {
         color: black !important;
-        text-decoration: none !important;
+        text-decoration: underline !important;
         font-weight: bold !important;
         font-size: 1rem;
-    }
-    .nav-link-simple:hover {
-        text-decoration: underline !important;
+        cursor: pointer;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -60,7 +64,7 @@ SYLLABUS = {
     "חוק העונשין": ["עבירות מרמה וזיוף"]
 }
 
-# פונקציות
+# פונקציות (נשארות ללא שינוי)
 def reset_quiz_state():
     st.session_state.update({
         "quiz_active": False, "q_data": None, "q_count": 0,
@@ -138,11 +142,12 @@ elif st.session_state.step == "exam_frame":
     st.markdown("""
         <style>
             header {visibility: hidden;}
+            /* צמצום הפדינג של הבלוק הראשי למינימום */
             .block-container { padding-top: 0.5rem !important; }
         </style>
     """, unsafe_allow_html=True)
     
-    # סטריפ צר וממורכז ברוחב התוכן
+    # סטריפ צר וממורכז - שימוש בקישור טקסטואלי במקום כפתור
     _, center_col, _ = st.columns([1, 2, 1])
     with center_col:
         sc1, sc2, sc3 = st.columns([1.2, 2, 1.2])
@@ -151,16 +156,15 @@ elif st.session_state.step == "exam_frame":
         with sc2: 
             st.markdown(f"<p style='text-align:center; margin:0;'>👤 <b>{st.session_state.user}</b></p>", unsafe_allow_html=True)
         with sc3:
-            # שימוש בקישור טקסטואלי במקום כפתור
-            if st.button("לתפריט הראשי", key="back_to_menu_link", use_container_width=False):
-                st.session_state.step = "menu"
-                st.rerun()
+            # לינק טקסטואלי שמפעיל ניווט דרך ה-URL
+            st.markdown('<a href="/?nav=menu" target="_self" class="nav-link-pure">לתפריט הראשי</a>', unsafe_allow_html=True)
                 
     st.write("") 
     st.markdown("### כאן יבואו עמודי הבחינה")
 
 elif st.session_state.step == "study":
     show_header()
+    # (שאר הקוד נשאר ללא שינוי...)
     sel = st.selectbox("בחר נושא לימוד:", ["בחר..."] + list(SYLLABUS.keys()))
     col_a, col_b = st.columns([1, 1])
     if col_a.button("טען נושא") and sel != "בחר...":
@@ -174,10 +178,10 @@ elif st.session_state.step == "study":
 
 elif st.session_state.step == "lesson_run":
     show_header()
+    # (שאר הקוד נשאר ללא שינוי...)
     if not st.session_state.get("selected_topic"):
         st.session_state.step = "study"
         st.rerun()
-
     st.header(f"📖 {st.session_state.selected_topic}")
     subs = SYLLABUS.get(st.session_state.selected_topic, [])
     cols = st.columns(len(subs))
@@ -186,9 +190,7 @@ elif st.session_state.step == "lesson_run":
             reset_quiz_state()
             st.session_state.update({"current_sub": s, "lesson_txt": "LOADING"})
             st.rerun()
-
     if not st.session_state.get("current_sub"):
-        st.write("")
         if st.button("לתפריט הראשי", key="back_no_sub"):
             reset_quiz_state()
             st.session_state.step = "menu"
@@ -199,7 +201,6 @@ elif st.session_state.step == "lesson_run":
             st.rerun()
         elif st.session_state.get("lesson_txt"):
             st.markdown(st.session_state.lesson_txt)
-
         if st.session_state.quiz_active and st.session_state.q_data and not st.session_state.quiz_finished:
             st.divider()
             q = st.session_state.q_data
@@ -223,7 +224,6 @@ elif st.session_state.step == "lesson_run":
                 reset_quiz_state()
                 st.session_state.step = "menu"
                 st.rerun()
-
             if st.session_state.checked:
                 if ans == q['correct']:
                     st.success("נכון מאוד!")
@@ -232,7 +232,6 @@ elif st.session_state.step == "lesson_run":
                         st.session_state[f"sc_{st.session_state.q_count}"] = True
                 else: st.error(f"טעות. הנכון הוא: {q['correct']}")
                 st.info(f"הסבר: {q['explain']}")
-
         if (not st.session_state.quiz_active or st.session_state.quiz_finished) and st.session_state.get("current_sub"):
             if st.session_state.quiz_finished:
                 st.success(f"🏆 ציון: {st.session_state.correct_answers} מתוך 10.")
