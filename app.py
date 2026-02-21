@@ -1,4 +1,4 @@
-# Project: מתווך בקליק | Version: 1213-Safe-Exam-Final-Full-V2 | File: app.py
+# Project: מתווך בקליק | Version: 1213-Safe-Exam-Final-Full-V3 | File: app.py
 import streamlit as st
 import google.generativeai as genai
 import json
@@ -27,7 +27,6 @@ st.markdown("""
         font-weight: 900 !important; 
         color: #31333f; 
     }
-    /* עיצוב גלובלי לכפתורים */
     .stButton>button { 
         width: 100% !important; 
         border-radius: 8px !important; 
@@ -125,41 +124,52 @@ elif st.session_state.step == "menu":
         st.rerun()
 
 elif st.session_state.step == "exam_frame":
-    # הצרת הסטריפ למינימום רק בדף זה והסרת מרווחים מיותרים
+    # הצרת הסטריפ למינימום המוחלט
     st.markdown("""
         <style>
             header {visibility: hidden;}
-            .main .block-container { padding-top: 0.5rem !important; padding-bottom: 0 !important; }
-            iframe { border: none !important; width: 100%; height: 85vh; }
-            /* עיצוב כפתור החזרה בסטריפ עם חץ ימינה */
-            div[data-testid="stColumn"] .stButton button {
+            /* ביטול המרווח העליון של Streamlit */
+            .main .block-container { 
+                padding-top: 0rem !important; 
+                padding-bottom: 0 !important; 
+                max-width: 100% !important;
+            }
+            /* כיווץ גובה העמודות בסטריפ */
+            [data-testid="column"] {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                height: 40px !important;
+            }
+            /* עיצוב כפתור החץ */
+            div.stButton > button:first-child {
                 background: none !important;
                 border: none !important;
                 padding: 0 !important;
                 color: black !important;
-                text-decoration: none !important;
+                font-size: 1.1rem !important;
+                font-weight: bold !important;
                 height: auto !important;
                 width: auto !important;
-                font-size: 1.15rem !important;
-                font-weight: bold !important;
-                display: inline !important;
+                line-height: 1 !important;
             }
+            iframe { border: none !important; width: 100%; height: 92vh; margin-top: -10px; }
         </style>
     """, unsafe_allow_html=True)
     
-    _, center_col, _ = st.columns([1, 2, 1])
-    with center_col:
-        sc1, sc2, sc3 = st.columns([1.2, 2, 1.2])
-        with sc1: st.markdown("🏠 **מתווך בקליק**")
-        with sc2: st.markdown(f"<p style='text-align:center; margin:0;'>👤 <b>{st.session_state.user}</b></p>", unsafe_allow_html=True)
-        with sc3:
-            # שימוש בחץ ימינה במקום אייקון הבית
-            if st.button("לתפריט הראשי →", key="strip_nav_back"):
-                reset_quiz_state()
-                st.session_state.step = "menu"
-                st.rerun()
+    # יצירת הסטריפ הדק
+    sc1, sc2, sc3 = st.columns([1, 2, 1])
+    with sc1: 
+        st.markdown("<p style='margin:0; font-weight:bold;'>🏠 מתווך בקליק</p>", unsafe_allow_html=True)
+    with sc2: 
+        st.markdown(f"<p style='margin:0; font-weight:900;'>👤 {st.session_state.user}</p>", unsafe_allow_html=True)
+    with sc3:
+        if st.button("לתפריט הראשי ←", key="strip_nav_back"):
+            reset_quiz_state()
+            st.session_state.step = "menu"
+            st.rerun()
 
-    # הטמעת האפליקציה השנייה בתוך Iframe
+    # הטמעת האפליקציה השנייה
     exam_url = "https://fullrealestatebroker-yevuzewxde4obgrpgacrpc.streamlit.app/"
     st.markdown(f'<iframe src="{exam_url}?embed=true"></iframe>', unsafe_allow_html=True)
 
