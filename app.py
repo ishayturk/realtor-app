@@ -1,6 +1,6 @@
 # ==========================================
 # Project: מתווך בקליק | Version: 1213 + Strip Fix
-# Status: Clean Code Protocol Applied
+# Status: Syntax Verified | Protocol: Clean Code
 # ==========================================
 import streamlit as st
 import google.generativeai as genai
@@ -8,27 +8,17 @@ import json, re
 
 st.set_page_config(page_title="מתווך בקליק", layout="wide")
 
-# עיצוב בסיסי לכל האפליקציה (תפריט סטרימליט גלוי)
-st.markdown("""
-<style>
+# עיצוב בסיסי
+st.markdown("""<style>
     * { direction: rtl; text-align: right; }
     .stButton>button { 
         width: 100% !important; border-radius: 8px !important; 
         font-weight: bold !important; height: 3em !important; 
     }
-    .header-container { 
-        display: flex; align-items: center; gap: 45px; margin-bottom: 30px; 
-    }
-    .header-title { 
-        font-size: 2.5rem !important; font-weight: bold !important; 
-        margin: 0 !important; 
-    }
-    .header-user { 
-        font-size: 1.2rem !important; font-weight: 900 !important; 
-        color: #31333f; 
-    }
-</style>
-""", unsafe_allow_html=True)
+    .header-container { display: flex; align-items: center; gap: 45px; margin-bottom: 30px; }
+    .header-title { font-size: 2.5rem !important; font-weight: bold !important; margin: 0 !important; }
+    .header-user { font-size: 1.2rem !important; font-weight: 900 !important; color: #31333f; }
+</style>""", unsafe_allow_html=True)
 
 SYLLABUS = {
     "חוק המתווכים": ["רישוי והגבלות", "הגינות וזהירות", "הזמנה ובלעדיות", "פעולות שאינן תיווך"],
@@ -47,7 +37,7 @@ def fetch_q_ai(topic):
     try:
         genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
         m = genai.GenerativeModel('gemini-2.0-flash')
-        p = f"צור שאלה אמריקאית קשה על {topic}. החזר JSON: " \
+        p = f"צור שאלה אמריקאית על {topic}. החזר JSON: " \
             f"{{'q':'','options':['','','',''],'correct':'','explain':''}}"
         res = m.generate_content(p).text
         match = re.search(r'\{.*\}', res, re.DOTALL)
@@ -58,7 +48,7 @@ def stream_ai_lesson(p):
     try:
         genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
         m = genai.GenerativeModel('gemini-2.0-flash')
-        full_p = f"{p}. כתוב שיעור הכנה מעמיק ומפורט למבחן המתווכים."
+        full_p = f"{p}. כתוב שיעור הכנה מעמיק למבחן המתווכים."
         response = m.generate_content(full_p, stream=True)
         placeholder = st.empty()
         full_text = ""
@@ -79,8 +69,7 @@ if "step" not in st.session_state:
 def show_header():
     if st.session_state.user:
         u_name = st.session_state.user
-        h_html = f'<div class="header-container">' \
-                 f'<div class="header-title">🏠 מתווך בקליק</div>' \
+        h_html = f'<div class="header-container"><div class="header-title">🏠 מתווך בקליק</div>' \
                  f'<div class="header-user">👤 <b>{u_name}</b></div></div>'
         st.markdown(h_html, unsafe_allow_html=True)
 
@@ -95,4 +84,39 @@ elif st.session_state.step == "menu":
     show_header()
     c1, c2, c3 = st.columns([1.5, 1.5, 3])
     with c1:
-        if st
+        if st.button("📚 לימוד לפי נושאים"):
+            st.session_state.step = "study"
+            st.rerun()
+    with c2:
+        if st.button("⏱️ גש למבחן"):
+            st.session_state.step = "exam_frame"
+            st.rerun()
+
+elif st.session_state.step == "exam_frame":
+    st.markdown("""<style>
+        header {visibility: hidden !important;}
+        #MainMenu {visibility: hidden !important;}
+        footer {visibility: hidden !important;}
+        .stApp { margin-top: -85px; }
+        [data-testid="stHorizontalBlock"] { max-width: 1200px; margin: 0 auto; padding: 0 20px; }
+    </style>""", unsafe_allow_html=True)
+    st.markdown('<div style="height: 15px;"></div>', unsafe_allow_html=True)
+    c_logo, c_user, c_back = st.columns([1.5, 4, 1.5])
+    with c_logo: st.markdown('<b>🏠 מתווך בקליק</b>', unsafe_allow_html=True)
+    with c_user: st.markdown(f'<div style="text-align:center; font-weight:900;">{st.session_state.user}</div>', unsafe_allow_html=True)
+    with c_back:
+        if st.button("לתפריט הראשי", key="exam_back"):
+            st.session_state.step = "menu"
+            st.rerun()
+    u_enc = st.session_state.user.replace(" ", "%20")
+    t_url = f"https://fullrealestatebroker-yevuzewxde4obgrpgacrpc.streamlit.app/?user={u_enc}"
+    st.components.v1.iframe(t_url, height=1000, scrolling=True)
+
+elif st.session_state.step == "study":
+    show_header()
+    sel = st.selectbox("בחר נושא:", ["בחר..."] + list(SYLLABUS.keys()))
+    if sel != "בחר..." and st.button("טען נושא"):
+        st.session_state.update({"selected_topic": sel, "step": "lesson_run", "lesson_txt": ""})
+        st.rerun()
+
+elif st.session_state.step
