@@ -1,4 +1,4 @@
-# Project: מתווך בקליק | Version: 1213-Safe-Exam-Final-Full-V2 | File: app.py
+# Project: מתווך בקליק | Training_full_V02 | 21/02/2026 | 17:45
 import streamlit as st
 import google.generativeai as genai
 import json
@@ -33,6 +33,8 @@ st.markdown("""
         font-weight: bold !important; 
         height: 3em !important; 
     }
+    /* הסרת מרווחים מיותרים בפריים המבחן */
+    .block-container { padding-top: 2rem; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -44,7 +46,7 @@ SYLLABUS = {
     "חוק המכר (דירות)": ["מפרט וגילוי", "בדק ואחריות", "איחור במסירה", "הבטחת השקעות"],
     "חוק החוזים": ["כריתת חוזה", "פגמים בחוזה", "תרופות והפרה", "ביטול והשבה"],
     "חוק התכנון והבנייה": ["היתרים ושימוש חורג", "היטל השבחה", "תוכניות מתאר", "מוסדות התכנון"],
-    "חוק מיסוי מקרקעין": ["מס שבח (חישוב ופטורים)", "מס רכישה", "הקלות לדירת מגורים", "שווי שוק"],
+    "חוק מיסוי מקרקעין": ["מס שבח (חישוב ופפורים)", "מס רכישה", "הקלות לדירת מגורים", "שווי שוק"],
     "חוק הגנת הצרכן": ["ביטול עסקה", "הטעיה בפרסום"],
     "דיני ירושה": ["סדר הירושה", "צוואות"],
     "חוק העונשין": ["עבירות מרמה וזיוף"]
@@ -124,25 +126,25 @@ elif st.session_state.step == "menu":
         st.rerun()
 
 elif st.session_state.step == "exam_frame":
-    # הסתרת הדר המערכת וצמצום מרווחים רק בדף זה
+    # סטריפ עליון צר - כפתור חזרה צמוד לשמאל בלבד
     st.markdown("""
         <style>
             header {visibility: hidden;}
-            .block-container { padding-top: 1rem !important; }
+            .block-container { padding-top: 0rem !important; padding-bottom: 0rem !important; }
         </style>
     """, unsafe_allow_html=True)
     
-    _, center_col, _ = st.columns([1, 2, 1])
-    with center_col:
-        sc1, sc2, sc3 = st.columns([1, 2, 1])
-        with sc1: st.markdown("🏠 **מתווך בקליק**")
-        with sc2: st.markdown(f"<p style='text-align:center;'>👤 <b>{st.session_state.user}</b></p>", unsafe_allow_html=True)
-        with sc3:
-            if st.button("חזרה", key="exam_back_btn"):
-                st.session_state.step = "menu"
-                st.rerun()
-    st.write("") 
-    st.markdown("### כאן יבואו עמודי הבחינה")
+    col_back, col_empty = st.columns([1, 4])
+    with col_back:
+        if st.button("🏠 לתפריט הראשי"):
+            st.session_state.step = "menu"
+            st.rerun()
+    
+    # הצגת אפליקציית הבחינה בפריים מלא
+    exam_url = f"https://fullrealestatebroker-yevuzewxde4obgrpgacrpc.streamlit.app/?user={st.session_state.user}&embed=true"
+    st.markdown(f"""
+        <iframe src="{exam_url}" style="width:100%; height:90vh; border:none; margin-top:10px;"></iframe>
+    """, unsafe_allow_html=True)
 
 elif st.session_state.step == "study":
     show_header()
@@ -234,4 +236,5 @@ elif st.session_state.step == "lesson_run":
                 reset_quiz_state()
                 st.session_state.step = "menu"
                 st.rerun()
-# --- End of File ---
+
+# סוף קובץ
