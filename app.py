@@ -1,4 +1,4 @@
-# Project: מתווך בקליק | Version: 1213-Safe-Exam-Final-Sidebar-Clean | File: app.py
+# Project: מתווך בקליק | Version: 1213-Safe-Exam-Final-Floating-V6 | File: app.py
 import streamlit as st
 import google.generativeai as genai
 import json
@@ -7,10 +7,13 @@ import re
 # הגדרת דף
 st.set_page_config(page_title="מתווך בקליק", layout="wide")
 
-# עיצוב RTL בסיסי
+# עיצוב CSS - כולל הכפתור הצף והתאמות למבחן
 st.markdown("""
 <style>
+    /* הגדרות כלליות RTL */
     * { direction: rtl; text-align: right; }
+    
+    /* ה-Header המקורי של מערכת הלמידה */
     .header-container { 
         display: flex; 
         align-items: center; 
@@ -27,14 +30,37 @@ st.markdown("""
         font-weight: 900 !important; 
         color: #31333f; 
     }
+    
+    /* עיצוב כפתורי המערכת */
     .stButton>button { 
         width: 100% !important; 
         border-radius: 8px !important; 
         font-weight: bold !important; 
         height: 3em !important; 
     }
-    /* עיצוב ה-iframe שייצמד למעלה */
-    .exam-frame { border: none !important; width: 100%; height: 98vh; margin-top: -30px; }
+
+    /* עיצוב ספציפי לכפתור הציפה במצב מבחן */
+    .floating-back-container {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 1000000;
+        width: 150px;
+    }
+    .floating-back-container button {
+        background-color: #ffffff !important;
+        border: 2px solid #ff4b4b !important;
+        color: #ff4b4b !important;
+        box-shadow: 0px 4px 10px rgba(0,0,0,0.1);
+    }
+    
+    /* iframe על כל שטח המסך המרכזי */
+    .exam-iframe { 
+        border: none !important; 
+        width: 100%; 
+        height: 98vh; 
+        margin-top: -25px; 
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -52,7 +78,7 @@ SYLLABUS = {
     "חוק העונשין": ["עבירות מרמה וזיוף"]
 }
 
-# פונקציות לוגיקה
+# פונקציות עזר (Anchor 1213)
 def reset_quiz_state():
     st.session_state.update({
         "quiz_active": False, "q_data": None, "q_count": 0,
@@ -89,7 +115,7 @@ def stream_ai_lesson(prompt_text):
         return full_text
     except: return "⚠️ תקלה בטעינה."
 
-# אתחול Session
+# אתחול State
 if "step" not in st.session_state:
     st.session_state.update({
         "user": None, "step": "login", "lesson_txt": "",
@@ -126,17 +152,19 @@ elif st.session_state.step == "menu":
         st.rerun()
 
 elif st.session_state.step == "exam_frame":
-    # תפריט צדדי במקום Header - מופיע רק כאן
-    with st.sidebar:
-        st.markdown("### ניווט מהיר")
-        if st.button("לתפריט הראשי →", key="btn_exit_exam"):
-            reset_quiz_state()
-            st.session_state.step = "menu"
-            st.rerun()
+    # כפתור צף בפינה - השכבה המקשרת היחידה למערכת המקורית
+    st.markdown('<div class="floating-back-container">', unsafe_allow_html=True)
+    if st.button("לתפריט הראשי →", key="float_exit"):
+        reset_quiz_state()
+        st.session_state.step = "menu"
+        st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    # בניית הלינק עם פרמטר המשתמש
+    base_url = "https://fullrealestatebroker-yevuzewxde4obgrpgacrpc.streamlit.app/"
+    exam_url_with_user = f"{base_url}?user={st.session_state.user}&embed=true"
     
-    # iframe של הבחינה ללא Header מעליו
-    exam_url = "https://fullrealestatebroker-yevuzewxde4obgrpgacrpc.streamlit.app/"
-    st.markdown(f'<iframe src="{exam_url}?embed=true" class="exam-frame"></iframe>', unsafe_allow_html=True)
+    st.markdown(f'<iframe src="{exam_url_with_user}" class="exam-iframe"></iframe>', unsafe_allow_html=True)
 
 elif st.session_state.step == "study":
     show_header()
