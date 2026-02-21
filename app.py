@@ -215,4 +215,23 @@ elif st.session_state.step == "lesson_run":
                     if f"sc_{st.session_state.q_count}" not in st.session_state:
                         st.session_state.correct_answers += 1
                         st.session_state[f"sc_{st.session_state.q_count}"] = True
-                else: st.error(f"טעות. הנכון
+                else: st.error(f"טעות. הנכון הוא: {q['correct']}")
+                st.info(f"הסבר: {q['explain']}")
+
+        if (not st.session_state.quiz_active or st.session_state.quiz_finished) and st.session_state.get("current_sub"):
+            if st.session_state.quiz_finished:
+                st.success(f"🏆 ציון: {st.session_state.correct_answers} מתוך 10.")
+            ca, cb = st.columns([1, 1])
+            if ca.button("📝 שאלון תרגול" if not st.session_state.quiz_finished else "🔄 תרגול חוזר"):
+                if st.session_state.get("lesson_txt") not in ["", "LOADING"]:
+                    with st.spinner("מייצר שאלה..."):
+                        res = fetch_q_ai(st.session_state.current_sub)
+                        if res:
+                            reset_quiz_state()
+                            st.session_state.update({"q_data": res, "quiz_active": True, "q_count": 1, "checked": False})
+                            st.rerun()
+            if cb.button("לתפריט הראשי", key="main_back"):
+                reset_quiz_state()
+                st.session_state.step = "menu"
+                st.rerun()
+# --- End of File ---
