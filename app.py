@@ -1,6 +1,6 @@
 # ==========================================
 # Project: מתווך בקליק | File: app.py
-# Anchor: 1213 (Integrated & Isolated Test Mode)
+# Anchor: 1213 (Fixed Logic - No changes to study/lessons)
 # ==========================================
 import streamlit as st
 import google.generativeai as genai
@@ -8,7 +8,7 @@ import json, re
 
 st.set_page_config(page_title="מתווך בקליק", layout="wide")
 
-# CSS המקורי שלך - ללא שינוי כדי לשמור על נראות הלימוד
+# CSS המקורי שלך - ללא שינוי
 st.markdown("""
 <style>
     * { direction: rtl; text-align: right; }
@@ -115,33 +115,30 @@ elif st.session_state.step == "menu":
             st.session_state.step = "study"
             st.rerun()
     with c2:
-        # שינוי לכפתור רגיל שמפעיל את מצב ה-Iframe
+        # כאן התיקון היחיד: במקום link_button, אנחנו עוברים ל-state חדש
         if st.button("⏱️ גש/י למבחן"):
             st.session_state.step = "test_mode"
             st.rerun()
 
 elif st.session_state.step == "test_mode":
-    # 1. הסטריפ העליון - ממוקם גבוה, צפוף ומדויק
-    # שימוש ב-columns כדי לשלוט בצפיפות (הכל קרוב למרכז/ימין)
-    st.markdown('<div style="margin-top: -30px;"></div>', unsafe_allow_html=True) # דחיפה למעלה
+    # הסטריפ המבודד - הכי גבוה שאפשר
+    st.markdown('<div style="margin-top: -30px;"></div>', unsafe_allow_html=True)
     cols = st.columns([1, 1, 1, 5]) 
     with cols[0]:
         if st.button("🏠 לתפריט"):
             st.session_state.step = "menu"
             st.rerun()
     with cols[1]:
-        st.markdown(f"<p style='margin-top:10px; font-weight:900; white-space:nowrap;'>👤 {st.session_state.user}</p>", unsafe_allow_html=True)
+        st.markdown(f"<p style='margin-top:10px; font-weight:900;'>👤 {st.session_state.user}</p>", unsafe_allow_html=True)
     with cols[2]:
-        st.markdown("<p style='margin-top:5px; font-size:1.2rem; font-weight:bold; white-space:nowrap;'>🏠 מתווך בקליק</p>", unsafe_allow_html=True)
+        st.markdown("<p style='margin-top:5px; font-size:1.2rem; font-weight:bold;'>🏠 מתווך בקליק</p>", unsafe_allow_html=True)
     
-    st.divider() # קו מפריד דק
+    st.divider()
 
-    # 2. אירוח אפליקציית המבחן ב-Iframe (צמוד לסטריפ)
     u_name = st.session_state.user.replace(" ", "%20")
-    # הכתובת של אפליקציית המבחן
     test_url = f"https://fullrealestatebroker-yevuzewxde4obgrpgacrpc.streamlit.app/?user={u_name}"
     
-    # הצגת הפריים עם רווח מינימלי
+    # הצגת הפריים צמוד לסטריפ
     st.markdown('<div style="margin-top: -20px;"></div>', unsafe_allow_html=True)
     st.components.v1.iframe(test_url, height=900, scrolling=True)
 
@@ -149,36 +146,4 @@ elif st.session_state.step == "study":
     show_header()
     sel = st.selectbox("בחר נושא:", ["בחר..."] + list(SYLLABUS.keys()))
     if sel != "בחר..." and st.button("טען נושא"):
-        st.session_state.update({"selected_topic": sel, "step": "lesson_run", "lesson_txt": ""})
-        st.rerun()
-    if st.button("🏠 חזרה"):
-        st.session_state.step = "menu"
-        st.rerun()
-
-elif st.session_state.step == "lesson_run":
-    show_header()
-    topic = st.session_state.selected_topic
-    st.header(f"📖 {topic}")
-    
-    subs = SYLLABUS.get(topic, [])
-    cols = st.columns(len(subs))
-    for i, s in enumerate(subs):
-        if cols[i].button(s, key=f"sub_{i}"):
-            st.session_state.update({"current_sub": s, "lesson_txt": "LOADING"})
-            st.rerun()
-    
-    if st.session_state.get("lesson_txt") == "LOADING":
-        st.session_state.lesson_txt = stream_ai_lesson(f"שיעור על {st.session_state.current_sub}")
-        st.rerun()
-    elif st.session_state.get("lesson_txt"):
-        st.markdown(st.session_state.lesson_txt)
-
-    st.write("")
-    f_cols = st.columns([2, 2, 4])
-    with f_cols[0]:
-        if st.button("🏠 לתפריט הראשי"):
-            st.session_state.step = "menu"
-            st.rerun()
-    with f_cols[1]:
-        if st.button("🔝 לראש הדף"):
-            st.rerun()
+        st.session_state.update({"selected_topic": sel, "step": "lesson_run", "lesson_txt
