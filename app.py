@@ -1,4 +1,4 @@
-# Project: מתווך בקליק | Version: 1213-Safe-Exam-Final-Full | File: app.py
+# Project: מתווך בקליק | Version: 1213-Safe-Exam-Final-Full-V2 | File: app.py
 import streamlit as st
 import google.generativeai as genai
 import json
@@ -124,7 +124,14 @@ elif st.session_state.step == "menu":
         st.rerun()
 
 elif st.session_state.step == "exam_frame":
-    st.markdown("""<style>.block-container { padding-top: 1rem !important; }</style>""", unsafe_allow_html=True)
+    # הסתרת הדר המערכת וצמצום מרווחים רק בדף זה
+    st.markdown("""
+        <style>
+            header {visibility: hidden;}
+            .block-container { padding-top: 1rem !important; }
+        </style>
+    """, unsafe_allow_html=True)
+    
     _, center_col, _ = st.columns([1, 2, 1])
     with center_col:
         sc1, sc2, sc3 = st.columns([1, 2, 1])
@@ -208,23 +215,4 @@ elif st.session_state.step == "lesson_run":
                     if f"sc_{st.session_state.q_count}" not in st.session_state:
                         st.session_state.correct_answers += 1
                         st.session_state[f"sc_{st.session_state.q_count}"] = True
-                else: st.error(f"טעות. הנכון הוא: {q['correct']}")
-                st.info(f"הסבר: {q['explain']}")
-
-        if (not st.session_state.quiz_active or st.session_state.quiz_finished) and st.session_state.get("current_sub"):
-            if st.session_state.quiz_finished:
-                st.success(f"🏆 ציון: {st.session_state.correct_answers} מתוך 10.")
-            ca, cb = st.columns([1, 1])
-            if ca.button("📝 שאלון תרגול" if not st.session_state.quiz_finished else "🔄 תרגול חוזר"):
-                if st.session_state.get("lesson_txt") not in ["", "LOADING"]:
-                    with st.spinner("מייצר שאלה..."):
-                        res = fetch_q_ai(st.session_state.current_sub)
-                        if res:
-                            reset_quiz_state()
-                            st.session_state.update({"q_data": res, "quiz_active": True, "q_count": 1, "checked": False})
-                            st.rerun()
-            if cb.button("לתפריט הראשי", key="main_back"):
-                reset_quiz_state()
-                st.session_state.step = "menu"
-                st.rerun()
-# --- End of File ---
+                else: st.error(f"טעות. הנכון
