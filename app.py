@@ -58,4 +58,46 @@ def stream_ai_lesson(p):
         genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
         m = genai.GenerativeModel('gemini-2.0-flash')
         full_p = f"{p}. שיעור מעמיק למבחן המתווכים עם סעיפי חוק."
-        response = m
+        response = m.generate_content(full_p, stream=True)
+        placeholder = st.empty()
+        full_text = ""
+        for chunk in response:
+            full_text += chunk.text
+            placeholder.markdown(full_text + "▌")
+        placeholder.markdown(full_text)
+        return full_text
+    except: return "⚠️ תקלה בטעינה"
+
+def show_header():
+    if st.session_state.user:
+        u = st.session_state.user
+        h = f'<div class="header-container"><div class="header-title">🏠 מתווך בקליק</div><div class="header-user">👤 <b>{u}</b></div></div>'
+        st.markdown(h, unsafe_allow_html=True)
+
+if st.session_state.step == "login":
+    st.title("🏠 מתווך בקליק")
+    u_input = st.text_input("שם מלא:")
+    if st.button("כניסה") and u_input:
+        st.session_state.user = u_input
+        st.session_state.step = "menu"
+        st.rerun()
+
+elif st.session_state.step == "menu":
+    show_header()
+    c1, c2, c3 = st.columns([1.5, 1.5, 3])
+    if c1.button(BTN_STUDY):
+        st.session_state.step = "study"
+        st.rerun()
+    if c2.button(BTN_EXAM):
+        st.session_state.step = "exam_frame"
+        st.rerun()
+
+elif st.session_state.step == "exam_frame":
+    if st.button(BTN_BACK):
+        st.session_state.step = "menu"
+        st.rerun()
+    u_enc = st.session_state.user.replace(" ", "%20")
+    b_url = "https://fullrealestatebroker-yevuzewxde4obgrpgacrpc.streamlit.app/"
+    st.components.v1.iframe(f"{b_url}?user={u_enc}", height=900, scrolling=True)
+
+elif st
