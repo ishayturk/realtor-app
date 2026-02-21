@@ -99,4 +99,45 @@ elif st.session_state.step == "exam_frame":
         .main .block-container {{ padding: 0 !important; }}
         .zero-nav {{
             position: fixed; top: 0; left: 0; z-index: 1000000;
-            background: #f8f9fb; border:
+            background: #f8f9fb; border: 1px solid #ccc;
+            border-top: none; border-left: none;
+            padding: 2px 15px; border-radius: 0 0 5px 0;
+        }}
+        .zero-nav a {{ text-decoration: none; color: #444; font-size: 13px; font-weight: bold; }}
+    </style>
+    <div class="zero-nav">
+        <a href="{back_url}" target="_self">⬅️ חזרה לתפריט הראשי</a>
+    </div>
+    """, unsafe_allow_html=True)
+
+    base_url = "https://fullrealestatebroker-yevuzewxde4obgrpgacrpc.streamlit.app/"
+    exam_url = f"{base_url}?user={current_user}&embed=true"
+    st.markdown(f'<iframe src="{exam_url}" style="width:100%; height:100vh; border:none; margin-top:-35px;"></iframe>', unsafe_allow_html=True)
+
+elif st.session_state.step == "study":
+    show_header()
+    sel = st.selectbox("בחר נושא לימוד:", ["בחר..."] + list(SYLLABUS.keys()))
+    ca, cb = st.columns([1, 1])
+    if ca.button("טען נושא") and sel != "בחר...":
+        st.session_state.update({"selected_topic": sel, "step": "lesson_run", "lesson_txt": "", "current_sub": None})
+        st.rerun()
+    if cb.button("לתפריט הראשי"):
+        st.session_state.step = "menu"
+        st.rerun()
+
+elif st.session_state.step == "lesson_run":
+    show_header()
+    st.header(f"📖 {st.session_state.selected_topic}")
+    subs = SYLLABUS.get(st.session_state.selected_topic, [])
+    cols = st.columns(len(subs) if len(subs) > 0 else 1)
+    for i, s in enumerate(subs):
+        if cols[i].button(s, key=f"s_{i}"):
+            st.session_state.update({"current_sub": s})
+            st.rerun()
+    if st.session_state.current_sub:
+        st.info(f"מציג תוכן עבור: {st.session_state.current_sub}")
+    if st.button("🏠 חזרה לתפריט"):
+        st.session_state.step = "menu"
+        st.rerun()
+
+# סוף קובץ
