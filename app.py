@@ -1,4 +1,4 @@
-# Project: מתווך בקליק | Training_full_V06 | 21/02/2026 | 18:05
+# Project: מתווך בקליק | Training_full_V07 | 21/02/2026 | 18:12
 import streamlit as st
 import google.generativeai as genai
 import json
@@ -124,11 +124,17 @@ elif st.session_state.step == "menu":
         st.rerun()
 
 elif st.session_state.step == "exam_frame":
-    # הגדרות CSS למצב בחינה - רק בדף הזה
+    # הזרקת CSS אגרסיבית להעלמת המרווח העליון רק בדף זה
     st.markdown("""
         <style>
             header {visibility: hidden;}
-            .main .block-container { padding-top: 10px !important; }
+            .main .block-container { 
+                padding-top: 0px !important; 
+                margin-top: -85px !important; 
+            }
+            [data-testid="stVerticalBlock"] > div:first-child { 
+                padding-top: 0px !important; 
+            }
         </style>
     """, unsafe_allow_html=True)
     
@@ -139,10 +145,10 @@ elif st.session_state.step == "exam_frame":
             st.session_state.step = "menu"
             st.rerun()
     
-    # הצגת אפליקציית הבחינה - הצמדה למעלה דרך margin שלילי ב-HTML
+    # הצגת אפליקציית הבחינה
     exam_url = f"https://fullrealestatebroker-yevuzewxde4obgrpgacrpc.streamlit.app/?user={st.session_state.user}&embed=true"
     st.markdown(f"""
-        <iframe src="{exam_url}" style="width:100%; height:95vh; border:none; margin-top:-20px;"></iframe>
+        <iframe src="{exam_url}" style="width:100%; height:100vh; border:none; margin-top:-15px;"></iframe>
     """, unsafe_allow_html=True)
 
 elif st.session_state.step == "study":
