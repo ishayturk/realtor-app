@@ -97,7 +97,3 @@ elif st.session_state.step == "exam_frame":
         st.session_state.step = "menu"
         st.rerun()
     u_enc = st.session_state.user.replace(" ", "%20")
-    b_url = "https://fullrealestatebroker-yevuzewxde4obgrpgacrpc.streamlit.app/"
-    st.components.v1.iframe(f"{b_url}?user={u_enc}", height=900, scrolling=True)
-
-elif st
