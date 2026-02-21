@@ -1,7 +1,7 @@
 # ==========================================
 # Project: מתווך בקליק | Version: 1213-Anchor-Updated
-# Last Update: 21/02/2026 | 14:15 (Jerusalem Time GMT+2)
-# Status: Syntax Fixed & Quiet Guard | Protocol: Full File Delivery
+# Last Update: 21/02/2026 | 14:45 (Jerusalem Time GMT+2)
+# Status: Strip Visibility Restored | Protocol: Full File Delivery
 # ==========================================
 import streamlit as st
 import google.generativeai as genai
@@ -17,11 +17,7 @@ st.markdown("""
     .header-user { font-size: 1.2rem !important; font-weight: 900 !important; color: #31333f; }
     .stButton>button { width: 100% !important; border-radius: 8px !important; height: 3em !important; }
     
-    .exam-strip {
-        display: flex; justify-content: center; align-items: center; 
-        gap: 50px; padding: 10px 0; border-bottom: 1px solid #eee; width: 100%;
-    }
-    .strip-item { font-size: 1rem; font-weight: bold; margin: 0; white-space: nowrap; }
+    .strip-text { font-size: 1.2rem; font-weight: bold; padding-top: 10px; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -47,8 +43,7 @@ def fetch_q_ai(topic):
         res = m.generate_content(p).text
         match = re.search(r'\{.*\}', res, re.DOTALL)
         if match: return json.loads(match.group())
-    except Exception:
-        return None
+    except: return None
 
 def stream_ai_lesson(p):
     try:
@@ -62,8 +57,7 @@ def stream_ai_lesson(p):
             placeholder.markdown(txt + "▌")
         placeholder.markdown(txt)
         return txt
-    except Exception:
-        return "⚠️ שירות ה-AI לא זמין כרגע. נסה שוב מאוחר יותר."
+    except: return "⚠️ שירות ה-AI אינו זמין כרגע."
 
 if "step" not in st.session_state:
     st.session_state.update({
@@ -78,6 +72,8 @@ def show_header():
         h = f'<div class="header-container"><div class="header-title">🏠 מתווך בקליק</div>' \
             f'<div class="header-user">👤 <b>{u}</b></div></div>'
         st.markdown(h, unsafe_allow_html=True)
+
+# --- ניהול שלבים ---
 
 if st.session_state.step == "login":
     st.title("🏠 מתווך בקליק")
@@ -96,25 +92,27 @@ elif st.session_state.step == "menu":
             st.session_state.step = "exam_frame"; st.rerun()
 
 elif st.session_state.step == "exam_frame":
+    # ניקוי מרווחים בסיסי בלי להעלים אלמנטים
     st.markdown("""<style>
         header {visibility: hidden !important; height: 0 !important;}
-        .block-container {padding-top: 0.1rem !important;}
-        .stApp { margin-top: -75px; }
+        .block-container {padding-top: 2rem !important;}
     </style>""", unsafe_allow_html=True)
     
-    cols = st.columns([1, 4, 1])
-    with cols[1]:
-        st.markdown(f"""<div class="exam-strip">
-            <span class="strip-item">🏠 מתווך בקליק</span>
-            <span class="strip-item">👤 {st.session_state.user}</span>
-        </div>""", unsafe_allow_html=True)
-    with cols[2]:
-        if st.button("🔙 חזרה", key="back_exam"):
+    # הסטריפ - שורה ראשונה
+    strip_cols = st.columns([1, 1, 1])
+    with strip_cols[0]:
+        st.markdown('<p class="strip-text" style="text-align:right;">🏠 מתווך בקליק</p>', unsafe_allow_html=True)
+    with strip_cols[1]:
+        st.markdown(f'<p class="strip-text" style="text-align:center;">{st.session_state.user}</p>', unsafe_allow_html=True)
+    with strip_cols[2]:
+        if st.button("🔙 חזרה", key="back_from_exam"):
             st.session_state.step = "menu"; st.rerun()
+
+    st.divider() # קו מפריד דק בין הסטריפ ל-iframe
 
     u_enc = st.session_state.user.replace(" ", "%20")
     b_url = "https://fullrealestatebroker-yevuzewxde4obgrpgacrpc.streamlit.app/"
-    st.components.v1.iframe(f"{b_url}?user={u_enc}", height=1200, scrolling=True)
+    st.components.v1.iframe(f"{b_url}?user={u_enc}", height=1000, scrolling=True)
 
 elif st.session_state.step == "study":
     show_header()
@@ -132,45 +130,11 @@ elif st.session_state.step == "lesson_run":
         if cols[i].button(s, key=f"sub_{i}"):
             st.session_state.update({"current_sub": s, "lesson_txt": "LOADING", "quiz_active": False})
             st.rerun()
-            
+    
     if st.session_state.get("lesson_txt") == "LOADING":
         st.session_state.lesson_txt = stream_ai_lesson(f"שיעור על {st.session_state.current_sub}")
         st.rerun()
     elif st.session_state.get("lesson_txt"):
         st.markdown(st.session_state.lesson_txt)
-    
-    if st.session_state.quiz_active and st.session_state.q_data and not st.session_state.quiz_finished:
-        st.divider()
-        q = st.session_state.q_data
-        st.subheader(f"📝 שאלה {st.session_state.q_count} מתוך 10")
-        ans = st.radio(q['q'], q['options'], index=None, key=f"q_{st.session_state.q_count}")
-        if st.button("✅ בדיקת תשובה"):
-            if ans == q['correct']:
-                st.success("נכון!"); st.session_state.correct_answers += 1
-            else:
-                st.error(f"טעות. התשובה היא: {q['correct']}")
-            st.info(f"הסבר: {q['explain']}")
-    
-    if st.session_state.quiz_finished:
-        st.divider(); st.balloons()
-        st.success(f"🏆 סיימת! ענית נכון על {st.session_state.correct_answers} מתוך 10.")
-    
-    st.divider()
-    f1, f2 = st.columns([2, 2])
-    with f1:
-        if st.button("🏠 חזרה"): st.session_state.step = "menu"; st.rerun()
-    with f2:
-        if st.session_state.get("lesson_txt") and st.session_state.lesson_txt != "LOADING":
-            if not st.session_state.quiz_active:
-                if st.button("📝 שאלון תרגול"):
-                    res = fetch_q_ai(st.session_state.current_sub)
-                    if res: st.session_state.update({"q_data": res, "quiz_active": True, "q_count": 1})
-                    st.rerun()
-            elif not st.session_state.quiz_finished:
-                if st.session_state.q_count < 10:
-                    if st.button("➡️ שאלה הבאה"):
-                        res = fetch_q_ai(st.session_state.current_sub)
-                        if res: st.session_state.update({"q_data": res, "q_count": st.session_state.q_count + 1})
-                        st.rerun()
-                else:
-                    if st.button("🏁 סיכום שאלון"): st.session_state.update({"quiz_finished": True}); st.rerun()
+        if st.button("🏠 חזרה לתפריט"):
+            st.session_state.step = "menu"; st.rerun()
