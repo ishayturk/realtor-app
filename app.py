@@ -1,6 +1,7 @@
 # Project: מתווך בקליק | Version: training_full_V12 | 25/02/2026 | 08:50
 # Status: Restored Question Logic | Protocol: Full File Delivery
 # Claude 01 | Fix: Mobile header layout
+# Claude 02 | Fix: Sub-topic button disable + screen cleanup on sub-topic change
 import streamlit as st
 import google.generativeai as genai
 import json
@@ -163,12 +164,21 @@ elif st.session_state.step == "lesson_run":
     st.header(f"📖 {st.session_state.selected_topic}")
     subs = SYLLABUS.get(st.session_state.selected_topic, [])
     cols = st.columns(len(subs))
+
+    # תת-נושא פעיל = זה שנטען בהצלחה (לא LOADING ולא ריק)
+    loaded_sub = st.session_state.get("current_sub") if (
+        st.session_state.get("lesson_txt") and
+        st.session_state.get("lesson_txt") not in ("", "LOADING")
+    ) else None
+
     for i, s in enumerate(subs):
-        if cols[i].button(s, key=f"s_{i}"):
+        is_active = (s == loaded_sub)
+        if cols[i].button(s, key=f"s_{i}", disabled=is_active):
+            # ניקוי מלא לפני טעינת תת-נושא חדש
             reset_quiz_state()
             st.session_state.update({"current_sub": s, "lesson_txt": "LOADING"})
             st.rerun()
-    
+
     if not st.session_state.get("current_sub"):
         if st.button("לתפריט הראשי", key="back_no_sub"):
             reset_quiz_state()
@@ -176,22 +186,24 @@ elif st.session_state.step == "lesson_run":
             st.rerun()
     else:
         if st.session_state.get("lesson_txt") == "LOADING":
-            st.session_state.lesson_txt = stream_ai_lesson(f"הסבר על {st.session_state.current_sub}")
+            # מסך נקי בזמן טעינה - לא מציגים תוכן קודם
+            with st.spinner(f"טוען את הנושא: {st.session_state.current_sub}..."):
+                st.session_state.lesson_txt = stream_ai_lesson(f"הסבר על {st.session_state.current_sub}")
             st.rerun()
         elif st.session_state.get("lesson_txt"):
             st.markdown(st.session_state.lesson_txt)
-        
+
         if st.session_state.quiz_active and st.session_state.q_data and not st.session_state.quiz_finished:
             st.divider()
             q = st.session_state.q_data
             st.subheader(f"📝 שאלה {st.session_state.q_count} מתוך 10")
             ans = st.radio(q['q'], q['options'], index=None, key=f"q_{st.session_state.q_count}")
             qc1, qc2, qc3 = st.columns([2, 2, 2])
-            
+
             if qc1.button("בדוק/י תשובה", disabled=(ans is None or st.session_state.checked)):
                 st.session_state.checked = True
                 st.rerun()
-            
+
             if qc2.button("לשאלה הבאה" if st.session_state.q_count < 10 else "🏁 סיכום", disabled=not st.session_state.checked):
                 if st.session_state.q_count < 10:
                     with st.spinner("מביא שאלה חדשה..."):
@@ -203,12 +215,12 @@ elif st.session_state.step == "lesson_run":
                 else:
                     st.session_state.quiz_finished = True
                     st.rerun()
-            
+
             if qc3.button("לתפריט הראשי", key="q_back"):
                 reset_quiz_state()
                 st.session_state.step = "menu"
                 st.rerun()
-            
+
             if st.session_state.checked:
                 if ans == q['correct']:
                     st.success("נכון מאוד!")
