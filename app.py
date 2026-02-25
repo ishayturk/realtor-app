@@ -7,6 +7,7 @@
 # Claude 05 | Fix: Gemini prompt - skip intro sentence, start directly with content
 # Claude 06 | Fix: Sub-topic title displayed by app (+20% bold), Gemini instructed not to write title
 # Claude 07 | Fix: Revert prompt (no title instruction), show sub-topic title as "שיעור: {current_sub}"
+# Claude 08 | Fix: Revert to Gemini title (Claude 04 style) with CSS size limit, fix quiz buttons on mobile
 import streamlit as st
 import google.generativeai as genai
 import json
@@ -30,7 +31,12 @@ st.markdown("""
     .header-title { font-size: 2.5rem !important; font-weight: bold !important; margin: 0 !important; }
     .header-user { font-size: 1.2rem !important; font-weight: 900 !important; color: #31333f; }
     .stButton>button { width: 100% !important; border-radius: 8px !important; font-weight: bold !important; height: 3em !important; }
-    .sub-title { font-size: 1.2em; font-weight: bold; margin-bottom: 10px; }
+
+    /* הקטנת כותרות H1/H2/H3 שGemini מייצר לתוכן השיעור */
+    .lesson-content h1, .lesson-content h2, .lesson-content h3 {
+        font-size: 1.25em !important;
+        font-weight: bold !important;
+    }
 
     /* תצוגת נייד בלבד */
     @media (max-width: 768px) {
@@ -121,7 +127,7 @@ def stream_ai_lesson(prompt_text):
             placeholder.markdown(full_text + "▌")
         placeholder.markdown(full_text)
         return full_text
-    except: return None  # None = שגיאה, מבדיל מ-"" ריק
+    except: return None
 
 if "step" not in st.session_state:
     st.session_state.update({
@@ -189,7 +195,6 @@ elif st.session_state.step == "lesson_run":
 
     is_loading = (st.session_state.get("lesson_txt") == "LOADING")
 
-    # תת-נושא שנטען בהצלחה (לא LOADING, לא ריק, לא None)
     loaded_sub = st.session_state.get("current_sub") if (
         st.session_state.get("lesson_txt") and
         st.session_state.get("lesson_txt") not in ("", "LOADING")
@@ -218,9 +223,10 @@ elif st.session_state.step == "lesson_run":
                 st.error("⚠️ תקלה בטעינה. אנא בחר נושא מחדש.")
             st.rerun()
         elif st.session_state.get("lesson_txt"):
-            # כותרת תת-הנושא מוצגת על ידי האפליקציה
-            st.markdown(f'<div class="sub-title">שיעור: {st.session_state.current_sub}</div>', unsafe_allow_html=True)
+            # עוטפים את תוכן השיעור ב-div עם class lesson-content כדי לשלוט בגודל הכותרות
+            st.markdown(f'<div class="lesson-content">', unsafe_allow_html=True)
             st.markdown(st.session_state.lesson_txt)
+            st.markdown('</div>', unsafe_allow_html=True)
 
         if st.session_state.quiz_active and st.session_state.q_data and not st.session_state.quiz_finished:
             st.divider()
