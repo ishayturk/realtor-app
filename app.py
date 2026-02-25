@@ -1,5 +1,5 @@
-# Project: מתווך בקליק | Version: training_full_V11 | 25/02/2026 | 07:50
-# Status: Context-Based & Anti-Duplicate | Protocol: Full File Delivery
+# Project: מתווך בקליק | Version: training_full_V12 | 25/02/2026 | 08:10
+# Status: Additional Reset on Sub-topic | Protocol: Full File Delivery
 import streamlit as st
 import google.generativeai as genai
 import json
@@ -9,7 +9,7 @@ import random
 # הגדרת דף
 st.set_page_config(page_title="מתווך בקליק", layout="wide", initial_sidebar_state="collapsed")
 
-# Interceptor - כניסה אוטומטית לפי שם משתמש ב-URL
+# Interceptor
 if "user" in st.query_params and st.session_state.get("user") is None:
     st.session_state.user = st.query_params.get("user")
     st.session_state.step = "menu"
@@ -45,17 +45,16 @@ def reset_quiz_state():
         "checked": False, "quiz_finished": False, "correct_answers": 0,
         "used_questions": []
     })
-    for key in list(st.session_state.keys()):
-        if key.startswith("sc_"):
-            del st.session_state[key]
+    # הסרת מפתחות ספציפיים מה-session_state כדי להבטיח ניקוי רכיבי UI
+    keys_to_del = [k for k in st.session_state.keys() if k.startswith("sc_") or k.startswith("q_")]
+    for k in keys_to_del:
+        del st.session_state[k]
 
 def fetch_q_ai(sub_topic, lesson_context, used_qs):
     try:
         genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
         model = genai.GenerativeModel('gemini-2.0-flash')
         json_fmt = '{"q": "","options": ["","","",""], "correct": "", "explain": ""}'
-        
-        # בניית היסטוריה למניעת כפילויות
         history = "\n".join([f"- {q}" for q in used_qs]) if used_qs else "אין שאלות קודמות."
         
         prompt = f"""
@@ -63,22 +62,18 @@ def fetch_q_ai(sub_topic, lesson_context, used_qs):
         ---
         {lesson_context}
         ---
-        צור שאלה אמריקאית חדשה לבדיקת הבנה. 
-        אל תחזור על נושאים שכבר נשאלו כאן:
+        צור שאלה אמריקאית פשוטה לבדיקת הבנה. אל תחזור על נושאים שכבר נשאלו כאן:
         {history}
         
         החזר אך ורק JSON תקני: {json_fmt}
         """
-        
         response = model.generate_content(prompt)
         res_text = response.text.replace('```json', '').replace('```', '').strip()
         match = re.search(r'\{.*\}', res_text, re.DOTALL)
         if match:
-            data = json.loads(match.group())
-            return data
+            return json.loads(match.group())
         return None
-    except:
-        return None
+    except: return None
 
 def stream_ai_lesson(prompt_text):
     try:
@@ -156,11 +151,13 @@ elif st.session_state.step == "lesson_run":
     if not st.session_state.get("selected_topic"):
         st.session_state.step = "study"
         st.rerun()
+    
     st.header(f"📖 {st.session_state.selected_topic}")
     subs = SYLLABUS.get(st.session_state.selected_topic, [])
     cols = st.columns(len(subs))
     for i, s in enumerate(subs):
         if cols[i].button(s, key=f"s_{i}"):
+            # הניקוי החדש מופעל כאן - בכל לחיצה על תת-נושא
             reset_quiz_state()
             st.session_state.update({"current_sub": s, "lesson_txt": "LOADING"})
             st.rerun()
