@@ -1,5 +1,5 @@
-# Project: מתווך בקליק | Version: training_full_V10 | 25/02/2026 | 07:40
-# Status: Fixed Randomization & Logic | Protocol: Full File Delivery
+# Project: מתווך בקליק | Version: training_full_V11 | 25/02/2026 | 07:50
+# Status: Context-Based & Anti-Duplicate | Protocol: Full File Delivery
 import streamlit as st
 import google.generativeai as genai
 import json
@@ -9,7 +9,7 @@ import random
 # הגדרת דף
 st.set_page_config(page_title="מתווך בקליק", layout="wide", initial_sidebar_state="collapsed")
 
-# Interceptor
+# Interceptor - כניסה אוטומטית לפי שם משתמש ב-URL
 if "user" in st.query_params and st.session_state.get("user") is None:
     st.session_state.user = st.query_params.get("user")
     st.session_state.step = "menu"
@@ -42,24 +42,40 @@ SYLLABUS = {
 def reset_quiz_state():
     st.session_state.update({
         "quiz_active": False, "q_data": None, "q_count": 0,
-        "checked": False, "quiz_finished": False, "correct_answers": 0
+        "checked": False, "quiz_finished": False, "correct_answers": 0,
+        "used_questions": []
     })
     for key in list(st.session_state.keys()):
         if key.startswith("sc_"):
             del st.session_state[key]
 
-def fetch_q_ai(sub_topic):
+def fetch_q_ai(sub_topic, lesson_context, used_qs):
     try:
         genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
         model = genai.GenerativeModel('gemini-2.0-flash')
         json_fmt = '{"q": "","options": ["","","",""], "correct": "", "explain": ""}'
-        seed = random.randint(1, 100000)
-        prompt = f"מזהה ייחודי: {seed}. צור שאלה אמריקאית אקראית, חדשה ושונה מקודמותיה לבדיקת הבנה על {sub_topic}. החזר אך ורק JSON תקני: {json_fmt}"
+        
+        # בניית היסטוריה למניעת כפילויות
+        history = "\n".join([f"- {q}" for q in used_qs]) if used_qs else "אין שאלות קודמות."
+        
+        prompt = f"""
+        בהתבסס אך ורק על טקסט השיעור הבא בנושא {sub_topic}:
+        ---
+        {lesson_context}
+        ---
+        צור שאלה אמריקאית חדשה לבדיקת הבנה. 
+        אל תחזור על נושאים שכבר נשאלו כאן:
+        {history}
+        
+        החזר אך ורק JSON תקני: {json_fmt}
+        """
+        
         response = model.generate_content(prompt)
         res_text = response.text.replace('```json', '').replace('```', '').strip()
         match = re.search(r'\{.*\}', res_text, re.DOTALL)
         if match:
-            return json.loads(match.group())
+            data = json.loads(match.group())
+            return data
         return None
     except:
         return None
@@ -84,7 +100,8 @@ if "step" not in st.session_state:
         "user": None, "step": "login", "lesson_txt": "",
         "selected_topic": None, "current_sub": None,
         "quiz_active": False, "quiz_finished": False,
-        "checked": False, "correct_answers": 0, "q_count": 0, "q_data": None
+        "checked": False, "correct_answers": 0, "q_count": 0, "q_data": None,
+        "used_questions": []
     })
 
 def show_header():
@@ -93,6 +110,8 @@ def show_header():
             <div class="header-title">🏠 מתווך בקליק</div>
             <div class="header-user">👤 <b>{st.session_state.user}</b></div>
         </div>""", unsafe_allow_html=True)
+
+# --- Routing ---
 
 if st.session_state.step == "login":
     st.title("🏠 מתווך בקליק")
@@ -145,6 +164,7 @@ elif st.session_state.step == "lesson_run":
             reset_quiz_state()
             st.session_state.update({"current_sub": s, "lesson_txt": "LOADING"})
             st.rerun()
+    
     if not st.session_state.get("current_sub"):
         if st.button("לתפריט הראשי", key="back_no_sub"):
             reset_quiz_state()
@@ -156,29 +176,35 @@ elif st.session_state.step == "lesson_run":
             st.rerun()
         elif st.session_state.get("lesson_txt"):
             st.markdown(st.session_state.lesson_txt)
+        
         if st.session_state.quiz_active and st.session_state.q_data and not st.session_state.quiz_finished:
             st.divider()
             q = st.session_state.q_data
             st.subheader(f"📝 שאלה {st.session_state.q_count} מתוך 10")
             ans = st.radio(q['q'], q['options'], index=None, key=f"q_{st.session_state.q_count}")
             qc1, qc2, qc3 = st.columns([2, 2, 2])
+            
             if qc1.button("בדוק/י תשובה", disabled=(ans is None or st.session_state.checked)):
                 st.session_state.checked = True
                 st.rerun()
+            
             if qc2.button("לשאלה הבאה" if st.session_state.q_count < 10 else "🏁 סיכום", disabled=not st.session_state.checked):
                 if st.session_state.q_count < 10:
                     with st.spinner("מביא שאלה חדשה..."):
-                        res = fetch_q_ai(st.session_state.current_sub)
+                        res = fetch_q_ai(st.session_state.current_sub, st.session_state.lesson_txt, st.session_state.used_questions)
                         if res:
+                            st.session_state.used_questions.append(res['q'])
                             st.session_state.update({"q_data": res, "q_count": st.session_state.q_count + 1, "checked": False})
                             st.rerun()
                 else:
                     st.session_state.quiz_finished = True
                     st.rerun()
+            
             if qc3.button("לתפריט הראשי", key="q_back"):
                 reset_quiz_state()
                 st.session_state.step = "menu"
                 st.rerun()
+            
             if st.session_state.checked:
                 if ans == q['correct']:
                     st.success("נכון מאוד!")
@@ -187,15 +213,17 @@ elif st.session_state.step == "lesson_run":
                         st.session_state[f"sc_{st.session_state.q_count}"] = True
                 else: st.error(f"טעות. הנכון הוא: {q['correct']}")
                 st.info(f"הסבר: {q['explain']}")
+
         if (not st.session_state.quiz_active or st.session_state.quiz_finished) and st.session_state.get("current_sub"):
             if st.session_state.quiz_finished:
                 st.success(f"🏆 ציון: {st.session_state.correct_answers} מתוך 10.")
             ca, cb = st.columns([1, 1])
             if ca.button("📝 שאלון תרגול" if not st.session_state.quiz_finished else "🔄 תרגול חוזר"):
                 with st.spinner("מייצר שאלה..."):
-                    res = fetch_q_ai(st.session_state.current_sub)
+                    res = fetch_q_ai(st.session_state.current_sub, st.session_state.lesson_txt, [])
                     if res:
                         reset_quiz_state()
+                        st.session_state.used_questions = [res['q']]
                         st.session_state.update({"q_data": res, "quiz_active": True, "q_count": 1, "checked": False})
                         st.rerun()
             if cb.button("לתפריט הראשי", key="main_back"):
