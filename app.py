@@ -3,6 +3,7 @@
 # Claude 01 | Fix: Mobile header layout
 # Claude 02 | Fix: Sub-topic button disable + screen cleanup on sub-topic change
 # Claude 03 | Fix: Mobile header one line (logo+title right, username left) + lock all sub-topic buttons during loading
+# Claude 04 | Fix: Mobile header centered box with spacing + remove unauthorized spinner
 import streamlit as st
 import google.generativeai as genai
 import json
@@ -32,18 +33,31 @@ st.markdown("""
         .header-container {
             display: flex;
             flex-direction: row;
-            justify-content: space-between;
+            justify-content: center;
             align-items: center;
             gap: 0;
+            width: fit-content;
+            margin: 0 auto 20px auto;
         }
         .header-title {
             font-size: 1.3rem !important;
             text-align: right;
+            white-space: nowrap;
+        }
+        .header-spacer {
+            display: inline-block;
+            width: 3em;
         }
         .header-user {
             font-size: 1rem !important;
             text-align: left;
+            white-space: nowrap;
         }
+    }
+
+    /* הסתרת הספייסר במחשב */
+    @media (min-width: 769px) {
+        .header-spacer { display: none; }
     }
 </style>
 """, unsafe_allow_html=True)
@@ -118,7 +132,8 @@ def show_header():
     if st.session_state.get("user"):
         st.markdown(f"""<div class="header-container">
             <div class="header-title">🏠 מתווך בקליק</div>
-            <div class="header-user"><b>{st.session_state.user}</b></div>
+            <div class="header-spacer"></div>
+            <div class="header-user">👤 <b>{st.session_state.user}</b></div>
         </div>""", unsafe_allow_html=True)
 
 if st.session_state.step == "login":
@@ -192,10 +207,8 @@ elif st.session_state.step == "lesson_run":
     else:
         if st.session_state.get("lesson_txt") == "LOADING":
             # מסך נקי בזמן טעינה
-            with st.spinner(f"טוען את הנושא: {st.session_state.current_sub}..."):
-                result = stream_ai_lesson(f"הסבר על {st.session_state.current_sub}")
+            result = stream_ai_lesson(f"הסבר על {st.session_state.current_sub}")
             if result:
-                # טעינה הצליחה
                 st.session_state.lesson_txt = result
             else:
                 # טעינה נכשלה - שחרר את הכפתורים
