@@ -5,6 +5,7 @@
 # Claude 03 | Fix: Mobile header one line (logo+title right, username left) + lock all sub-topic buttons during loading
 # Claude 04 | Fix: Mobile header centered box with spacing + remove unauthorized spinner
 # Claude 05 | Fix: Gemini prompt - skip intro sentence, start directly with content
+# Claude 06 | Fix: Sub-topic title displayed by app (+20% bold), Gemini instructed not to write title
 import streamlit as st
 import google.generativeai as genai
 import json
@@ -28,6 +29,7 @@ st.markdown("""
     .header-title { font-size: 2.5rem !important; font-weight: bold !important; margin: 0 !important; }
     .header-user { font-size: 1.2rem !important; font-weight: 900 !important; color: #31333f; }
     .stButton>button { width: 100% !important; border-radius: 8px !important; font-weight: bold !important; height: 3em !important; }
+    .sub-title { font-size: 1.2em; font-weight: bold; margin-bottom: 10px; }
 
     /* תצוגת נייד בלבד */
     @media (max-width: 768px) {
@@ -109,7 +111,7 @@ def stream_ai_lesson(prompt_text):
     try:
         genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
         model = genai.GenerativeModel('gemini-2.0-flash')
-        full_p = f"{prompt_text}. כתוב שיעור הכנה מעמיק למבחן המתווכים. התחל ישירות בתוכן ללא הקדמה, ברכה, או משפט פתיחה."
+        full_p = f"{prompt_text}. כתוב שיעור הכנה מעמיק למבחן המתווכים. התחל ישירות בתוכן ללא הקדמה, ברכה, משפט פתיחה, או כותרת."
         response = model.generate_content(full_p, stream=True)
         placeholder = st.empty()
         full_text = ""
@@ -215,6 +217,8 @@ elif st.session_state.step == "lesson_run":
                 st.error("⚠️ תקלה בטעינה. אנא בחר נושא מחדש.")
             st.rerun()
         elif st.session_state.get("lesson_txt"):
+            # כותרת תת-הנושא מוצגת על ידי האפליקציה בלבד
+            st.markdown(f'<div class="sub-title">{st.session_state.current_sub}</div>', unsafe_allow_html=True)
             st.markdown(st.session_state.lesson_txt)
 
         if st.session_state.quiz_active and st.session_state.q_data and not st.session_state.quiz_finished:
