@@ -1,5 +1,5 @@
-# Project: מתווך בקליק | Version: training_full_V15 | 25/02/2026 | 13:10
-# Status: Fixed Nav Link Rendering | Protocol: Full File Delivery
+# Project: מתווך בקליק | Version: training_full_V12 | 25/02/2026 | 08:50
+# Claude 15 | Fix: exam_frame nav link rendering
 import streamlit as st
 import google.generativeai as genai
 import json
@@ -23,6 +23,38 @@ st.markdown("""
     .header-title { font-size: 2.5rem !important; font-weight: bold !important; margin: 0 !important; }
     .header-user { font-size: 1.2rem !important; font-weight: 900 !important; color: #31333f; }
     .stButton>button { width: 100% !important; border-radius: 8px !important; font-weight: bold !important; height: 3em !important; }
+
+    /* תצוגת נייד בלבד */
+    @media (max-width: 768px) {
+        .header-container {
+            display: flex;
+            flex-direction: row;
+            justify-content: center;
+            align-items: center;
+            gap: 0;
+            width: fit-content;
+            margin: 0 auto 20px auto;
+        }
+        .header-title {
+            font-size: 1.3rem !important;
+            text-align: right;
+            white-space: nowrap;
+        }
+        .header-spacer {
+            display: inline-block;
+            width: 3em;
+        }
+        .header-user {
+            font-size: 1rem !important;
+            text-align: left;
+            white-space: nowrap;
+        }
+    }
+
+    /* הסתרת הספייסר במחשב */
+    @media (min-width: 769px) {
+        .header-spacer { display: none; }
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -47,42 +79,47 @@ def reset_quiz_state():
     })
     keys_to_del = [k for k in st.session_state.keys() if k.startswith("sc_") or k.startswith("q_")]
     for k in keys_to_del:
-        if k in st.session_state:
-            del st.session_state[k]
+        del st.session_state[k]
 
 def fetch_q_ai(sub_topic, lesson_context, used_qs):
-    try:
-        genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-        model = genai.GenerativeModel('gemini-2.0-flash')
-        json_fmt = '{"q": "","options": ["","","",""], "correct": "", "explain": ""}'
-        history = "\n".join([f"- {q}" for q in used_qs]) if used_qs else "אין שאלות קודמות."
-        prompt = f"""בהתבסס אך ורק על טקסט השיעור הבא בנושא {sub_topic}:
+    genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+    model = genai.GenerativeModel('gemini-2.0-flash')
+    json_fmt = '{"q": "","options": ["","","",""], "correct": "", "explain": ""}'
+    history = "\n".join([f"- {q}" for q in used_qs]) if used_qs else "אין שאלות קודמות."
+    prompt = f"""בהתבסס אך ורק על טקסט השיעור הבא בנושא {sub_topic}:
         ---
         {lesson_context}
         ---
         צור שאלה אמריקאית חדשה לבדיקת הבנה. אל תחזור על נושאים שכבר נשאלו כאן: {history}
         החזר אך ורק JSON תקני: {json_fmt}"""
-        response = model.generate_content(prompt)
-        res_text = response.text.replace('```json', '').replace('```', '').strip()
-        match = re.search(r'\{.*\}', res_text, re.DOTALL)
-        if match: return json.loads(match.group())
-        return None
-    except: return None
+    for _ in range(5):
+        try:
+            response = model.generate_content(prompt)
+            res_text = response.text.replace('```json', '').replace('```', '').strip()
+            match = re.search(r'\{.*\}', res_text, re.DOTALL)
+            if match:
+                return json.loads(match.group())
+        except:
+            pass
+    return None
 
 def stream_ai_lesson(prompt_text):
-    try:
-        genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-        model = genai.GenerativeModel('gemini-2.0-flash')
-        full_p = f"{prompt_text}. כתוב שיעור הכנה מעמיק למבחן המתווכים."
-        response = model.generate_content(full_p, stream=True)
-        placeholder = st.empty()
-        full_text = ""
-        for chunk in response:
-            full_text += chunk.text
-            placeholder.markdown(full_text + "▌")
-        placeholder.markdown(full_text)
-        return full_text
-    except: return "⚠️ תקלה בטעינה."
+    genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+    model = genai.GenerativeModel('gemini-2.0-flash')
+    full_p = f"{prompt_text}. כתוב שיעור הכנה מעמיק למבחן המתווכים."
+    for _ in range(3):
+        try:
+            response = model.generate_content(full_p, stream=True)
+            placeholder = st.empty()
+            full_text = ""
+            for chunk in response:
+                full_text += chunk.text
+                placeholder.markdown(full_text + "▌")
+            placeholder.markdown(full_text)
+            return full_text
+        except:
+            pass
+    return "⚠️ תקלה בטעינה. אנא בחר נושא מחדש."
 
 if "step" not in st.session_state:
     st.session_state.update({
@@ -97,10 +134,9 @@ def show_header():
     if st.session_state.get("user"):
         st.markdown(f"""<div class="header-container">
             <div class="header-title">🏠 מתווך בקליק</div>
+            <div class="header-spacer"></div>
             <div class="header-user">👤 <b>{st.session_state.user}</b></div>
         </div>""", unsafe_allow_html=True)
-
-# --- Routing Logic ---
 
 if st.session_state.step == "login":
     st.title("🏠 מתווך בקליק")
@@ -121,7 +157,6 @@ elif st.session_state.step == "menu":
         st.rerun()
 
 elif st.session_state.step == "exam_frame":
-    # הצגת כפתור חזרה מעוצב בתוך ה-Frame
     st.markdown(f"""
         <style>
             header {{ visibility: hidden !important; }}
@@ -148,7 +183,6 @@ elif st.session_state.step == "exam_frame":
             <a href="/?user={st.session_state.user}" target="_self" class="nav-link">🏠 לתפריט הראשי</a>
         </div>
     """, unsafe_allow_html=True)
-    
     base_url = "https://fullrealestatebroker-yevuzewxde4obgrpgacrpc.streamlit.app/"
     exam_url = f"{base_url}?user={st.session_state.user}&embed=true"
     st.markdown(f'<iframe src="{exam_url}" style="width:100%; height:100vh; border:none; margin-top:-40px;"></iframe>', unsafe_allow_html=True)
@@ -174,12 +208,13 @@ elif st.session_state.step == "lesson_run":
     st.header(f"📖 {st.session_state.selected_topic}")
     subs = SYLLABUS.get(st.session_state.selected_topic, [])
     cols = st.columns(len(subs))
+
     for i, s in enumerate(subs):
         if cols[i].button(s, key=f"s_{i}"):
             reset_quiz_state()
             st.session_state.update({"current_sub": s, "lesson_txt": "LOADING"})
             st.rerun()
-    
+
     if not st.session_state.get("current_sub"):
         if st.button("לתפריט הראשי", key="back_no_sub"):
             reset_quiz_state()
@@ -191,18 +226,18 @@ elif st.session_state.step == "lesson_run":
             st.rerun()
         elif st.session_state.get("lesson_txt"):
             st.markdown(st.session_state.lesson_txt)
-        
+
         if st.session_state.quiz_active and st.session_state.q_data and not st.session_state.quiz_finished:
             st.divider()
             q = st.session_state.q_data
             st.subheader(f"📝 שאלה {st.session_state.q_count} מתוך 10")
             ans = st.radio(q['q'], q['options'], index=None, key=f"q_{st.session_state.q_count}")
             qc1, qc2, qc3 = st.columns([2, 2, 2])
-            
+
             if qc1.button("בדוק/י תשובה", disabled=(ans is None or st.session_state.checked)):
                 st.session_state.checked = True
                 st.rerun()
-            
+
             if qc2.button("לשאלה הבאה" if st.session_state.q_count < 10 else "🏁 סיכום", disabled=not st.session_state.checked):
                 if st.session_state.q_count < 10:
                     with st.spinner("מביא שאלה חדשה..."):
@@ -214,12 +249,12 @@ elif st.session_state.step == "lesson_run":
                 else:
                     st.session_state.quiz_finished = True
                     st.rerun()
-            
+
             if qc3.button("לתפריט הראשי", key="q_back"):
                 reset_quiz_state()
                 st.session_state.step = "menu"
                 st.rerun()
-            
+
             if st.session_state.checked:
                 if ans == q['correct']:
                     st.success("נכון מאוד!")
