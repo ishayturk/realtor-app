@@ -1,5 +1,5 @@
 # Project: מתווך בקליק | Version: training_full_V12 | 25/02/2026 | 08:50
-# Claude 12 | Restore Claude 04 mobile header CSS only
+# Claude 13 | Add retry (up to 5 attempts) to fetch_q_ai
 import streamlit as st
 import google.generativeai as genai
 import json
@@ -82,23 +82,26 @@ def reset_quiz_state():
         del st.session_state[k]
 
 def fetch_q_ai(sub_topic, lesson_context, used_qs):
-    try:
-        genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-        model = genai.GenerativeModel('gemini-2.0-flash')
-        json_fmt = '{"q": "","options": ["","","",""], "correct": "", "explain": ""}'
-        history = "\n".join([f"- {q}" for q in used_qs]) if used_qs else "אין שאלות קודמות."
-        prompt = f"""בהתבסס אך ורק על טקסט השיעור הבא בנושא {sub_topic}:
+    genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+    model = genai.GenerativeModel('gemini-2.0-flash')
+    json_fmt = '{"q": "","options": ["","","",""], "correct": "", "explain": ""}'
+    history = "\n".join([f"- {q}" for q in used_qs]) if used_qs else "אין שאלות קודמות."
+    prompt = f"""בהתבסס אך ורק על טקסט השיעור הבא בנושא {sub_topic}:
         ---
         {lesson_context}
         ---
         צור שאלה אמריקאית חדשה לבדיקת הבנה. אל תחזור על נושאים שכבר נשאלו כאן: {history}
         החזר אך ורק JSON תקני: {json_fmt}"""
-        response = model.generate_content(prompt)
-        res_text = response.text.replace('```json', '').replace('```', '').strip()
-        match = re.search(r'\{.*\}', res_text, re.DOTALL)
-        if match: return json.loads(match.group())
-        return None
-    except: return None
+    for _ in range(5):
+        try:
+            response = model.generate_content(prompt)
+            res_text = response.text.replace('```json', '').replace('```', '').strip()
+            match = re.search(r'\{.*\}', res_text, re.DOTALL)
+            if match:
+                return json.loads(match.group())
+        except:
+            pass
+    return None
 
 def stream_ai_lesson(prompt_text):
     try:
@@ -179,7 +182,6 @@ elif st.session_state.step == "lesson_run":
     subs = SYLLABUS.get(st.session_state.selected_topic, [])
     cols = st.columns(len(subs))
 
-    # רק הכפתור של תת-הנושא הנוכחי שנטען מושבת
     loaded_sub = st.session_state.get("current_sub") if (
         st.session_state.get("lesson_txt") and
         st.session_state.get("lesson_txt") not in ("", "LOADING")
