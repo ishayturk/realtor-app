@@ -1,5 +1,5 @@
 # Project: מתווך בקליק | Version: training_full_V12 | 25/02/2026 | 08:50
-# Claude 11 | Mobile header fix + disable active sub-topic button during loading only
+# Claude 12 | Restore Claude 04 mobile header CSS only
 import streamlit as st
 import google.generativeai as genai
 import json
@@ -27,18 +27,33 @@ st.markdown("""
     /* תצוגת נייד בלבד */
     @media (max-width: 768px) {
         .header-container {
-            flex-direction: column;
-            align-items: flex-end;
-            gap: 4px;
+            display: flex;
+            flex-direction: row;
+            justify-content: center;
+            align-items: center;
+            gap: 0;
+            width: fit-content;
+            margin: 0 auto 20px auto;
         }
         .header-title {
-            width: 100%;
+            font-size: 1.3rem !important;
             text-align: right;
+            white-space: nowrap;
+        }
+        .header-spacer {
+            display: inline-block;
+            width: 3em;
         }
         .header-user {
-            width: 100%;
+            font-size: 1rem !important;
             text-align: left;
+            white-space: nowrap;
         }
+    }
+
+    /* הסתרת הספייסר במחשב */
+    @media (min-width: 769px) {
+        .header-spacer { display: none; }
     }
 </style>
 """, unsafe_allow_html=True)
@@ -113,6 +128,7 @@ def show_header():
     if st.session_state.get("user"):
         st.markdown(f"""<div class="header-container">
             <div class="header-title">🏠 מתווך בקליק</div>
+            <div class="header-spacer"></div>
             <div class="header-user">👤 <b>{st.session_state.user}</b></div>
         </div>""", unsafe_allow_html=True)
 
