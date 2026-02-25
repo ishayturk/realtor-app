@@ -1,4 +1,4 @@
-# Project: מתווך בקליק | Version: training_full_V05 | 21/02/2026 | 20:55
+# Project: מתווך בקליק | Version: training_full_V06 | 25/02/2026 | 07:10
 import streamlit as st
 import google.generativeai as genai
 import json
@@ -57,13 +57,21 @@ def fetch_q_ai(topic):
     try:
         genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
         model = genai.GenerativeModel('gemini-2.0-flash')
-        json_fmt = "{'q': '','options': ['','','',''], 'correct': '', 'explain': ''}"
+        # תיקון: שימוש בגרשיים כפולים לפורמט JSON תקני
+        json_fmt = '{"q": "","options": ["","","",""], "correct": "", "explain": ""}'
         prompt = (f"צור שאלה אמריקאית אחת קשה על {topic} למבחן המתווכים. "
-                  f"החזר אך ורק בפורמט JSON: {json_fmt}")
+                  f"החזר אך ורק בפורמט JSON תקני: {json_fmt}")
         response = model.generate_content(prompt)
-        match = re.search(r'\{.*\}', response.text, re.DOTALL)
-        return json.loads(match.group()) if match else None
-    except: return None
+        
+        # ניקוי הטקסט כדי לחלץ רק את ה-JSON
+        clean_text = response.text.replace('```json', '').replace('```', '').strip()
+        match = re.search(r'\{.*\}', clean_text, re.DOTALL)
+        if match:
+            return json.loads(match.group())
+        return None
+    except Exception as e:
+        print(f"Error fetching question: {e}")
+        return None
 
 def stream_ai_lesson(prompt_text):
     try:
@@ -117,7 +125,6 @@ elif st.session_state.step == "menu":
         st.rerun()
 
 elif st.session_state.step == "exam_frame":
-    # CSS ייעודי להסתרת הדר והצגת לינק חזרה בשורה 0
     st.markdown(f"""
     <style>
         header {{ visibility: hidden !important; }}
