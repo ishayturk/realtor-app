@@ -1,5 +1,5 @@
 # Project: מתווך בקליק | Version: training_full_V12 | 25/02/2026 | 08:50
-# Claude 13 | Add retry (up to 5 attempts) to fetch_q_ai
+# Claude 14 | Original button logic + retry (3x) in stream_ai_lesson
 import streamlit as st
 import google.generativeai as genai
 import json
@@ -104,19 +104,22 @@ def fetch_q_ai(sub_topic, lesson_context, used_qs):
     return None
 
 def stream_ai_lesson(prompt_text):
-    try:
-        genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-        model = genai.GenerativeModel('gemini-2.0-flash')
-        full_p = f"{prompt_text}. כתוב שיעור הכנה מעמיק למבחן המתווכים."
-        response = model.generate_content(full_p, stream=True)
-        placeholder = st.empty()
-        full_text = ""
-        for chunk in response:
-            full_text += chunk.text
-            placeholder.markdown(full_text + "▌")
-        placeholder.markdown(full_text)
-        return full_text
-    except: return "⚠️ תקלה בטעינה."
+    genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+    model = genai.GenerativeModel('gemini-2.0-flash')
+    full_p = f"{prompt_text}. כתוב שיעור הכנה מעמיק למבחן המתווכים."
+    for _ in range(3):
+        try:
+            response = model.generate_content(full_p, stream=True)
+            placeholder = st.empty()
+            full_text = ""
+            for chunk in response:
+                full_text += chunk.text
+                placeholder.markdown(full_text + "▌")
+            placeholder.markdown(full_text)
+            return full_text
+        except:
+            pass
+    return "⚠️ תקלה בטעינה. אנא בחר נושא מחדש."
 
 if "step" not in st.session_state:
     st.session_state.update({
@@ -182,14 +185,8 @@ elif st.session_state.step == "lesson_run":
     subs = SYLLABUS.get(st.session_state.selected_topic, [])
     cols = st.columns(len(subs))
 
-    loaded_sub = st.session_state.get("current_sub") if (
-        st.session_state.get("lesson_txt") and
-        st.session_state.get("lesson_txt") not in ("", "LOADING")
-    ) else None
-
     for i, s in enumerate(subs):
-        is_disabled = (s == loaded_sub)
-        if cols[i].button(s, key=f"s_{i}", disabled=is_disabled):
+        if cols[i].button(s, key=f"s_{i}"):
             reset_quiz_state()
             st.session_state.update({"current_sub": s, "lesson_txt": "LOADING"})
             st.rerun()
