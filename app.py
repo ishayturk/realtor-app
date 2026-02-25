@@ -1,5 +1,6 @@
 # Project: מתווך בקליק | Version: training_full_V12 | 25/02/2026 | 08:50
 # Status: Restored Question Logic | Protocol: Full File Delivery
+# Claude 01 | Fix: Mobile header layout
 import streamlit as st
 import google.generativeai as genai
 import json
@@ -23,6 +24,23 @@ st.markdown("""
     .header-title { font-size: 2.5rem !important; font-weight: bold !important; margin: 0 !important; }
     .header-user { font-size: 1.2rem !important; font-weight: 900 !important; color: #31333f; }
     .stButton>button { width: 100% !important; border-radius: 8px !important; font-weight: bold !important; height: 3em !important; }
+
+    /* תצוגת נייד בלבד */
+    @media (max-width: 768px) {
+        .header-container {
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 4px;
+        }
+        .header-title {
+            width: 100%;
+            text-align: right;
+        }
+        .header-user {
+            width: 100%;
+            text-align: left;
+        }
+    }
 </style>
 """, unsafe_allow_html=True)
 
