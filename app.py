@@ -1,36 +1,31 @@
-# Project: מתווך בקליק | Version: training_full_V08 | 25/02/2026 | 07:25
-# Status: Fixed Logic Only | Protocol: Simple & Direct
+# Project: מתווך בקליק | Version: training_full_V10 | 25/02/2026 | 07:40
+# Status: Fixed Randomization & Logic | Protocol: Full File Delivery
 import streamlit as st
 import google.generativeai as genai
 import json
 import re
+import random
 
 # הגדרת דף
 st.set_page_config(page_title="מתווך בקליק", layout="wide", initial_sidebar_state="collapsed")
 
-# Interceptor - כניסה אוטומטית לפי שם משתמש ב-URL
+# Interceptor
 if "user" in st.query_params and st.session_state.get("user") is None:
     st.session_state.user = st.query_params.get("user")
     st.session_state.step = "menu"
     st.rerun()
 
-# עיצוב RTL בסיסי (עוגן 1213)
+# עיצוב RTL (עוגן 1213)
 st.markdown("""
 <style>
     * { direction: rtl; text-align: right; }
-    .header-container { 
-        display: flex; 
-        align-items: center; 
-        gap: 45px; 
-        margin-bottom: 30px; 
-    }
+    .header-container { display: flex; align-items: center; gap: 45px; margin-bottom: 30px; }
     .header-title { font-size: 2.5rem !important; font-weight: bold !important; margin: 0 !important; }
     .header-user { font-size: 1.2rem !important; font-weight: 900 !important; color: #31333f; }
     .stButton>button { width: 100% !important; border-radius: 8px !important; font-weight: bold !important; height: 3em !important; }
 </style>
 """, unsafe_allow_html=True)
 
-# סילבוס
 SYLLABUS = {
     "חוק המתווכים": ["רישוי והגבלות", "הגינות וזהירות", "הזמנה ובלעדיות", "פעולות שאינן תיווך"],
     "תקנות המתווכים": ["פרטי הזמנה 1997", "פעולות שיווק 2004", "דמי תיווך"],
@@ -44,7 +39,6 @@ SYLLABUS = {
     "חוק העונשין": ["עבירות מרמה וזיוף"]
 }
 
-# פונקציות
 def reset_quiz_state():
     st.session_state.update({
         "quiz_active": False, "q_data": None, "q_count": 0,
@@ -54,15 +48,14 @@ def reset_quiz_state():
         if key.startswith("sc_"):
             del st.session_state[key]
 
-def fetch_q_ai(topic):
+def fetch_q_ai(sub_topic):
     try:
         genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
         model = genai.GenerativeModel('gemini-2.0-flash')
         json_fmt = '{"q": "","options": ["","","",""], "correct": "", "explain": ""}'
-        prompt = f"צור שאלה אמריקאית פשוטה לבדיקת הבנה על {topic}. החזר אך ורק JSON: {json_fmt}"
+        seed = random.randint(1, 100000)
+        prompt = f"מזהה ייחודי: {seed}. צור שאלה אמריקאית אקראית, חדשה ושונה מקודמותיה לבדיקת הבנה על {sub_topic}. החזר אך ורק JSON תקני: {json_fmt}"
         response = model.generate_content(prompt)
-        
-        # ניקוי ועיבוד התגובה
         res_text = response.text.replace('```json', '').replace('```', '').strip()
         match = re.search(r'\{.*\}', res_text, re.DOTALL)
         if match:
@@ -86,7 +79,6 @@ def stream_ai_lesson(prompt_text):
         return full_text
     except: return "⚠️ תקלה בטעינה."
 
-# Init State
 if "step" not in st.session_state:
     st.session_state.update({
         "user": None, "step": "login", "lesson_txt": "",
@@ -101,8 +93,6 @@ def show_header():
             <div class="header-title">🏠 מתווך בקליק</div>
             <div class="header-user">👤 <b>{st.session_state.user}</b></div>
         </div>""", unsafe_allow_html=True)
-
-# --- Routing ---
 
 if st.session_state.step == "login":
     st.title("🏠 מתווך בקליק")
@@ -123,32 +113,9 @@ elif st.session_state.step == "menu":
         st.rerun()
 
 elif st.session_state.step == "exam_frame":
-    st.markdown(f"""
-    <style>
-        header {{ visibility: hidden !important; }}
-        .block-container {{ padding: 0 !important; }}
-        .nav-link-box {{ 
-            position: fixed; 
-            top: 10px; 
-            left: 10%; 
-            z-index: 1001; 
-        }}
-        .nav-link {{ 
-            text-decoration: none; 
-            color: #555; 
-            font-weight: bold; 
-            background: rgba(255,255,255,0.9); 
-            padding: 5px 15px; 
-            border-radius: 5px; 
-            border: 1px solid #ddd; 
-        }}
-    </style>
-    <div class="nav-link-box">
-        <a href="/?user={st.session_state.user}" target="_self" class="nav-link">לתפריט הראשי</a>
-    </div>
-    """, unsafe_allow_html=True)
-
-    base_url = "[https://fullrealestatebroker-yevuzewxde4obgrpgacrpc.streamlit.app/](https://fullrealestatebroker-yevuzewxde4obgrpgacrpc.streamlit.app/)"
+    st.markdown("""<style>header { visibility: hidden !important; }.block-container { padding: 0 !important; }.nav-link-box { position: fixed; top: 10px; left: 10%; z-index: 1001; }.nav-link { text-decoration: none; color: #555; font-weight: bold; background: rgba(255,255,255,0.9); padding: 5px 15px; border-radius: 5px; border: 1px solid #ddd; }</style>
+    <div class="nav-link-box"><a href="/?user=""" + st.session_state.user + """" target="_self" class="nav-link">לתפריט הראשי</a></div>""", unsafe_allow_html=True)
+    base_url = "https://fullrealestatebroker-yevuzewxde4obgrpgacrpc.streamlit.app/"
     exam_url = f"{base_url}?user={st.session_state.user}&embed=true"
     st.markdown(f'<iframe src="{exam_url}" style="width:100%; height:100vh; border:none; margin-top:-40px;"></iframe>', unsafe_allow_html=True)
 
@@ -170,7 +137,6 @@ elif st.session_state.step == "lesson_run":
     if not st.session_state.get("selected_topic"):
         st.session_state.step = "study"
         st.rerun()
-
     st.header(f"📖 {st.session_state.selected_topic}")
     subs = SYLLABUS.get(st.session_state.selected_topic, [])
     cols = st.columns(len(subs))
@@ -179,9 +145,7 @@ elif st.session_state.step == "lesson_run":
             reset_quiz_state()
             st.session_state.update({"current_sub": s, "lesson_txt": "LOADING"})
             st.rerun()
-
     if not st.session_state.get("current_sub"):
-        st.write("")
         if st.button("לתפריט הראשי", key="back_no_sub"):
             reset_quiz_state()
             st.session_state.step = "menu"
@@ -192,7 +156,6 @@ elif st.session_state.step == "lesson_run":
             st.rerun()
         elif st.session_state.get("lesson_txt"):
             st.markdown(st.session_state.lesson_txt)
-
         if st.session_state.quiz_active and st.session_state.q_data and not st.session_state.quiz_finished:
             st.divider()
             q = st.session_state.q_data
@@ -216,7 +179,6 @@ elif st.session_state.step == "lesson_run":
                 reset_quiz_state()
                 st.session_state.step = "menu"
                 st.rerun()
-
             if st.session_state.checked:
                 if ans == q['correct']:
                     st.success("נכון מאוד!")
@@ -225,19 +187,17 @@ elif st.session_state.step == "lesson_run":
                         st.session_state[f"sc_{st.session_state.q_count}"] = True
                 else: st.error(f"טעות. הנכון הוא: {q['correct']}")
                 st.info(f"הסבר: {q['explain']}")
-
         if (not st.session_state.quiz_active or st.session_state.quiz_finished) and st.session_state.get("current_sub"):
             if st.session_state.quiz_finished:
                 st.success(f"🏆 ציון: {st.session_state.correct_answers} מתוך 10.")
             ca, cb = st.columns([1, 1])
             if ca.button("📝 שאלון תרגול" if not st.session_state.quiz_finished else "🔄 תרגול חוזר"):
-                if st.session_state.get("lesson_txt") not in ["", "LOADING"]:
-                    with st.spinner("מייצר שאלה..."):
-                        res = fetch_q_ai(st.session_state.current_sub)
-                        if res:
-                            reset_quiz_state()
-                            st.session_state.update({"q_data": res, "quiz_active": True, "q_count": 1, "checked": False})
-                            st.rerun()
+                with st.spinner("מייצר שאלה..."):
+                    res = fetch_q_ai(st.session_state.current_sub)
+                    if res:
+                        reset_quiz_state()
+                        st.session_state.update({"q_data": res, "quiz_active": True, "q_count": 1, "checked": False})
+                        st.rerun()
             if cb.button("לתפריט הראשי", key="main_back"):
                 reset_quiz_state()
                 st.session_state.step = "menu"
