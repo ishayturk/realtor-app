@@ -1,6 +1,5 @@
 # Project: מתווך בקליק | Version: training_full_V12 | 25/02/2026 | 08:50
-# Status: Restored Question Logic | Protocol: Full File Delivery
-# Claude 09 | Revert to Claude 04
+# Claude 10 | Fix: Replace disabled buttons with conditional logic - works on both mobile and desktop
 import streamlit as st
 import google.generativeai as genai
 import json
@@ -181,18 +180,17 @@ elif st.session_state.step == "lesson_run":
     cols = st.columns(len(subs))
 
     is_loading = (st.session_state.get("lesson_txt") == "LOADING")
-
     loaded_sub = st.session_state.get("current_sub") if (
         st.session_state.get("lesson_txt") and
         st.session_state.get("lesson_txt") not in ("", "LOADING")
     ) else None
 
     for i, s in enumerate(subs):
-        is_disabled = is_loading or (s == loaded_sub)
-        if cols[i].button(s, key=f"s_{i}", disabled=is_disabled):
-            reset_quiz_state()
-            st.session_state.update({"current_sub": s, "lesson_txt": "LOADING"})
-            st.rerun()
+        if cols[i].button(s, key=f"s_{i}"):
+            if not is_loading and s != loaded_sub:
+                reset_quiz_state()
+                st.session_state.update({"current_sub": s, "lesson_txt": "LOADING"})
+                st.rerun()
 
     if not st.session_state.get("current_sub"):
         if st.button("לתפריט הראשי", key="back_no_sub"):
