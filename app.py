@@ -1,5 +1,5 @@
-# Project: מתווך בקליק | Version: training_full_V12 | 25/02/2026 | 08:10
-# Status: Additional Reset on Sub-topic | Protocol: Full File Delivery
+# Project: מתווך בקליק | Version: training_full_V13 | 25/02/2026 | 08:35
+# Status: Forced UI Cleanup | Protocol: Full File Delivery
 import streamlit as st
 import google.generativeai as genai
 import json
@@ -40,12 +40,16 @@ SYLLABUS = {
 }
 
 def reset_quiz_state():
-    st.session_state.update({
-        "quiz_active": False, "q_data": None, "q_count": 0,
-        "checked": False, "quiz_finished": False, "correct_answers": 0,
-        "used_questions": []
-    })
-    # הסרת מפתחות ספציפיים מה-session_state כדי להבטיח ניקוי רכיבי UI
+    # איפוס יסודי של כל משתני המצב והתצוגה
+    st.session_state.quiz_active = False
+    st.session_state.q_data = None
+    st.session_state.q_count = 0
+    st.session_state.checked = False
+    st.session_state.quiz_finished = False
+    st.session_state.correct_answers = 0
+    st.session_state.used_questions = []
+    
+    # מחיקת מפתחות דינמיים מה-session_state
     keys_to_del = [k for k in st.session_state.keys() if k.startswith("sc_") or k.startswith("q_")]
     for k in keys_to_del:
         del st.session_state[k]
@@ -56,22 +60,16 @@ def fetch_q_ai(sub_topic, lesson_context, used_qs):
         model = genai.GenerativeModel('gemini-2.0-flash')
         json_fmt = '{"q": "","options": ["","","",""], "correct": "", "explain": ""}'
         history = "\n".join([f"- {q}" for q in used_qs]) if used_qs else "אין שאלות קודמות."
-        
-        prompt = f"""
-        בהתבסס אך ורק על טקסט השיעור הבא בנושא {sub_topic}:
+        prompt = f"""בהתבסס אך ורק על טקסט השיעור הבא בנושא {sub_topic}:
         ---
         {lesson_context}
         ---
-        צור שאלה אמריקאית פשוטה לבדיקת הבנה. אל תחזור על נושאים שכבר נשאלו כאן:
-        {history}
-        
-        החזר אך ורק JSON תקני: {json_fmt}
-        """
+        צור שאלה אמריקאית חדשה לבדיקת הבנה. אל תחזור על נושאים שכבר נשאלו כאן: {history}
+        החזר אך ורק JSON תקני: {json_fmt}"""
         response = model.generate_content(prompt)
         res_text = response.text.replace('```json', '').replace('```', '').strip()
         match = re.search(r'\{.*\}', res_text, re.DOTALL)
-        if match:
-            return json.loads(match.group())
+        if match: return json.loads(match.group())
         return None
     except: return None
 
@@ -157,9 +155,11 @@ elif st.session_state.step == "lesson_run":
     cols = st.columns(len(subs))
     for i, s in enumerate(subs):
         if cols[i].button(s, key=f"s_{i}"):
-            # הניקוי החדש מופעל כאן - בכל לחיצה על תת-נושא
+            # שלב 1: ניקוי הכל ושינוי מצב לטעינה
             reset_quiz_state()
-            st.session_state.update({"current_sub": s, "lesson_txt": "LOADING"})
+            st.session_state.current_sub = s
+            st.session_state.lesson_txt = "LOADING"
+            # שלב 2: ריצה מחדש כדי להעלים את ה-UI של השאלון לפני הסטרימינג
             st.rerun()
     
     if not st.session_state.get("current_sub"):
@@ -168,12 +168,14 @@ elif st.session_state.step == "lesson_run":
             st.session_state.step = "menu"
             st.rerun()
     else:
+        # כאן מתבצעת הטעינה - אם המשתנים נוקו, שום דבר מהשאלון לא יוצג
         if st.session_state.get("lesson_txt") == "LOADING":
             st.session_state.lesson_txt = stream_ai_lesson(f"הסבר על {st.session_state.current_sub}")
             st.rerun()
         elif st.session_state.get("lesson_txt"):
             st.markdown(st.session_state.lesson_txt)
         
+        # תנאי מחמיר: הצגת השאלון רק אם הוא אקטיבי
         if st.session_state.quiz_active and st.session_state.q_data and not st.session_state.quiz_finished:
             st.divider()
             q = st.session_state.q_data
@@ -211,7 +213,8 @@ elif st.session_state.step == "lesson_run":
                 else: st.error(f"טעות. הנכון הוא: {q['correct']}")
                 st.info(f"הסבר: {q['explain']}")
 
-        if (not st.session_state.quiz_active or st.session_state.quiz_finished) and st.session_state.get("current_sub"):
+        # הצגת כפתור התחלת תרגול רק אם אין שאלון פעיל
+        if not st.session_state.quiz_active and st.session_state.get("current_sub") and st.session_state.lesson_txt not in ["", "LOADING"]:
             if st.session_state.quiz_finished:
                 st.success(f"🏆 ציון: {st.session_state.correct_answers} מתוך 10.")
             ca, cb = st.columns([1, 1])
@@ -219,7 +222,6 @@ elif st.session_state.step == "lesson_run":
                 with st.spinner("מייצר שאלה..."):
                     res = fetch_q_ai(st.session_state.current_sub, st.session_state.lesson_txt, [])
                     if res:
-                        reset_quiz_state()
                         st.session_state.used_questions = [res['q']]
                         st.session_state.update({"q_data": res, "quiz_active": True, "q_count": 1, "checked": False})
                         st.rerun()
