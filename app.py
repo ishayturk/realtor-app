@@ -1,5 +1,5 @@
 # Project: מתווך בקליק | Version: training_full_V12 | 25/02/2026 | 08:50
-# Claude 10 | Fix: Replace disabled buttons with conditional logic - works on both mobile and desktop
+# Claude 11 | Mobile header fix + disable active sub-topic button during loading only
 import streamlit as st
 import google.generativeai as genai
 import json
@@ -27,33 +27,18 @@ st.markdown("""
     /* תצוגת נייד בלבד */
     @media (max-width: 768px) {
         .header-container {
-            display: flex;
-            flex-direction: row;
-            justify-content: center;
-            align-items: center;
-            gap: 0;
-            width: fit-content;
-            margin: 0 auto 20px auto;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 4px;
         }
         .header-title {
-            font-size: 1.3rem !important;
+            width: 100%;
             text-align: right;
-            white-space: nowrap;
-        }
-        .header-spacer {
-            display: inline-block;
-            width: 3em;
         }
         .header-user {
-            font-size: 1rem !important;
+            width: 100%;
             text-align: left;
-            white-space: nowrap;
         }
-    }
-
-    /* הסתרת הספייסר במחשב */
-    @media (min-width: 769px) {
-        .header-spacer { display: none; }
     }
 </style>
 """, unsafe_allow_html=True)
@@ -113,7 +98,7 @@ def stream_ai_lesson(prompt_text):
             placeholder.markdown(full_text + "▌")
         placeholder.markdown(full_text)
         return full_text
-    except: return None
+    except: return "⚠️ תקלה בטעינה."
 
 if "step" not in st.session_state:
     st.session_state.update({
@@ -128,7 +113,6 @@ def show_header():
     if st.session_state.get("user"):
         st.markdown(f"""<div class="header-container">
             <div class="header-title">🏠 מתווך בקליק</div>
-            <div class="header-spacer"></div>
             <div class="header-user">👤 <b>{st.session_state.user}</b></div>
         </div>""", unsafe_allow_html=True)
 
@@ -179,18 +163,18 @@ elif st.session_state.step == "lesson_run":
     subs = SYLLABUS.get(st.session_state.selected_topic, [])
     cols = st.columns(len(subs))
 
-    is_loading = (st.session_state.get("lesson_txt") == "LOADING")
+    # רק הכפתור של תת-הנושא הנוכחי שנטען מושבת
     loaded_sub = st.session_state.get("current_sub") if (
         st.session_state.get("lesson_txt") and
         st.session_state.get("lesson_txt") not in ("", "LOADING")
     ) else None
 
     for i, s in enumerate(subs):
-        if cols[i].button(s, key=f"s_{i}"):
-            if not is_loading and s != loaded_sub:
-                reset_quiz_state()
-                st.session_state.update({"current_sub": s, "lesson_txt": "LOADING"})
-                st.rerun()
+        is_disabled = (s == loaded_sub)
+        if cols[i].button(s, key=f"s_{i}", disabled=is_disabled):
+            reset_quiz_state()
+            st.session_state.update({"current_sub": s, "lesson_txt": "LOADING"})
+            st.rerun()
 
     if not st.session_state.get("current_sub"):
         if st.button("לתפריט הראשי", key="back_no_sub"):
@@ -199,13 +183,7 @@ elif st.session_state.step == "lesson_run":
             st.rerun()
     else:
         if st.session_state.get("lesson_txt") == "LOADING":
-            result = stream_ai_lesson(f"הסבר על {st.session_state.current_sub}")
-            if result:
-                st.session_state.lesson_txt = result
-            else:
-                st.session_state.lesson_txt = ""
-                st.session_state.current_sub = None
-                st.error("⚠️ תקלה בטעינה. אנא בחר נושא מחדש.")
+            st.session_state.lesson_txt = stream_ai_lesson(f"הסבר על {st.session_state.current_sub}")
             st.rerun()
         elif st.session_state.get("lesson_txt"):
             st.markdown(st.session_state.lesson_txt)
