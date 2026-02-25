@@ -1,5 +1,5 @@
-# Project: מתווך בקליק | Version: training_full_V12 | 25/02/2026 | 08:50
-# Status: Restored Question Logic | Protocol: Full File Delivery
+# Project: מתווך בקליק | Version: training_full_V15 | 25/02/2026 | 13:10
+# Status: Fixed Nav Link Rendering | Protocol: Full File Delivery
 import streamlit as st
 import google.generativeai as genai
 import json
@@ -47,7 +47,8 @@ def reset_quiz_state():
     })
     keys_to_del = [k for k in st.session_state.keys() if k.startswith("sc_") or k.startswith("q_")]
     for k in keys_to_del:
-        del st.session_state[k]
+        if k in st.session_state:
+            del st.session_state[k]
 
 def fetch_q_ai(sub_topic, lesson_context, used_qs):
     try:
@@ -99,6 +100,8 @@ def show_header():
             <div class="header-user">👤 <b>{st.session_state.user}</b></div>
         </div>""", unsafe_allow_html=True)
 
+# --- Routing Logic ---
+
 if st.session_state.step == "login":
     st.title("🏠 מתווך בקליק")
     u_in = st.text_input("שם מלא:")
@@ -118,8 +121,34 @@ elif st.session_state.step == "menu":
         st.rerun()
 
 elif st.session_state.step == "exam_frame":
-    st.markdown("""<style>header { visibility: hidden !important; }.block-container { padding: 0 !important; }.nav-link-box { position: fixed; top: 10px; left: 10%; z-index: 1001; }.nav-link { text-decoration: none; color: #555; font-weight: bold; background: rgba(255,255,255,0.9); padding: 5px 15px; border-radius: 5px; border: 1px solid #ddd; }</style>
-    <div class="nav-link-box"><a href="/?user=""" + st.session_state.user + """" target="_self" class="nav-link">לתפריט הראשי</a></div>""", unsafe_allow_html=True)
+    # הצגת כפתור חזרה מעוצב בתוך ה-Frame
+    st.markdown(f"""
+        <style>
+            header {{ visibility: hidden !important; }}
+            .block-container {{ padding: 0 !important; }}
+            .nav-link-box {{ 
+                position: fixed; 
+                top: 15px; 
+                left: 20px; 
+                z-index: 9999; 
+                background: white; 
+                padding: 8px 15px; 
+                border-radius: 8px; 
+                border: 1px solid #ddd;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            }}
+            .nav-link {{ 
+                text-decoration: none !important; 
+                color: #31333F !important; 
+                font-weight: bold !important;
+                font-family: sans-serif;
+            }}
+        </style>
+        <div class="nav-link-box">
+            <a href="/?user={st.session_state.user}" target="_self" class="nav-link">🏠 לתפריט הראשי</a>
+        </div>
+    """, unsafe_allow_html=True)
+    
     base_url = "https://fullrealestatebroker-yevuzewxde4obgrpgacrpc.streamlit.app/"
     exam_url = f"{base_url}?user={st.session_state.user}&embed=true"
     st.markdown(f'<iframe src="{exam_url}" style="width:100%; height:100vh; border:none; margin-top:-40px;"></iframe>', unsafe_allow_html=True)
