@@ -231,7 +231,7 @@ elif st.session_state.step == "lesson_run":
             st.divider()
             q = st.session_state.q_data
             st.subheader(f"📝 שאלה {st.session_state.q_count} מתוך 10")
-            ans = st.radio(q['q'], q['options'], index=None, key=f"q_{st.session_state.q_count}")
+            ans = st.radio(q['q'], q['options'], index=None, key=f"q_{st.session_state.q_count}", disabled=st.session_state.checked)
             qc1, qc2, qc3 = st.columns([2, 2, 2])
 
             if qc1.button("בדוק/י תשובה", disabled=(ans is None or st.session_state.checked)):
