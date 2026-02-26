@@ -1,284 +1,324 @@
-# Project: מתווך בקליק | Version: training_full_V12 | 25/02/2026 | 08:50
-# Claude 15 | Fix: exam_frame nav link rendering
+# Project: מתווך בקליק - מערכת בחינות | File: main.py
+# Claude 38 | Add favicon
 import streamlit as st
-import google.generativeai as genai
-import json
-import re
-import random
+import logic
+import streamlit.components.v1 as components
 
-# הגדרת דף
-st.set_page_config(page_title="מתווך בקליק", layout="wide", initial_sidebar_state="collapsed")
+st.set_page_config(page_title="מתווך בקליק", page_icon="favicon.svg", layout="wide", initial_sidebar_state="collapsed")
+user_name = st.query_params.get("user", "אורח")
 
-# Interceptor
-if "user" in st.query_params and st.session_state.get("user") is None:
-    st.session_state.user = st.query_params.get("user")
-    st.session_state.step = "menu"
-    st.rerun()
-
-# עיצוב RTL (עוגן 1213)
 st.markdown("""
-<style>
+    <style>
+    /* --- SECTION: RADIO RTL --- */
+    [data-testid="stRadio"] label { direction: rtl !important; text-align: right !important; unicode-bidi: embed !important; }
     * { direction: rtl; text-align: right; }
-    .header-container { display: flex; align-items: center; gap: 45px; margin-bottom: 30px; }
-    .header-title { font-size: 2.5rem !important; font-weight: bold !important; margin: 0 !important; }
-    .header-user { font-size: 1.2rem !important; font-weight: 900 !important; color: #31333f; }
-    .stButton>button { width: 100% !important; border-radius: 8px !important; font-weight: bold !important; height: 3em !important; }
+    header, #MainMenu, footer { visibility: hidden; }
+    .block-container { max-width: 1100px !important; margin: 0 auto !important; padding-top: 0.5rem !important; }
+    .header-box { border-bottom: 1px solid #eee; padding-bottom: 5px; margin-bottom: 8px; }
 
-    /* תצוגת נייד בלבד */
+    /* --- SECTION: DESKTOP --- */
+    @media (min-width: 769px) {
+        .nav-title { display: block; margin-bottom: 10px; font-weight: bold; }
+        .question-area { padding-right: 8%; padding-left: 8%; }
+        .mobile-header { display: none !important; }
+        [data-testid="column"]:last-child { margin-left: -6ch !important; }
+        [data-testid="stRadio"] { margin-bottom: 0.3rem !important; }
+    }
+
+    /* --- SECTION: MOBILE --- */
     @media (max-width: 768px) {
-        .header-container {
-            display: flex;
+        .block-container { padding-top: 30px !important; }
+        .mobile-up { margin-top: 0px !important; }
+        .nav-title { margin-top: 10px !important; text-align: center; display: block; }
+        iframe { width: 100% !important; height: 80px !important; }
+        .desktop-header { display: none !important; }
+        .mobile-header {
+            display: flex !important;
             flex-direction: row;
             justify-content: center;
             align-items: center;
             gap: 0;
             width: fit-content;
-            margin: 0 auto 20px auto;
+            margin: 0px auto 0px auto;
+            font-size: 1.3rem;
+            font-weight: bold;
         }
-        .header-title {
-            font-size: 1.3rem !important;
-            text-align: right;
-            white-space: nowrap;
-        }
-        .header-spacer {
+        .mobile-header-spacer {
             display: inline-block;
             width: 3em;
         }
-        .header-user {
-            font-size: 1rem !important;
-            text-align: left;
-            white-space: nowrap;
-        }
+        /* הזזת תוכן הוראות שמאלה */
+        .instructions-wrap { padding-right: 0 !important; padding-left: 2rem !important; }
+        /* שינוי טקסט כפתורים בנייד */
+        #btn_next button p { font-size: 0; }
+        #btn_next button p::before { content: "הבאה"; font-size: 1rem; }
+        #btn_prev button p { font-size: 0; }
+        #btn_prev button p::before { content: "הקודמת"; font-size: 1rem; }
     }
-
-    /* הסתרת הספייסר במחשב */
-    @media (min-width: 769px) {
-        .header-spacer { display: none; }
-    }
-</style>
+    </style>
 """, unsafe_allow_html=True)
 
-SYLLABUS = {
-    "חוק המתווכים": ["רישוי והגבלות", "הגינות וזהירות", "הזמנה ובלעדיות", "פעולות שאינן תיווך"],
-    "תקנות המתווכים": ["פרטי הזמנה 1997", "פעולות שיווק 2004", "דמי תיווך"],
-    "חוק המקרקעין": ["בעלות וזכויות", "בתים משותפים", "עסקאות נוגדות", "הערות אזהרה", "שכירות וזיקה"],
-    "חוק המכר (דירות)": ["מפרט וגילוי", "בדק ואחריות", "איחור במסירה", "הבטחת השקעות"],
-    "חוק החוזים": ["כריתת חוזה", "פגמים בחוזה", "תרופות והפרה", "ביטול והשבה"],
-    "חוק התכנון והבנייה": ["היתרים ושימוש חורג", "היטל השבחה", "תוכניות מתאר", "מוסדות התכנון"],
-    "חוק מיסוי מקרקעין": ["מס שבח (חישוב ופטורים)", "מס רכישה", "הקלות לדירת מגורים", "שווי שוק"],
-    "חוק הגנת הצרכן": ["ביטול עסקה", "הטעיה בפרסום"],
-    "דיני ירושה": ["סדר הירושה", "צוואות"],
-    "חוק העונשין": ["עבירות מרמה וזיוף"]
-}
+# --- אתחול ---
+logic.initialize_exam_state()
 
-def reset_quiz_state():
-    st.session_state.update({
-        "quiz_active": False, "q_data": None, "q_count": 0,
-        "checked": False, "quiz_finished": False, "correct_answers": 0,
-        "used_questions": []
-    })
-    keys_to_del = [k for k in st.session_state.keys() if k.startswith("sc_") or k.startswith("q_")]
-    for k in keys_to_del:
-        del st.session_state[k]
+# --- טעינת בחינה בפעם הראשונה ---
+if not st.session_state.get("exam_file"):
+    logic.load_exam()
+    st.rerun()
 
-def fetch_q_ai(sub_topic, lesson_context, used_qs):
-    genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-    model = genai.GenerativeModel('gemini-2.0-flash')
-    json_fmt = '{"q": "","options": ["","","",""], "correct": "", "explain": ""}'
-    history = "\n".join([f"- {q}" for q in used_qs]) if used_qs else "אין שאלות קודמות."
-    prompt = f"""בהתבסס אך ורק על טקסט השיעור הבא בנושא {sub_topic}:
-        ---
-        {lesson_context}
-        ---
-        צור שאלה אמריקאית חדשה לבדיקת הבנה. אל תחזור על נושאים שכבר נשאלו כאן: {history}
-        החזר אך ורק JSON תקני: {json_fmt}"""
-    for _ in range(5):
-        try:
-            response = model.generate_content(prompt)
-            res_text = response.text.replace('```json', '').replace('```', '').strip()
-            match = re.search(r'\{.*\}', res_text, re.DOTALL)
-            if match:
-                return json.loads(match.group())
-        except:
-            pass
-    return None
 
-def stream_ai_lesson(prompt_text):
-    genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-    model = genai.GenerativeModel('gemini-2.0-flash')
-    full_p = f"{prompt_text}. כתוב שיעור הכנה מעמיק למבחן המתווכים."
-    for _ in range(3):
-        try:
-            response = model.generate_content(full_p, stream=True)
-            placeholder = st.empty()
-            full_text = ""
-            for chunk in response:
-                full_text += chunk.text
-                placeholder.markdown(full_text + "▌")
-            placeholder.markdown(full_text)
-            return full_text
-        except:
-            pass
-    return "⚠️ תקלה בטעינה. אנא בחר נושא מחדש."
+# --- סטריפ עליון מחשב ---
+h1, h2, h3 = st.columns([2, 1, 2])
+with h1: st.markdown(f'<div class="desktop-header" style="text-align: left; font-weight: bold; font-size: 1.1rem;">🏠 מתווך בקליק</div>', unsafe_allow_html=True)
+with h2: st.markdown('<div class="desktop-header" style="text-align: center; color: #eee;">|</div>', unsafe_allow_html=True)
+with h3: st.markdown(f'<div class="desktop-header" style="text-align: right; font-weight: bold;">👤 {user_name}</div>', unsafe_allow_html=True)
+st.markdown('<div class="header-box desktop-header"></div>', unsafe_allow_html=True)
 
-if "step" not in st.session_state:
-    st.session_state.update({
-        "user": None, "step": "login", "lesson_txt": "",
-        "selected_topic": None, "current_sub": None,
-        "quiz_active": False, "quiz_finished": False,
-        "checked": False, "correct_answers": 0, "q_count": 0, "q_data": None,
-        "used_questions": []
-    })
+# --- סטריפ עליון נייד ---
+st.markdown(f"""
+    <div class="mobile-header">
+        <div style="white-space:nowrap;">🏠 מתווך בקליק</div>
+        <div class="mobile-header-spacer"></div>
+        <div style="white-space:nowrap;">👤 {user_name}</div>
+    </div>
+""", unsafe_allow_html=True)
 
-def show_header():
-    if st.session_state.get("user"):
-        st.markdown(f"""<div class="header-container">
-            <div class="header-title">🏠 מתווך בקליק</div>
-            <div class="header-spacer"></div>
-            <div class="header-user">👤 <b>{st.session_state.user}</b></div>
-        </div>""", unsafe_allow_html=True)
+current_step = st.session_state.get("step", "instructions")
 
-if st.session_state.step == "login":
-    st.title("🏠 מתווך בקליק")
-    u_in = st.text_input("שם מלא:")
-    if st.button("כניסה") and u_in:
-        st.session_state.user = u_in
-        st.session_state.step = "menu"
-        st.rerun()
+# זיהוי לחיצת סיים בחינה מה-iframe
+if st.query_params.get("finish") == "1":
+    st.session_state.step = "feedback"
+    st.rerun()
 
-elif st.session_state.step == "menu":
-    show_header()
-    c1, c2, _ = st.columns([1.5, 1.5, 3])
-    if c1.button("📚 לימוד לפי נושאים"):
-        st.session_state.step = "study"
-        st.rerun()
-    if c2.button("⏱️ גש/י למבחן"):
-        st.session_state.step = "exam_frame"
-        st.rerun()
-
-elif st.session_state.step == "exam_frame":
-    st.markdown(f"""
-        <style>
-            header {{ visibility: hidden !important; }}
-            .block-container {{ padding: 0 !important; }}
-            .nav-link-box {{ 
-                position: fixed; 
-                top: 15px; 
-                left: 20px; 
-                z-index: 9999; 
-                background: white; 
-                padding: 8px 15px; 
-                border-radius: 8px; 
-                border: 1px solid #ddd;
-                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            }}
-            .nav-link {{ 
-                text-decoration: none !important; 
-                color: #31333F !important; 
-                font-weight: bold !important;
-                font-family: sans-serif;
-            }}
-        </style>
-        <div class="nav-link-box">
-            <a href="/?user={st.session_state.user}" target="_self" class="nav-link">🏠 לתפריט הראשי</a>
-        </div>
-    """, unsafe_allow_html=True)
-    base_url = "https://fullrealestatebroker-yevuzewxde4obgrpgacrpc.streamlit.app/"
-    exam_url = f"{base_url}?user={st.session_state.user}&embed=true"
-    st.markdown(f'<iframe src="{exam_url}" style="width:100%; height:100vh; border:none; margin-top:-40px;"></iframe>', unsafe_allow_html=True)
-
-elif st.session_state.step == "study":
-    show_header()
-    sel = st.selectbox("בחר נושא לימוד:", ["בחר..."] + list(SYLLABUS.keys()))
-    col_a, col_b = st.columns([1, 1])
-    if col_a.button("טען נושא") and sel != "בחר...":
-        reset_quiz_state()
-        st.session_state.update({"selected_topic": sel, "step": "lesson_run", "lesson_txt": "", "current_sub": None})
-        st.rerun()
-    if col_b.button("לתפריט הראשי"):
-        reset_quiz_state()
-        st.session_state.step = "menu"
-        st.rerun()
-
-elif st.session_state.step == "lesson_run":
-    show_header()
-    if not st.session_state.get("selected_topic"):
-        st.session_state.step = "study"
-        st.rerun()
-    st.header(f"📖 {st.session_state.selected_topic}")
-    subs = SYLLABUS.get(st.session_state.selected_topic, [])
-    cols = st.columns(len(subs))
-
-    for i, s in enumerate(subs):
-        if cols[i].button(s, key=f"s_{i}"):
-            reset_quiz_state()
-            st.session_state.update({"current_sub": s, "lesson_txt": "LOADING"})
-            st.rerun()
-
-    if not st.session_state.get("current_sub"):
-        if st.button("לתפריט הראשי", key="back_no_sub"):
-            reset_quiz_state()
-            st.session_state.step = "menu"
-            st.rerun()
+# ===== דף הוראות =====
+if current_step == "instructions":
+    exams_done = st.session_state.get("exams_done_session", 0)
+    if exams_done >= 2:
+        st.markdown('<h2 style="text-align:center;">סיימת את מכסת הבחינות לסשן זה</h2>', unsafe_allow_html=True)
+        st.markdown('<p style="text-align:center; color:#888;">עשית 2 בחינות — היכנס מחדש לאפליקציה לבחינות נוספות.</p>', unsafe_allow_html=True)
     else:
-        if st.session_state.get("lesson_txt") == "LOADING":
-            st.session_state.lesson_txt = stream_ai_lesson(f"הסבר על {st.session_state.current_sub}")
-            st.rerun()
-        elif st.session_state.get("lesson_txt"):
-            st.markdown(st.session_state.lesson_txt)
-
-        if st.session_state.quiz_active and st.session_state.q_data and not st.session_state.quiz_finished:
-            st.divider()
-            q = st.session_state.q_data
-            st.subheader(f"📝 שאלה {st.session_state.q_count} מתוך 10")
-            ans = st.radio(q['q'], q['options'], index=None, key=f"q_{st.session_state.q_count}", disabled=st.session_state.checked)
-            qc1, qc2, qc3 = st.columns([2, 2, 2])
-
-            if qc1.button("בדוק/י תשובה", disabled=(ans is None or st.session_state.checked)):
-                st.session_state.checked = True
-                st.rerun()
-
-            if qc2.button("לשאלה הבאה" if st.session_state.q_count < 10 else "🏁 סיכום", disabled=not st.session_state.checked):
-                if st.session_state.q_count < 10:
-                    with st.spinner("מביא שאלה חדשה..."):
-                        res = fetch_q_ai(st.session_state.current_sub, st.session_state.lesson_txt, st.session_state.used_questions)
-                        if res:
-                            st.session_state.used_questions.append(res['q'])
-                            st.session_state.update({"q_data": res, "q_count": st.session_state.q_count + 1, "checked": False})
-                            st.rerun()
-                else:
-                    st.session_state.quiz_finished = True
+        st.markdown('<h2 style="text-align: center;">הוראות למבחן רישוי מתווכים</h2>', unsafe_allow_html=True)
+        _, center_col, _ = st.columns([1, 1.2, 1])
+        with center_col:
+            st.markdown('<div class="instructions-wrap">', unsafe_allow_html=True)
+            instructions = [
+                "המבחן כולל 25 שאלות.",
+                "זמן מוקצב: 90 דקות.",
+                "מעבר לשאלה הבאה רק לאחר סימון תשובה.",
+                "ניתן לחזור אחורה לשאלות שנחשפו.",
+                "ציון עובר: 60.",
+            ]
+            for i, txt in enumerate(instructions, 1):
+                st.markdown(f"&nbsp;&nbsp;{i}. {txt}", unsafe_allow_html=True)
+            st.write("")
+            f_cols = st.columns([1, 1])
+            with f_cols[0]:
+                agree = st.checkbox("קראתי את ההוראות")
+            with f_cols[1]:
+                q1_ready = st.session_state.get("q1_ready", False)
+                start_disabled = not (agree and q1_ready)
+                if st.button("התחל בחינה", disabled=start_disabled):
+                    import time
+                    st.session_state.step = "exam_run"
+                    st.session_state.current_q = 1
+                    st.session_state.nav_active_questions.add(1)
+                    st.session_state.exam_start_time = time.time()
+                    st.session_state.exams_done_session = st.session_state.get("exams_done_session", 0) + 1
+                    logic.ensure_question_exists(2)
                     st.rerun()
+            st.markdown('</div>', unsafe_allow_html=True)
 
-            if qc3.button("לתפריט הראשי", key="q_back"):
-                reset_quiz_state()
-                st.session_state.step = "menu"
+# ===== מהלך הבחינה =====
+elif current_step == "exam_run":
+    rem_sec = logic.get_remaining_seconds()
+    header_html = f"""
+    <style>
+        body {{ margin:0; padding:0; overflow:hidden; }}
+        .wrapper {{
+            direction: rtl; display: flex; align-items: center; justify-content: center; width: 100%;
+            margin-top: 4px; margin-bottom: 4px;
+        }}
+        .t-text {{ font-size: 2.2rem; font-weight: bold; color: #000; white-space: nowrap; }}
+        .c-text {{ font-size: 2rem; font-weight: bold; margin-right: 30px; direction: ltr; }}
+        #timeout-msg {{ display:none; direction:rtl; color:#cc0000; font-weight:bold; font-size:0.8rem; text-align:center; margin-top:2px; }}
+        @media (max-width: 768px) {{
+            .wrapper {{ flex-direction: column !important; gap: 0 !important; margin-top: 2px !important; margin-bottom: 0 !important; }}
+            .t-text {{ font-size: 1.2rem !important; }}
+            .c-text {{ font-size: 1.8rem !important; margin-right: 0 !important; color: #000; }}
+            #timeout-msg {{ font-size:0.7rem !important; }}
+        }}
+    </style>
+    <div class="wrapper">
+        <div class="t-text">מבחן רישוי למתווכים</div>
+        <div id="clock-val" class="c-text"></div>
+    </div>
+    <div id="timeout-msg">זמן הבחינה הסתיים — לחץ על כפתור לשאלה הקודמת</div>
+    <script>
+    var s = {rem_sec};
+    function u() {{
+        var m = Math.floor(s / 60); var sec = s % 60;
+        var el = document.getElementById('clock-val');
+        if (el) {{
+            el.innerHTML = (m < 10 ? '0' : '') + m + ':' + (sec < 10 ? '0' : '') + sec;
+            if (s <= 600) el.style.color = "red";
+        }}
+        if (s <= 0) {{
+            document.getElementById('timeout-msg').style.display = 'block';
+            try {{
+                var frames = parent.document.querySelectorAll('iframe');
+                frames.forEach(function(f) {{
+                    if (f.contentWindow === window) f.style.height = '75px';
+                }});
+            }} catch(e) {{}}
+            parent.location.href = parent.location.pathname + '?timeout=1';
+            return;
+        }}
+        s--;
+    }}
+    u(); setInterval(u, 1000);
+    </script>
+    """
+    components.html(header_html, height=50)
+
+    is_time_up = st.query_params.get("timeout") == "1" or logic.get_remaining_seconds() == 0
+
+    col_main, col_nav = st.columns([2.5, 1], gap="medium")
+    with col_main:
+        st.markdown('<div class="question-area" style="margin-top:8px;">', unsafe_allow_html=True)
+
+        if is_time_up:
+            st.markdown('<p style="font-size:0.9rem; margin-bottom:20px;">זמן הבחינה הסתיים — ליצירת משוב אנא לחץ על סיים בחינה</p>', unsafe_allow_html=True)
+            if st.button("**סיים בחינה**", type="primary", key="btn_finish_timeout"):
+                st.session_state.step = "feedback"
                 st.rerun()
+        else:
+            idx = st.session_state.current_q
+            q = st.session_state.exam_questions.get(idx)
+            if q:
+                st.markdown(f'<p style="color: #888; font-weight: bold; font-size: 1.1rem; margin-bottom: 2px;">שאלה {idx}</p>', unsafe_allow_html=True)
+                st.markdown(f'<div dir="rtl" style="font-size:0.9rem; font-weight:bold; margin-bottom:15px;">{q["text"]}</div>', unsafe_allow_html=True)
 
-            if st.session_state.checked:
-                if ans == q['correct']:
-                    st.success("נכון מאוד!")
-                    if f"sc_{st.session_state.q_count}" not in st.session_state:
-                        st.session_state.correct_answers += 1
-                        st.session_state[f"sc_{st.session_state.q_count}"] = True
-                else: st.error(f"טעות. הנכון הוא: {q['correct']}")
-                st.info(f"הסבר: {q['explain']}")
+                options_dict = q.get("options", {})
+                options_labels = list(options_dict.keys())
+                options_list = [f"{k}. {v}" for k, v in options_dict.items()]
 
-        if (not st.session_state.quiz_active or st.session_state.quiz_finished) and st.session_state.get("current_sub"):
-            if st.session_state.quiz_finished:
-                st.success(f"🏆 ציון: {st.session_state.correct_answers} מתוך 10.")
-            ca, cb = st.columns([1, 1])
-            if ca.button("📝 שאלון תרגול" if not st.session_state.quiz_finished else "🔄 תרגול חוזר"):
-                with st.spinner("מייצר שאלה..."):
-                    res = fetch_q_ai(st.session_state.current_sub, st.session_state.lesson_txt, [])
-                    if res:
-                        reset_quiz_state()
-                        st.session_state.used_questions = [res['q']]
-                        st.session_state.update({"q_data": res, "quiz_active": True, "q_count": 1, "checked": False})
+                existing_label = st.session_state.user_answers.get(idx, {}).get("label", None)
+                existing_index = options_labels.index(existing_label) if existing_label in options_labels else None
+
+                chosen = st.radio("", options_list, index=existing_index, key=f"r_{idx}", label_visibility="collapsed", disabled=is_time_up)
+
+                if chosen is not None and not is_time_up:
+                    chosen_label = options_labels[options_list.index(chosen)]
+                    logic.record_answer(idx, chosen_label)
+                    if idx == 25:
+                        st.session_state.finish_button_visible = True
+
+                st.markdown('<div class="btn-area"></div>', unsafe_allow_html=True)
+
+                b_n, b_p, b_f = st.columns([1, 1, 1.2])
+                with b_n:
+                    if idx < 25:
+                        next_ready = (idx + 1) in st.session_state.exam_questions
+                        has_answer = idx in st.session_state.user_answers
+                        if st.button("לשאלה הבאה", key="btn_next", disabled=is_time_up or not (has_answer and next_ready)):
+                            st.session_state.current_q += 1
+                            st.session_state.nav_active_questions.add(st.session_state.current_q)
+                            if idx <= 23:
+                                logic.ensure_question_exists(idx + 2)
+                            st.rerun()
+                with b_p:
+                    if idx > 1:
+                        if st.button("לשאלה הקודמת", key="btn_prev"):
+                            st.session_state.current_q -= 1
+                            st.rerun()
+                with b_f:
+                    finish_enabled = st.session_state.get("finish_button_visible", False)
+                    if st.button("**סיים בחינה**", type="primary", key="btn_finish", disabled=not finish_enabled):
+                        st.session_state.step = "feedback"
                         st.rerun()
-            if cb.button("לתפריט הראשי", key="main_back"):
-                reset_quiz_state()
-                st.session_state.step = "menu"
-                st.rerun()
+            else:
+                st.info("טוען שאלה...")
 
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    with col_nav:
+        st.markdown('<div class="nav-title">מפת שאלות:</div>', unsafe_allow_html=True)
+        nav_active = st.session_state.nav_active_questions
+        current_q = st.session_state.current_q
+
+        # בנייד — HTML grid; במחשב — כפתורי סטרימליט
+        for r in range(0, 25, 4):
+            cols = st.columns(4)
+            for i in range(4):
+                n = r + i + 1
+                if n <= 25:
+                    is_active = (n in nav_active) and not is_time_up
+                    label = f"**{n}**" if n == current_q else str(n)
+                    if cols[i].button(label, key=f"n_{n}", disabled=not is_active):
+                        st.session_state.current_q = n
+                        st.rerun()
+
+# ===== משוב =====
+elif current_step == "feedback":
+    score = logic.get_total_score()
+    correct_count = sum(1 for n in range(1, 26) if logic.get_points(n) == 4)
+    score_color = "#1a7a1a" if score >= 60 else "#cc0000"
+    pass_text = "עבר" if score >= 60 else "נכשל"
+    pass_color = "#1a7a1a" if score >= 60 else "#cc0000"
+
+    # מציאת שאלה ראשונה שלא נענה
+    first_unanswered = None
+    for n in range(1, 26):
+        if n not in st.session_state.user_answers:
+            first_unanswered = n
+            break
+
+    st.markdown('<h2 style="margin-bottom:4px; font-size:clamp(1.2rem, 4vw, 1.8rem);">משוב בחינת רישיון תיווך</h2>', unsafe_allow_html=True)
+    st.markdown(f'<p style="font-size:0.95rem; margin-bottom:4px;">ענית נכון על <strong>{correct_count}</strong> שאלות &nbsp;|&nbsp; ציונך: <strong>{score}</strong></p>', unsafe_allow_html=True)
+    st.markdown(f'<p style="font-size:1.1rem; font-weight:bold; color:{pass_color}; margin-bottom:16px;">{pass_text}</p>', unsafe_allow_html=True)
+
+    if first_unanswered:
+        st.markdown(f'<p style="color:#888; font-size:0.9rem; margin-bottom:12px;">משאלה {first_unanswered} והלאה לא ענית על השאלות — הציון על שאלות אלו הוא 0</p>', unsafe_allow_html=True)
+
+    # שאלות שענה נכון
+    correct_questions = [n for n in range(1, 26) if n in st.session_state.user_answers and logic.get_points(n) == 4]
+    if correct_questions:
+        st.markdown('<h3 style="margin-top:16px; margin-bottom:8px;">שאלות שענית נכון</h3>', unsafe_allow_html=True)
+        for n in correct_questions:
+            st.markdown(f'<p style="margin:2px 0;">שאלה {n} &nbsp;<span style="color:#1a7a1a; font-weight:bold;">✓</span></p>', unsafe_allow_html=True)
+
+    # שאלות שענה לא נכון
+    wrong_questions = [n for n in range(1, 26) if n in st.session_state.user_answers and logic.get_points(n) == 0]
+    if wrong_questions:
+        st.markdown('<h3 style="margin-top:16px; margin-bottom:8px;">שאלות שענית לא נכון</h3>', unsafe_allow_html=True)
+        for n in wrong_questions:
+            q = st.session_state.exam_questions.get(n)
+            if not q:
+                continue
+            user_label = st.session_state.user_answers.get(n, {}).get("label", "")
+            user_text = q.get("options", {}).get(user_label, "")
+            correct_label = q.get("correct_label", "")
+            correct_text = q.get("options", {}).get(correct_label, "")
+            st.markdown(f"""
+                <div style="margin-bottom:12px; padding-bottom:8px; border-bottom:1px solid #eee;">
+                    <p style="font-weight:bold; margin-bottom:4px;">שאלה {n} &nbsp;<span style="color:#cc0000;">✗</span></p>
+                    <p style="margin:2px 0;">ענית: {user_text}</p>
+                    <p style="margin:2px 0;">תשובה נכונה: {correct_text}</p>
+                </div>
+            """, unsafe_allow_html=True)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    exams_done = st.session_state.get("exams_done_session", 0)
+    if exams_done >= 2:
+        st.markdown('<p style="color:#888; font-size:0.9rem;">עשית 2 בחינות בסשן זה — היכנס מחדש לאפליקציה לבחינות נוספות.</p>', unsafe_allow_html=True)
+    else:
+        if st.button("בחינה חדשה"):
+            for key in ["step","current_q","exam_questions","user_answers",
+                        "nav_active_questions","finish_button_visible","exam_start_time",
+                        "exam_file","_exam_raw","q1_ready","timed_out"]:
+                if key in st.session_state:
+                    del st.session_state[key]
+            st.session_state.step = "instructions"
+            st.rerun()
 # סוף קובץ
