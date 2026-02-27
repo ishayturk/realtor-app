@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#c9a84c"/>
+      <stop offset="100%" stop-color="#a07830"/>
+    </radialGradient>
+  </defs>
+  <rect width="32" height="32" rx="7" fill="url(#bg)"/>
+
+  <!-- נקודות קטנטנות כחולות -->
+  <circle cx="2.5" cy="2.5" r="0.25" fill="#1a3a6b"/>
+  <circle cx="29.5" cy="3" r="0.25" fill="#1a3a6b"/>
+  <circle cx="2" cy="16" r="0.25" fill="#1a3a6b"/>
+  <circle cx="30" cy="16" r="0.25" fill="#1a3a6b"/>
+  <circle cx="3" cy="29" r="0.25" fill="#1a3a6b"/>
+  <circle cx="29" cy="28.5" r="0.25" fill="#1a3a6b"/>
+  <circle cx="16" cy="29.5" r="0.25" fill="#1a3a6b"/>
+  <circle cx="16" cy="1.5" r="0.25" fill="#1a3a6b"/>
+  <circle cx="6" cy="27" r="0.25" fill="#1a3a6b"/>
+  <circle cx="26" cy="5" r="0.25" fill="#1a3a6b"/>
+  <circle cx="28" cy="22" r="0.25" fill="#1a3a6b"/>
+  <circle cx="4" cy="8" r="0.25" fill="#1a3a6b"/>
+
+  <!-- גג -->
+  <polygon points="22,2 8,10 30,10" fill="none" stroke="#1a3a6b" stroke-width="0.9" stroke-linejoin="round"/>
+  <text x="21" y="8" text-anchor="middle" font-family="Georgia, serif" font-size="3" fill="#1a3a6b">מתווך</text>
+
+  <!-- גוף בית -->
+  <rect x="8" y="10" width="22" height="13" rx="0.5" fill="none" stroke="#1a3a6b" stroke-width="0.9"/>
+
+  <!-- אליפסה -->
+  <ellipse cx="19" cy="16.5" rx="6" ry="3" fill="none" stroke="#1a3a6b" stroke-width="0.9"/>
+  <text x="19" y="17.5" text-anchor="middle" font-family="Georgia, serif" font-size="3" fill="#1a3a6b">בקליק</text>
+
+  <!-- גוף מפתח -->
+  <line x1="13" y1="16.5" x2="3.5" y2="16.5" stroke="#1a3a6b" stroke-width="0.9" stroke-linecap="round"/>
+  <line x1="6" y1="16.5" x2="6" y2="19.5" stroke="#1a3a6b" stroke-width="0.9" stroke-linecap="round"/>
+  <line x1="4.5" y1="16.5" x2="4.5" y2="18.5" stroke="#1a3a6b" stroke-width="0.9" stroke-linecap="round"/>
+</svg>
