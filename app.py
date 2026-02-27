@@ -1,22 +1,33 @@
 # Project: מתווך בקליק | Version: training_full_V12 | 25/02/2026 | 08:50
-# Claude 16b | Security: full name validation
+# Claude 17 | Security: base64 obfuscation on user param
 import streamlit as st
 import google.generativeai as genai
 import json
 import re
 import random
+import base64
+
+def encode_user(name):
+    return base64.urlsafe_b64encode(name.encode()).decode()
+
+def decode_user(token):
+    try:
+        return base64.urlsafe_b64decode(token.encode()).decode()
+    except:
+        return None
 
 # הגדרת דף
 st.set_page_config(page_title="מתווך בקליק", page_icon="favicon.svg", layout="wide", initial_sidebar_state="collapsed")
 
-# Interceptor — מאפשר כניסה רק עם שם מלא (שם + שם משפחה)
-if "user" in st.query_params and st.session_state.get("user") is None:
-    incoming = st.query_params.get("user", "").strip()
-    parts = incoming.split()
-    if len(parts) >= 2 and all(len(p) >= 2 for p in parts):
-        st.session_state.user = incoming
-        st.session_state.step = "menu"
-        st.rerun()
+# Interceptor — מפענח טוקן מקודד
+if "u" in st.query_params and st.session_state.get("user") is None:
+    decoded = decode_user(st.query_params.get("u", ""))
+    if decoded:
+        parts = decoded.strip().split()
+        if len(parts) >= 2 and all(len(p) >= 2 for p in parts):
+            st.session_state.user = decoded.strip()
+            st.session_state.step = "menu"
+            st.rerun()
 
 # עיצוב RTL (עוגן 1213)
 st.markdown("""
@@ -143,12 +154,8 @@ def show_header():
 
 if st.session_state.step == "login":
     st.title("🏠 מתווך בקליק")
-    u_in = st.text_input("שם מלא (שם ושם משפחה):").strip()
-    parts = u_in.split()
-    valid_name = len(parts) >= 2 and all(len(p) >= 2 for p in parts)
-    if not valid_name and u_in:
-        st.caption("יש להזין שם ושם משפחה")
-    if st.button("כניסה") and valid_name:
+    u_in = st.text_input("שם מלא:")
+    if st.button("כניסה") and u_in:
         st.session_state.user = u_in
         st.session_state.step = "menu"
         st.rerun()
@@ -187,11 +194,12 @@ elif st.session_state.step == "exam_frame":
             }}
         </style>
         <div class="nav-link-box">
-            <a href="/?user={st.session_state.user}" target="_self" class="nav-link">🏠 לתפריט הראשי</a>
+            <a href="/?u={encode_user(st.session_state.user)}" target="_self" class="nav-link">🏠 לתפריט הראשי</a>
         </div>
     """, unsafe_allow_html=True)
     base_url = "https://fullrealestatebroker-yevuzewxde4obgrpgacrpc.streamlit.app/"
-    exam_url = f"{base_url}?user={st.session_state.user}&embed=true"
+    encoded = encode_user(st.session_state.user)
+    exam_url = f"{base_url}?u={encoded}&embed=true"
     st.markdown(f'<iframe src="{exam_url}" style="width:100%; height:100vh; border:none; margin-top:-40px;"></iframe>', unsafe_allow_html=True)
 
 elif st.session_state.step == "study":
