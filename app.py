@@ -1,5 +1,5 @@
 # Project: מתווך בקליק | Version: training_full_V12 | 25/02/2026 | 08:50
-# Claude 15 | Fix: exam_frame nav link rendering
+# Claude 16b | Security: full name validation
 import streamlit as st
 import google.generativeai as genai
 import json
@@ -9,11 +9,14 @@ import random
 # הגדרת דף
 st.set_page_config(page_title="מתווך בקליק", page_icon="favicon.svg", layout="wide", initial_sidebar_state="collapsed")
 
-# Interceptor
+# Interceptor — מאפשר כניסה רק עם שם מלא (שם + שם משפחה)
 if "user" in st.query_params and st.session_state.get("user") is None:
-    st.session_state.user = st.query_params.get("user")
-    st.session_state.step = "menu"
-    st.rerun()
+    incoming = st.query_params.get("user", "").strip()
+    parts = incoming.split()
+    if len(parts) >= 2 and all(len(p) >= 2 for p in parts):
+        st.session_state.user = incoming
+        st.session_state.step = "menu"
+        st.rerun()
 
 # עיצוב RTL (עוגן 1213)
 st.markdown("""
@@ -140,8 +143,12 @@ def show_header():
 
 if st.session_state.step == "login":
     st.title("🏠 מתווך בקליק")
-    u_in = st.text_input("שם מלא:")
-    if st.button("כניסה") and u_in:
+    u_in = st.text_input("שם מלא (שם ושם משפחה):").strip()
+    parts = u_in.split()
+    valid_name = len(parts) >= 2 and all(len(p) >= 2 for p in parts)
+    if not valid_name and u_in:
+        st.caption("יש להזין שם ושם משפחה")
+    if st.button("כניסה") and valid_name:
         st.session_state.user = u_in
         st.session_state.step = "menu"
         st.rerun()
