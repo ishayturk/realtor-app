@@ -1,5 +1,5 @@
 # Project: מתווך בקליק | Version: training_full_V12 | 25/02/2026 | 08:50
-# Claude 19c | Disable autocomplete on login fields
+# Claude 20 | Login field styling - border, placeholder, no label
 import streamlit as st
 import google.generativeai as genai
 import json
@@ -157,10 +157,23 @@ def show_header():
 
 if st.session_state.step == "login":
     st.title("🏠 מתווך בקליק")
+    st.markdown("""
+    <style>
+        div[data-testid="stTextInput"] input {
+            background: transparent !important;
+            border: 1px solid #000 !important;
+            border-radius: 6px !important;
+            padding: 10px !important;
+            font-size: 1rem !important;
+            max-width: 420px !important;
+        }
+        div[data-testid="stTextInput"] label { display: none !important; }
+    </style>
+    """, unsafe_allow_html=True)
 
     if not st.session_state.get("otp_sent"):
-        u_in = st.text_input("שם מלא (שם ושם משפחה):", autocomplete="off").strip()
-        email_in = st.text_input("כתובת מייל:", autocomplete="off").strip()
+        u_in = st.text_input("שם", placeholder="שם מלא — שם ושם משפחה", autocomplete="off", label_visibility="collapsed").strip()
+        email_in = st.text_input("מייל", placeholder="כתובת מייל", autocomplete="off", label_visibility="collapsed").strip()
         parts = u_in.split()
         valid_name = len(parts) >= 2 and all(len(p) >= 2 for p in parts)
         valid_email = "@" in email_in and "." in email_in
@@ -182,7 +195,7 @@ if st.session_state.step == "login":
                 st.warning("יש למלא שם מלא וכתובת מייל תקינה.")
     else:
         st.info(f"קוד נשלח ל-{st.session_state.get('otp_email')}. תקף ל-2 דקות.")
-        code_in = st.text_input("הזן קוד:", autocomplete="off").strip()
+        code_in = st.text_input("קוד", placeholder="הזן קוד", autocomplete="off", label_visibility="collapsed").strip()
         if st.button("אישור"):
             elapsed = time.time() - st.session_state.get("otp_time", 0)
             if elapsed > 120:
@@ -194,7 +207,14 @@ if st.session_state.step == "login":
                 st.session_state.otp_sent = False
                 st.rerun()
             else:
-                st.error("קוד שגוי.")
+                attempts = st.session_state.get("otp_attempts", 0) + 1
+                st.session_state.otp_attempts = attempts
+                if attempts >= 3:
+                    st.error("3 ניסיונות כושלים — יש להתחיל מחדש.")
+                    st.session_state.otp_sent = False
+                    st.session_state.otp_attempts = 0
+                else:
+                    st.error(f"קוד שגוי. נותרו {3 - attempts} ניסיונות.")
 
 elif st.session_state.step == "menu":
     show_header()
