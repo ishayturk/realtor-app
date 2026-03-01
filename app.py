@@ -1,5 +1,5 @@
 # Project: מתווך בקליק | Version: training_full_V12 | 25/02/2026 | 08:50
-# Claude 20b | Fix transparent input wrapper
+# Claude 20c | Add info text before send button
 import streamlit as st
 import google.generativeai as genai
 import json
@@ -186,6 +186,7 @@ if st.session_state.step == "login":
         valid_email = "@" in email_in and "." in email_in
         if u_in and not valid_name:
             st.caption("יש להזין שם ושם משפחה")
+        st.caption("להשלמת הכניסה קוד יישלח לכתובת המייל שהכנסת")
         if st.button("שלח קוד"):
             if valid_name and valid_email:
                 code = str(random.randint(100000, 999999))
