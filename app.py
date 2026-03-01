@@ -1,5 +1,5 @@
 # Project: מתווך בקליק | Version: training_full_V12 | 25/02/2026 | 08:50
-# Claude 20 | Login field styling - border, placeholder, no label
+# Claude 20b | Fix transparent input wrapper
 import streamlit as st
 import google.generativeai as genai
 import json
@@ -166,6 +166,13 @@ if st.session_state.step == "login":
             padding: 10px !important;
             font-size: 1rem !important;
             max-width: 420px !important;
+        }
+        div[data-testid="stTextInput"],
+        div[data-testid="stTextInput"] > div,
+        div[data-testid="stTextInput"] > div > div {
+            background: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
         }
         div[data-testid="stTextInput"] label { display: none !important; }
     </style>
