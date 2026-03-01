@@ -1,5 +1,5 @@
 # Project: מתווך בקליק | Version: training_full_V12 | 25/02/2026 | 08:50
-# Claude 19 | OTP email login - 2 min expiry
+# Claude 19c | Disable autocomplete on login fields
 import streamlit as st
 import google.generativeai as genai
 import json
@@ -159,8 +159,8 @@ if st.session_state.step == "login":
     st.title("🏠 מתווך בקליק")
 
     if not st.session_state.get("otp_sent"):
-        u_in = st.text_input("שם מלא (שם ושם משפחה):").strip()
-        email_in = st.text_input("כתובת מייל:").strip()
+        u_in = st.text_input("שם מלא (שם ושם משפחה):", autocomplete="off").strip()
+        email_in = st.text_input("כתובת מייל:", autocomplete="off").strip()
         parts = u_in.split()
         valid_name = len(parts) >= 2 and all(len(p) >= 2 for p in parts)
         valid_email = "@" in email_in and "." in email_in
@@ -173,6 +173,7 @@ if st.session_state.step == "login":
                     st.session_state.otp_code = code
                     st.session_state.otp_time = time.time()
                     st.session_state.otp_user = u_in
+                    st.session_state.otp_email = email_in
                     st.session_state.otp_sent = True
                     st.rerun()
                 else:
@@ -180,8 +181,8 @@ if st.session_state.step == "login":
             else:
                 st.warning("יש למלא שם מלא וכתובת מייל תקינה.")
     else:
-        st.info(f"קוד נשלח למייל. תקף ל-2 דקות.")
-        code_in = st.text_input("הזן קוד:").strip()
+        st.info(f"קוד נשלח ל-{st.session_state.get('otp_email')}. תקף ל-2 דקות.")
+        code_in = st.text_input("הזן קוד:", autocomplete="off").strip()
         if st.button("אישור"):
             elapsed = time.time() - st.session_state.get("otp_time", 0)
             if elapsed > 120:
