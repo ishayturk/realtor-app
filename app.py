@@ -1,5 +1,5 @@
 # Project: מתווך בקליק | Version: training_full_V12 | 25/02/2026 | 08:50
-# Claude 18 | Login full name validation
+# Claude 19 | OTP email login - 2 min expiry
 import streamlit as st
 import google.generativeai as genai
 import json
@@ -103,7 +103,24 @@ def fetch_q_ai(sub_topic, lesson_context, used_qs):
             pass
     return None
 
-def stream_ai_lesson(prompt_text):
+import smtplib
+import random
+import time
+from email.mime.text import MIMEText
+
+def send_otp(email, code):
+    try:
+        msg = MIMEText(f"קוד הכניסה שלך למתווך בקליק: {code}\n\nהקוד תקף ל-2 דקות.")
+        msg['Subject'] = 'קוד כניסה - מתווך בקליק'
+        msg['From'] = 'ishayturk@gmail.com'
+        msg['To'] = email
+        with smtplib.SMTP('smtp.gmail.com', 587) as s:
+            s.starttls()
+            s.login('ishayturk@gmail.com', st.secrets["GMAIL_PASS"])
+            s.send_message(msg)
+        return True
+    except:
+        return False
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
     model = genai.GenerativeModel('gemini-2.0-flash')
     full_p = f"{prompt_text}. כתוב שיעור הכנה מעמיק למבחן המתווכים."
@@ -140,15 +157,43 @@ def show_header():
 
 if st.session_state.step == "login":
     st.title("🏠 מתווך בקליק")
-    u_in = st.text_input("שם מלא (שם ושם משפחה):").strip()
-    parts = u_in.split()
-    valid_name = len(parts) >= 2 and all(len(p) >= 2 for p in parts)
-    if u_in and not valid_name:
-        st.caption("יש להזין שם ושם משפחה")
-    if st.button("כניסה") and valid_name:
-        st.session_state.user = u_in
-        st.session_state.step = "menu"
-        st.rerun()
+
+    if not st.session_state.get("otp_sent"):
+        u_in = st.text_input("שם מלא (שם ושם משפחה):").strip()
+        email_in = st.text_input("כתובת מייל:").strip()
+        parts = u_in.split()
+        valid_name = len(parts) >= 2 and all(len(p) >= 2 for p in parts)
+        valid_email = "@" in email_in and "." in email_in
+        if u_in and not valid_name:
+            st.caption("יש להזין שם ושם משפחה")
+        if st.button("שלח קוד"):
+            if valid_name and valid_email:
+                code = str(random.randint(100000, 999999))
+                if send_otp(email_in, code):
+                    st.session_state.otp_code = code
+                    st.session_state.otp_time = time.time()
+                    st.session_state.otp_user = u_in
+                    st.session_state.otp_sent = True
+                    st.rerun()
+                else:
+                    st.error("שגיאה בשליחת המייל. נסה שוב.")
+            else:
+                st.warning("יש למלא שם מלא וכתובת מייל תקינה.")
+    else:
+        st.info(f"קוד נשלח למייל. תקף ל-2 דקות.")
+        code_in = st.text_input("הזן קוד:").strip()
+        if st.button("אישור"):
+            elapsed = time.time() - st.session_state.get("otp_time", 0)
+            if elapsed > 120:
+                st.error("הקוד פג תוקף. רענן את הדף ונסה שוב.")
+                st.session_state.otp_sent = False
+            elif code_in == st.session_state.get("otp_code"):
+                st.session_state.user = st.session_state.otp_user
+                st.session_state.step = "menu"
+                st.session_state.otp_sent = False
+                st.rerun()
+            else:
+                st.error("קוד שגוי.")
 
 elif st.session_state.step == "menu":
     show_header()
