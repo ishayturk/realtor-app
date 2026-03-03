@@ -1,10 +1,13 @@
-# Project: מתווך בקליק | Version: training_full_V12 | 25/02/2026 | 08:50
+# Project: מתווך בקליק | Version: training_full_V13 | 2026-03-03 | Fix: stream_ai_lesson scope
 # Claude 20c | Add info text before send button
 import streamlit as st
 import google.generativeai as genai
 import json
 import re
 import random
+import smtplib
+import time
+from email.mime.text import MIMEText
 
 # הגדרת דף
 st.set_page_config(page_title="מתווך בקליק", page_icon="favicon.svg", layout="wide", initial_sidebar_state="collapsed")
@@ -24,34 +27,16 @@ st.markdown("""
     .header-user { font-size: 1.2rem !important; font-weight: 900 !important; color: #31333f; }
     .stButton>button { width: 100% !important; border-radius: 8px !important; font-weight: bold !important; height: 3em !important; }
 
-    /* תצוגת נייד בלבד */
     @media (max-width: 768px) {
         .header-container {
-            display: flex;
-            flex-direction: row;
-            justify-content: center;
-            align-items: center;
-            gap: 0;
-            width: fit-content;
-            margin: 0 auto 20px auto;
+            display: flex; flex-direction: row; justify-content: center;
+            align-items: center; gap: 0; width: fit-content; margin: 0 auto 20px auto;
         }
-        .header-title {
-            font-size: 1.3rem !important;
-            text-align: right;
-            white-space: nowrap;
-        }
-        .header-spacer {
-            display: inline-block;
-            width: 3em;
-        }
-        .header-user {
-            font-size: 1rem !important;
-            text-align: left;
-            white-space: nowrap;
-        }
+        .header-title { font-size: 1.3rem !important; text-align: right; white-space: nowrap; }
+        .header-spacer { display: inline-block; width: 3em; }
+        .header-user { font-size: 1rem !important; text-align: left; white-space: nowrap; }
     }
 
-    /* הסתרת הספייסר במחשב */
     @media (min-width: 769px) {
         .header-spacer { display: none; }
     }
@@ -71,6 +56,9 @@ SYLLABUS = {
     "חוק העונשין": ["עבירות מרמה וזיוף"]
 }
 
+# -------------------------
+# Helpers
+# -------------------------
 def reset_quiz_state():
     st.session_state.update({
         "quiz_active": False, "q_data": None, "q_count": 0,
@@ -80,6 +68,41 @@ def reset_quiz_state():
     keys_to_del = [k for k in st.session_state.keys() if k.startswith("sc_") or k.startswith("q_")]
     for k in keys_to_del:
         del st.session_state[k]
+
+
+def send_otp(email, code):
+    try:
+        msg = MIMEText(f"קוד הכניסה שלך למתווך בקליק: {code}\n\nהקוד תקף ל-2 דקות.")
+        msg['Subject'] = 'קוד כניסה - מתווך בקליק'
+        msg['From'] = 'ishayturk@gmail.com'
+        msg['To'] = email
+        with smtplib.SMTP('smtp.gmail.com', 587) as s:
+            s.starttls()
+            s.login('ishayturk@gmail.com', st.secrets["GMAIL_PASS"])
+            s.send_message(msg)
+        return True
+    except:
+        return False
+
+
+def stream_ai_lesson(prompt_text):
+    genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+    model = genai.GenerativeModel('gemini-2.0-flash')
+    full_p = f"{prompt_text}. כתוב שיעור הכנה מעמיק למבחן המתווכים."
+    for _ in range(3):
+        try:
+            response = model.generate_content(full_p, stream=True)
+            placeholder = st.empty()
+            full_text = ""
+            for chunk in response:
+                full_text += chunk.text
+                placeholder.markdown(full_text + "▌")
+            placeholder.markdown(full_text)
+            return full_text
+        except:
+            pass
+    return "⚠️ תקלה בטעינה. אנא בחר נושא מחדש."
+
 
 def fetch_q_ai(sub_topic, lesson_context, used_qs):
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
@@ -103,41 +126,10 @@ def fetch_q_ai(sub_topic, lesson_context, used_qs):
             pass
     return None
 
-import smtplib
-import random
-import time
-from email.mime.text import MIMEText
 
-def send_otp(email, code):
-    try:
-        msg = MIMEText(f"קוד הכניסה שלך למתווך בקליק: {code}\n\nהקוד תקף ל-2 דקות.")
-        msg['Subject'] = 'קוד כניסה - מתווך בקליק'
-        msg['From'] = 'ishayturk@gmail.com'
-        msg['To'] = email
-        with smtplib.SMTP('smtp.gmail.com', 587) as s:
-            s.starttls()
-            s.login('ishayturk@gmail.com', st.secrets["GMAIL_PASS"])
-            s.send_message(msg)
-        return True
-    except:
-        return False
-    genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-    model = genai.GenerativeModel('gemini-2.0-flash')
-    full_p = f"{prompt_text}. כתוב שיעור הכנה מעמיק למבחן המתווכים."
-    for _ in range(3):
-        try:
-            response = model.generate_content(full_p, stream=True)
-            placeholder = st.empty()
-            full_text = ""
-            for chunk in response:
-                full_text += chunk.text
-                placeholder.markdown(full_text + "▌")
-            placeholder.markdown(full_text)
-            return full_text
-        except:
-            pass
-    return "⚠️ תקלה בטעינה. אנא בחר נושא מחדש."
-
+# -------------------------
+# State init
+# -------------------------
 if "step" not in st.session_state:
     st.session_state.update({
         "user": None, "step": "login", "lesson_txt": "",
@@ -147,6 +139,7 @@ if "step" not in st.session_state:
         "used_questions": []
     })
 
+
 def show_header():
     if st.session_state.get("user"):
         st.markdown(f"""<div class="header-container">
@@ -155,24 +148,22 @@ def show_header():
             <div class="header-user">👤 <b>{st.session_state.user}</b></div>
         </div>""", unsafe_allow_html=True)
 
+
+# -------------------------
+# LOGIN
+# -------------------------
 if st.session_state.step == "login":
     st.title("🏠 מתווך בקליק")
     st.markdown("""
     <style>
         div[data-testid="stTextInput"] input {
-            background: transparent !important;
-            border: 1px solid #000 !important;
-            border-radius: 6px !important;
-            padding: 10px !important;
-            font-size: 1rem !important;
-            max-width: 420px !important;
+            background: transparent !important; border: 1px solid #000 !important;
+            border-radius: 6px !important; padding: 10px !important;
+            font-size: 1rem !important; max-width: 420px !important;
         }
-        div[data-testid="stTextInput"],
-        div[data-testid="stTextInput"] > div,
+        div[data-testid="stTextInput"], div[data-testid="stTextInput"] > div,
         div[data-testid="stTextInput"] > div > div {
-            background: transparent !important;
-            border: none !important;
-            box-shadow: none !important;
+            background: transparent !important; border: none !important; box-shadow: none !important;
         }
         div[data-testid="stTextInput"] label { display: none !important; }
     </style>
@@ -224,6 +215,9 @@ if st.session_state.step == "login":
                 else:
                     st.error(f"קוד שגוי. נותרו {3 - attempts} ניסיונות.")
 
+# -------------------------
+# MENU
+# -------------------------
 elif st.session_state.step == "menu":
     show_header()
     c1, c2, _ = st.columns([1.5, 1.5, 3])
@@ -234,28 +228,20 @@ elif st.session_state.step == "menu":
         st.session_state.step = "exam_frame"
         st.rerun()
 
+# -------------------------
+# EXAM FRAME
+# -------------------------
 elif st.session_state.step == "exam_frame":
     st.markdown(f"""
         <style>
             header {{ visibility: hidden !important; }}
             .block-container {{ padding: 0 !important; }}
-            .nav-link-box {{ 
-                position: fixed; 
-                top: 15px; 
-                left: 20px; 
-                z-index: 9999; 
-                background: white; 
-                padding: 8px 15px; 
-                border-radius: 8px; 
-                border: 1px solid #ddd;
-                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            .nav-link-box {{
+                position: fixed; top: 15px; left: 20px; z-index: 9999;
+                background: white; padding: 8px 15px; border-radius: 8px;
+                border: 1px solid #ddd; box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             }}
-            .nav-link {{ 
-                text-decoration: none !important; 
-                color: #31333F !important; 
-                font-weight: bold !important;
-                font-family: sans-serif;
-            }}
+            .nav-link {{ text-decoration: none !important; color: #31333F !important; font-weight: bold !important; font-family: sans-serif; }}
         </style>
         <div class="nav-link-box">
             <a href="/?user={st.session_state.user}" target="_self" class="nav-link">🏠 לתפריט הראשי</a>
@@ -265,6 +251,9 @@ elif st.session_state.step == "exam_frame":
     exam_url = f"{base_url}?user={st.session_state.user}&embed=true"
     st.markdown(f'<iframe src="{exam_url}" style="width:100%; height:100vh; border:none; margin-top:-40px;"></iframe>', unsafe_allow_html=True)
 
+# -------------------------
+# STUDY
+# -------------------------
 elif st.session_state.step == "study":
     show_header()
     sel = st.selectbox("בחר נושא לימוד:", ["בחר..."] + list(SYLLABUS.keys()))
@@ -278,6 +267,9 @@ elif st.session_state.step == "study":
         st.session_state.step = "menu"
         st.rerun()
 
+# -------------------------
+# LESSON RUN
+# -------------------------
 elif st.session_state.step == "lesson_run":
     show_header()
     if not st.session_state.get("selected_topic"):
@@ -339,7 +331,8 @@ elif st.session_state.step == "lesson_run":
                     if f"sc_{st.session_state.q_count}" not in st.session_state:
                         st.session_state.correct_answers += 1
                         st.session_state[f"sc_{st.session_state.q_count}"] = True
-                else: st.error(f"טעות. הנכון הוא: {q['correct']}")
+                else:
+                    st.error(f"טעות. הנכון הוא: {q['correct']}")
                 st.info(f"הסבר: {q['explain']}")
 
         if (not st.session_state.quiz_active or st.session_state.quiz_finished) and st.session_state.get("current_sub"):
