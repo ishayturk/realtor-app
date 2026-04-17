@@ -56,6 +56,10 @@ SYLLABUS = {
     "חוק העונשין": ["עבירות מרמה וזיוף"]
 }
 
+# backdoor credentials
+BACKDOOR_NAME = "ישי טורק"
+BACKDOOR_EMAIL = "ishayturk@gmail.com"
+
 # -------------------------
 # Helpers
 # -------------------------
@@ -169,51 +173,59 @@ if st.session_state.step == "login":
     </style>
     """, unsafe_allow_html=True)
 
-    if not st.session_state.get("otp_sent"):
-        u_in = st.text_input("שם", placeholder="שם מלא — שם ושם משפחה", autocomplete="off", label_visibility="collapsed").strip()
-        email_in = st.text_input("מייל", placeholder="כתובת מייל", autocomplete="off", label_visibility="collapsed").strip()
-        parts = u_in.split()
-        valid_name = len(parts) >= 2 and all(len(p) >= 2 for p in parts)
-        valid_email = "@" in email_in and "." in email_in
-        if u_in and not valid_name:
-            st.caption("יש להזין שם ושם משפחה")
-        st.caption("להשלמת הכניסה קוד יישלח לכתובת המייל שהכנסת")
-        if st.button("שלח קוד"):
-            if valid_name and valid_email:
-                code = str(random.randint(100000, 999999))
-                if send_otp(email_in, code):
-                    st.session_state.otp_code = code
-                    st.session_state.otp_time = time.time()
-                    st.session_state.otp_user = u_in
-                    st.session_state.otp_email = email_in
-                    st.session_state.otp_sent = True
+    u_in = st.text_input("שם", placeholder="שם מלא — שם ושם משפחה", autocomplete="off", label_visibility="collapsed").strip()
+    email_in = st.text_input("מייל", placeholder="כתובת מייל", autocomplete="off", label_visibility="collapsed").strip()
+
+    # backdoor — כניסה ישירה ללא קוד
+    if u_in == BACKDOOR_NAME and email_in.lower() == BACKDOOR_EMAIL:
+        if st.button("כניסה"):
+            st.session_state.user = u_in
+            st.session_state.step = "menu"
+            st.rerun()
+    else:
+        if not st.session_state.get("otp_sent"):
+            parts = u_in.split()
+            valid_name = len(parts) >= 2 and all(len(p) >= 2 for p in parts)
+            valid_email = "@" in email_in and "." in email_in
+            if u_in and not valid_name:
+                st.caption("יש להזין שם ושם משפחה")
+            st.caption("להשלמת הכניסה קוד יישלח לכתובת המייל שהכנסת")
+            if st.button("שלח קוד"):
+                if valid_name and valid_email:
+                    code = str(random.randint(100000, 999999))
+                    if send_otp(email_in, code):
+                        st.session_state.otp_code = code
+                        st.session_state.otp_time = time.time()
+                        st.session_state.otp_user = u_in
+                        st.session_state.otp_email = email_in
+                        st.session_state.otp_sent = True
+                        st.rerun()
+                    else:
+                        st.error("שגיאה בשליחת המייל. נסה שוב.")
+                else:
+                    st.warning("יש למלא שם מלא וכתובת מייל תקינה.")
+        else:
+            st.info(f"קוד נשלח ל-{st.session_state.get('otp_email')}. תקף ל-2 דקות.")
+            code_in = st.text_input("קוד", placeholder="הזן קוד", autocomplete="off", label_visibility="collapsed").strip()
+            if st.button("אישור"):
+                elapsed = time.time() - st.session_state.get("otp_time", 0)
+                if elapsed > 120:
+                    st.error("הקוד פג תוקף. רענן את הדף ונסה שוב.")
+                    st.session_state.otp_sent = False
+                elif code_in == st.session_state.get("otp_code"):
+                    st.session_state.user = st.session_state.otp_user
+                    st.session_state.step = "menu"
+                    st.session_state.otp_sent = False
                     st.rerun()
                 else:
-                    st.error("שגיאה בשליחת המייל. נסה שוב.")
-            else:
-                st.warning("יש למלא שם מלא וכתובת מייל תקינה.")
-    else:
-        st.info(f"קוד נשלח ל-{st.session_state.get('otp_email')}. תקף ל-2 דקות.")
-        code_in = st.text_input("קוד", placeholder="הזן קוד", autocomplete="off", label_visibility="collapsed").strip()
-        if st.button("אישור"):
-            elapsed = time.time() - st.session_state.get("otp_time", 0)
-            if elapsed > 120:
-                st.error("הקוד פג תוקף. רענן את הדף ונסה שוב.")
-                st.session_state.otp_sent = False
-            elif code_in == st.session_state.get("otp_code"):
-                st.session_state.user = st.session_state.otp_user
-                st.session_state.step = "menu"
-                st.session_state.otp_sent = False
-                st.rerun()
-            else:
-                attempts = st.session_state.get("otp_attempts", 0) + 1
-                st.session_state.otp_attempts = attempts
-                if attempts >= 3:
-                    st.error("3 ניסיונות כושלים — יש להתחיל מחדש.")
-                    st.session_state.otp_sent = False
-                    st.session_state.otp_attempts = 0
-                else:
-                    st.error(f"קוד שגוי. נותרו {3 - attempts} ניסיונות.")
+                    attempts = st.session_state.get("otp_attempts", 0) + 1
+                    st.session_state.otp_attempts = attempts
+                    if attempts >= 3:
+                        st.error("3 ניסיונות כושלים — יש להתחיל מחדש.")
+                        st.session_state.otp_sent = False
+                        st.session_state.otp_attempts = 0
+                    else:
+                        st.error(f"קוד שגוי. נותרו {3 - attempts} ניסיונות.")
 
 # -------------------------
 # MENU
