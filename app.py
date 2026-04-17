@@ -1,5 +1,4 @@
-# Project: מתווך בקליק | Version: training_full_V13 | 2026-03-03 | Fix: stream_ai_lesson scope
-# Claude 20c | Add info text before send button
+# Project: מתווך בקליק | Version: training_full_V13 | 2026-03-03
 import streamlit as st
 import google.generativeai as genai
 import json
@@ -9,16 +8,13 @@ import smtplib
 import time
 from email.mime.text import MIMEText
 
-# הגדרת דף
 st.set_page_config(page_title="מתווך בקליק", page_icon="favicon.svg", layout="wide", initial_sidebar_state="collapsed")
 
-# Interceptor
 if "user" in st.query_params and st.session_state.get("user") is None:
     st.session_state.user = st.query_params.get("user")
     st.session_state.step = "menu"
     st.rerun()
 
-# עיצוב RTL (עוגן 1213)
 st.markdown("""
 <style>
     * { direction: rtl; text-align: right; }
@@ -26,26 +22,23 @@ st.markdown("""
     .header-title { font-size: 2.5rem !important; font-weight: bold !important; margin: 0 !important; }
     .header-user { font-size: 1.2rem !important; font-weight: 900 !important; color: #31333f; }
     .stButton>button { width: 100% !important; border-radius: 8px !important; font-weight: bold !important; height: 3em !important; }
-
     @media (max-width: 768px) {
-        .header-container {
-            display: flex; flex-direction: row; justify-content: center;
-            align-items: center; gap: 0; width: fit-content; margin: 0 auto 20px auto;
-        }
+        .header-container { display: flex; flex-direction: row; justify-content: center; align-items: center; gap: 0; width: fit-content; margin: 0 auto 20px auto; }
         .header-title { font-size: 1.3rem !important; text-align: right; white-space: nowrap; }
         .header-spacer { display: inline-block; width: 3em; }
         .header-user { font-size: 1rem !important; text-align: left; white-space: nowrap; }
     }
-
-    @media (min-width: 769px) {
-        .header-spacer { display: none; }
-    }
+    @media (min-width: 769px) { .header-spacer { display: none; } }
 </style>
 """, unsafe_allow_html=True)
 
 SYLLABUS = {
     "חוק המתווכים": ["רישוי והגבלות", "הגינות וזהירות", "הזמנה ובלעדיות", "פעולות שאינן תיווך"],
     "תקנות המתווכים": ["פרטי הזמנה 1997", "פעולות שיווק 2004", "דמי תיווך"],
+    "תקנות האתיקה המקצועית תשפ״ד-2024": ["חובת נאמנות וגילוי", "ניגוד עניינים", "איסור הטעיה", "כבוד המקצוע וסודיות"],
+    "דיני שליחות": ["מהות השליחות ויצירתה", "חריגה מהרשאה", "שליחות לכאורה", "ביטול השליחות"],
+    "עשיית עושר ולא במשפט": ["יסודות העילה", "השבה ללא חוזה תקין", "דמי תיווך ללא הזמנה בכתב"],
+    "פסיקה מרכזית": ["זכאות לדמי תיווך", "הסיבה המניעה ובלעדיות", "עסקאות נוגדות והערת אזהרה"],
     "חוק המקרקעין": ["בעלות וזכויות", "בתים משותפים", "עסקאות נוגדות", "הערות אזהרה", "שכירות וזיקה"],
     "חוק המכר (דירות)": ["מפרט וגילוי", "בדק ואחריות", "איחור במסירה", "הבטחת השקעות"],
     "חוק החוזים": ["כריתת חוזה", "פגמים בחוזה", "תרופות והפרה", "ביטול והשבה"],
@@ -56,13 +49,9 @@ SYLLABUS = {
     "חוק העונשין": ["עבירות מרמה וזיוף"]
 }
 
-# backdoor credentials
 BACKDOOR_NAME = "ישי טורק"
 BACKDOOR_EMAIL = "ishayturk@gmail.com"
 
-# -------------------------
-# Helpers
-# -------------------------
 def reset_quiz_state():
     st.session_state.update({
         "quiz_active": False, "q_data": None, "q_count": 0,
@@ -72,7 +61,6 @@ def reset_quiz_state():
     keys_to_del = [k for k in st.session_state.keys() if k.startswith("sc_") or k.startswith("q_")]
     for k in keys_to_del:
         del st.session_state[k]
-
 
 def send_otp(email, code):
     try:
@@ -87,7 +75,6 @@ def send_otp(email, code):
         return True
     except:
         return False
-
 
 def stream_ai_lesson(prompt_text):
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
@@ -106,7 +93,6 @@ def stream_ai_lesson(prompt_text):
         except:
             pass
     return "⚠️ תקלה בטעינה. אנא בחר נושא מחדש."
-
 
 def fetch_q_ai(sub_topic, lesson_context, used_qs):
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
@@ -130,10 +116,6 @@ def fetch_q_ai(sub_topic, lesson_context, used_qs):
             pass
     return None
 
-
-# -------------------------
-# State init
-# -------------------------
 if "step" not in st.session_state:
     st.session_state.update({
         "user": None, "step": "login", "lesson_txt": "",
@@ -143,7 +125,6 @@ if "step" not in st.session_state:
         "used_questions": []
     })
 
-
 def show_header():
     if st.session_state.get("user"):
         st.markdown(f"""<div class="header-container">
@@ -152,10 +133,6 @@ def show_header():
             <div class="header-user">👤 <b>{st.session_state.user}</b></div>
         </div>""", unsafe_allow_html=True)
 
-
-# -------------------------
-# LOGIN
-# -------------------------
 if st.session_state.step == "login":
     st.title("🏠 מתווך בקליק")
     st.markdown("""
@@ -176,7 +153,6 @@ if st.session_state.step == "login":
     u_in = st.text_input("שם", placeholder="שם מלא — שם ושם משפחה", autocomplete="off", label_visibility="collapsed").strip()
     email_in = st.text_input("מייל", placeholder="כתובת מייל", autocomplete="off", label_visibility="collapsed").strip()
 
-    # backdoor — כניסה ישירה ללא קוד
     if u_in == BACKDOOR_NAME and email_in.lower() == BACKDOOR_EMAIL:
         if st.button("כניסה"):
             st.session_state.user = u_in
@@ -227,9 +203,6 @@ if st.session_state.step == "login":
                     else:
                         st.error(f"קוד שגוי. נותרו {3 - attempts} ניסיונות.")
 
-# -------------------------
-# MENU
-# -------------------------
 elif st.session_state.step == "menu":
     show_header()
     c1, c2, _ = st.columns([1.5, 1.5, 3])
@@ -240,9 +213,6 @@ elif st.session_state.step == "menu":
         st.session_state.step = "exam_frame"
         st.rerun()
 
-# -------------------------
-# EXAM FRAME
-# -------------------------
 elif st.session_state.step == "exam_frame":
     st.markdown(f"""
         <style>
@@ -263,9 +233,6 @@ elif st.session_state.step == "exam_frame":
     exam_url = f"{base_url}?user={st.session_state.user}&embed=true"
     st.markdown(f'<iframe src="{exam_url}" style="width:100%; height:100vh; border:none; margin-top:-40px;"></iframe>', unsafe_allow_html=True)
 
-# -------------------------
-# STUDY
-# -------------------------
 elif st.session_state.step == "study":
     show_header()
     sel = st.selectbox("בחר נושא לימוד:", ["בחר..."] + list(SYLLABUS.keys()))
@@ -279,9 +246,6 @@ elif st.session_state.step == "study":
         st.session_state.step = "menu"
         st.rerun()
 
-# -------------------------
-# LESSON RUN
-# -------------------------
 elif st.session_state.step == "lesson_run":
     show_header()
     if not st.session_state.get("selected_topic"):
