@@ -52,6 +52,64 @@ SYLLABUS = {
 BACKDOOR_NAME = "ישי טורק"
 BACKDOOR_EMAIL = "ishayturk@gmail.com"
 
+LESSON_SYSTEM_PROMPT = """אתה מנוע ידע עבור מערכת לימוד לבחינת רשם המתווכים בישראל.
+המטרה שלך:
+לספק חומר לימוד מדויק, עדכני ורלוונטי אך ורק למה שנדרש למעבר הבחינה.
+
+הנחיות מחייבות (אין לחרוג מהן):
+
+1. רלוונטיות לבחינה בלבד
+* ספק רק מידע שנדרש בפועל לבחינת רשם המתווכים
+* אל תוסיף ידע משפטי כללי שאינו נשאל בבחינה
+* אל תרחיב מעבר לנדרש להבנת שאלות מבחן
+
+2. הסתמכות על מקורות רשמיים בלבד
+המידע חייב להתבסס רק על:
+* ספר החוקים לבחינת רשם המתווכים
+* ספר מושגים ופסקי דין של הבחינה
+* פרסומים רשמיים של משרד המשפטים / רשם המתווכים
+* חקיקה ישראלית עדכנית
+אם אינך בטוח שהמידע מופיע בחומר הבחינה → אל תכלול אותו.
+
+3. עדכניות
+* השתמש בגרסה העדכנית ביותר של החוקים והתקנות
+* חובה לכלול עדכונים אחרונים (כולל תקנות האתיקה תשפ״ד-2024)
+* במקרה של ספק בין גרסאות → העדף את העדכנית ביותר
+
+4. דיוק מוחלט
+* אין להמציא מידע
+* אין להניח הנחות
+* אין להשתמש בניסוחים כלליים לא מבוססים
+* אם יש אי-ודאות → ציין: "לא ניתן לאשר שזה חלק מחומר הבחינה"
+
+5. התאמה לסגנון הבחינה
+המידע צריך להיות:
+* ממוקד
+* ברור
+* שימושי לפתרון שאלות אמריקאיות
+* כולל דגשים על נקודות שמופיעות במבחנים (מלכודות, חריגים, תנאים)
+
+6. הימנעות מתוכן מיותר
+אל תכלול:
+* היסטוריה משפטית
+* הסברים אקדמיים
+* הרחבות שלא נשאלות בבחינה
+* פרשנויות שאינן מבוססות על החומר הרשמי
+
+7. מבנה תשובה — הצג את החומר בצורה הבאה בלבד:
+
+נושא: [שם הנושא]
+
+עקרונות מרכזיים:
+* נקודה קצרה וברורה
+* נקודה קצרה וברורה
+
+מה חשוב למבחן:
+* דגשים לשאלות
+* מצבים נפוצים בבחינה
+* טעויות נפוצות"""
+
+
 def reset_quiz_state():
     st.session_state.update({
         "quiz_active": False, "q_data": None, "q_count": 0,
@@ -61,6 +119,7 @@ def reset_quiz_state():
     keys_to_del = [k for k in st.session_state.keys() if k.startswith("sc_") or k.startswith("q_")]
     for k in keys_to_del:
         del st.session_state[k]
+
 
 def send_otp(email, code):
     try:
@@ -76,13 +135,14 @@ def send_otp(email, code):
     except:
         return False
 
-def stream_ai_lesson(prompt_text):
+
+def stream_ai_lesson(sub_topic):
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
     model = genai.GenerativeModel('gemini-2.0-flash')
-    full_p = f"{prompt_text}. כתוב שיעור הכנה מעמיק למבחן המתווכים."
+    prompt = f"{LESSON_SYSTEM_PROMPT}\n\nנושא: {sub_topic}"
     for _ in range(3):
         try:
-            response = model.generate_content(full_p, stream=True)
+            response = model.generate_content(prompt, stream=True)
             placeholder = st.empty()
             full_text = ""
             for chunk in response:
@@ -93,6 +153,7 @@ def stream_ai_lesson(prompt_text):
         except:
             pass
     return "⚠️ תקלה בטעינה. אנא בחר נושא מחדש."
+
 
 def fetch_q_ai(sub_topic, lesson_context, used_qs):
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
@@ -116,6 +177,7 @@ def fetch_q_ai(sub_topic, lesson_context, used_qs):
             pass
     return None
 
+
 if "step" not in st.session_state:
     st.session_state.update({
         "user": None, "step": "login", "lesson_txt": "",
@@ -125,6 +187,7 @@ if "step" not in st.session_state:
         "used_questions": []
     })
 
+
 def show_header():
     if st.session_state.get("user"):
         st.markdown(f"""<div class="header-container">
@@ -132,6 +195,7 @@ def show_header():
             <div class="header-spacer"></div>
             <div class="header-user">👤 <b>{st.session_state.user}</b></div>
         </div>""", unsafe_allow_html=True)
+
 
 if st.session_state.step == "login":
     st.title("🏠 מתווך בקליק")
@@ -268,7 +332,7 @@ elif st.session_state.step == "lesson_run":
             st.rerun()
     else:
         if st.session_state.get("lesson_txt") == "LOADING":
-            st.session_state.lesson_txt = stream_ai_lesson(f"הסבר על {st.session_state.current_sub}")
+            st.session_state.lesson_txt = stream_ai_lesson(st.session_state.current_sub)
             st.rerun()
         elif st.session_state.get("lesson_txt"):
             st.markdown(st.session_state.lesson_txt)
