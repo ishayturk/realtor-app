@@ -1,4 +1,4 @@
-# Project: מתווך בקליק | Version: training_full_V13 | 2026-03-03
+# Project: מתווך בקליק | Version: training_full_V14 | 2026-04-18
 import streamlit as st
 import google.generativeai as genai
 import json
@@ -7,6 +7,7 @@ import random
 import smtplib
 import time
 from email.mime.text import MIMEText
+from exam_insights import EXAM_INSIGHTS
 
 st.set_page_config(page_title="מתווך בקליק", page_icon="favicon.svg", layout="wide", initial_sidebar_state="collapsed")
 
@@ -52,65 +53,6 @@ SYLLABUS = {
 BACKDOOR_NAME = "ישי טורק"
 BACKDOOR_EMAIL = "ishayturk@gmail.com"
 
-LESSON_SYSTEM_PROMPT = """אתה מנוע ידע עבור מערכת לימוד לבחינת רשם המתווכים בישראל.
-המטרה שלך:
-לספק חומר לימוד מדויק, עדכני ורלוונטי אך ורק למה שנדרש למעבר הבחינה.
-
-הנחיות מחייבות (אין לחרוג מהן):
-
-1. רלוונטיות לבחינה בלבד
-* ספק רק מידע שנדרש בפועל לבחינת רשם המתווכים
-* אל תוסיף ידע משפטי כללי שאינו נשאל בבחינה
-* אל תרחיב מעבר לנדרש להבנת שאלות מבחן
-
-2. הסתמכות על מקורות רשמיים בלבד
-המידע חייב להתבסס רק על:
-* ספר החוקים לבחינת רשם המתווכים
-* ספר מושגים ופסקי דין של הבחינה
-* פרסומים רשמיים של משרד המשפטים / רשם המתווכים
-* חקיקה ישראלית עדכנית
-אם אינך בטוח שהמידע מופיע בחומר הבחינה → אל תכלול אותו.
-
-3. עדכניות
-* השתמש בגרסה העדכנית ביותר של החוקים והתקנות
-* חובה לכלול עדכונים אחרונים (כולל תקנות האתיקה תשפ״ד-2024)
-* במקרה של ספק בין גרסאות → העדף את העדכנית ביותר
-
-4. דיוק מוחלט
-* אין להמציא מידע
-* אין להניח הנחות
-* אין להשתמש בניסוחים כלליים לא מבוססים
-* אם יש אי-ודאות → ציין: "לא ניתן לאשר שזה חלק מחומר הבחינה"
-
-5. התאמה לסגנון הבחינה
-המידע צריך להיות:
-* ממוקד
-* ברור
-* שימושי לפתרון שאלות אמריקאיות
-* כולל דגשים על נקודות שמופיעות במבחנים (מלכודות, חריגים, תנאים)
-
-6. הימנעות מתוכן מיותר
-אל תכלול:
-* היסטוריה משפטית
-* הסברים אקדמיים
-* הרחבות שלא נשאלות בבחינה
-* פרשנויות שאינן מבוססות על החומר הרשמי
-
-7. מבנה תשובה — הצג את החומר בצורה הבאה בלבד:
-
-נושא: [שם הנושא]
-
-עקרונות מרכזיים:
-* נקודה קצרה וברורה
-* נקודה קצרה וברורה
-
-מה חשוב למבחן:
-* דגשים לשאלות
-* מצבים נפוצים בבחינה
-* טעויות נפוצות
-
-חשוב: למרות הדיוק והתמציתיות, כל נושא חייב לכסות את כל הנקודות הרלוונטיות לבחינה באופן מלא."""
-
 
 def reset_quiz_state():
     st.session_state.update({
@@ -141,7 +83,21 @@ def send_otp(email, code):
 def stream_ai_lesson(sub_topic):
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
     model = genai.GenerativeModel('gemini-2.0-flash')
-    prompt = f"{LESSON_SYSTEM_PROMPT}\n\nנושא: {sub_topic}"
+
+    insights = EXAM_INSIGHTS.get(sub_topic, "")
+
+    system = """אתה מורה המכין נבחנים לבחינת רשם המתווכים בישראל.
+כתוב שיעור הכנה מעמיק על הנושא שיינתן לך.
+התמקד אך ורק במה שנדרש לבחינת רשם המתווכים.
+כלול את כל הנקודות הרלוונטיות לבחינה באופן מלא ומקיף.
+התייחס לסעיפי חוק רלוונטיים.
+הדגש מלכודות, חריגים ותנאים שמופיעים בשאלות."""
+
+    if insights:
+        prompt = f"{system}\n\nנושא: {sub_topic}\n\nמידע מבוסס מבחנים אמיתיים שחובה לכלול:\n{insights}\n\nהרחב והסבר את הנקודות הללו בצורה מעמיקה."
+    else:
+        prompt = f"{system}\n\nנושא: {sub_topic}"
+
     for _ in range(3):
         try:
             response = model.generate_content(prompt, stream=True)
@@ -158,6 +114,8 @@ def stream_ai_lesson(sub_topic):
 
 
 def fetch_q_ai(sub_topic, lesson_context, used_qs):
+    if len(lesson_context.split()) < 100:
+        return None
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
     model = genai.GenerativeModel('gemini-2.0-flash')
     json_fmt = '{"q": "","options": ["","","",""], "correct": "", "explain": ""}'
