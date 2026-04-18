@@ -1,4 +1,4 @@
-# Project: מתווך בקליק | Version: training_full_V14 | 2026-04-18
+# Project: מתווך בקליק | Version: training_full_V15 | 2026-04-18
 import streamlit as st
 import google.generativeai as genai
 import json
@@ -30,8 +30,24 @@ st.markdown("""
         .header-user { font-size: 1rem !important; text-align: left; white-space: nowrap; }
     }
     @media (min-width: 769px) { .header-spacer { display: none; } }
+    .scroll-top-btn {
+        position: fixed; bottom: 30px; left: 30px; z-index: 9999;
+        background: #888; border-radius: 50%; width: 48px; height: 48px;
+        display: flex; align-items: center; justify-content: center;
+        cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        text-decoration: none;
+    }
+    .scroll-top-btn:hover { background: #666; }
 </style>
 """, unsafe_allow_html=True)
+
+SCROLL_TOP_BTN = """
+<a class="scroll-top-btn" onclick="window.scrollTo({top:0,behavior:'smooth'})" title="חזור לראש הדף">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 4L4 12H9V20H15V12H20L12 4Z" fill="white"/>
+    </svg>
+</a>
+"""
 
 SYLLABUS = {
     "חוק המתווכים": ["רישוי והגבלות", "הגינות וזהירות", "הזמנה ובלעדיות", "פעולות שאינן תיווך"],
@@ -91,7 +107,14 @@ def stream_ai_lesson(sub_topic):
 התמקד אך ורק במה שנדרש לבחינת רשם המתווכים.
 כלול את כל הנקודות הרלוונטיות לבחינה באופן מלא ומקיף.
 התייחס לסעיפי חוק רלוונטיים.
-הדגש מלכודות, חריגים ותנאים שמופיעים בשאלות."""
+הדגש מלכודות, חריגים ותנאים שמופיעים בשאלות.
+
+סגנון כתיבה — חובה:
+* אל תפתח ב"שלום" או ברכה כלשהי
+* אל תכתוב "היום נתמקד" — כתוב "שיעור זה מתמקד"
+* אל תכתוב "שימו לב" — כתוב "שים לב" או "שימי לב"
+* פנה ללומד בגוף יחיד, לא רבים
+* התחל ישירות בתוכן — ללא הקדמות מיותרות"""
 
     if insights:
         prompt = f"{system}\n\nנושא: {sub_topic}\n\nמידע מבוסס מבחנים אמיתיים שחובה לכלול:\n{insights}\n\nהרחב והסבר את הנקודות הללו בצורה מעמיקה."
@@ -157,6 +180,9 @@ def show_header():
         </div>""", unsafe_allow_html=True)
 
 
+# -------------------------
+# LOGIN
+# -------------------------
 if st.session_state.step == "login":
     st.title("🏠 מתווך בקליק")
     st.markdown("""
@@ -227,6 +253,9 @@ if st.session_state.step == "login":
                     else:
                         st.error(f"קוד שגוי. נותרו {3 - attempts} ניסיונות.")
 
+# -------------------------
+# MENU
+# -------------------------
 elif st.session_state.step == "menu":
     show_header()
     c1, c2, _ = st.columns([1.5, 1.5, 3])
@@ -237,6 +266,9 @@ elif st.session_state.step == "menu":
         st.session_state.step = "exam_frame"
         st.rerun()
 
+# -------------------------
+# EXAM FRAME
+# -------------------------
 elif st.session_state.step == "exam_frame":
     st.markdown(f"""
         <style>
@@ -257,6 +289,9 @@ elif st.session_state.step == "exam_frame":
     exam_url = f"{base_url}?user={st.session_state.user}&embed=true"
     st.markdown(f'<iframe src="{exam_url}" style="width:100%; height:100vh; border:none; margin-top:-40px;"></iframe>', unsafe_allow_html=True)
 
+# -------------------------
+# STUDY
+# -------------------------
 elif st.session_state.step == "study":
     show_header()
     sel = st.selectbox("בחר נושא לימוד:", ["בחר..."] + list(SYLLABUS.keys()))
@@ -270,6 +305,9 @@ elif st.session_state.step == "study":
         st.session_state.step = "menu"
         st.rerun()
 
+# -------------------------
+# LESSON RUN
+# -------------------------
 elif st.session_state.step == "lesson_run":
     show_header()
     if not st.session_state.get("selected_topic"):
@@ -311,9 +349,12 @@ elif st.session_state.step == "lesson_run":
             if qc2.button("לשאלה הבאה" if st.session_state.q_count < 10 else "🏁 סיכום", disabled=not st.session_state.checked):
                 if st.session_state.q_count < 10:
                     with st.spinner("מביא שאלה חדשה..."):
-                        res = fetch_q_ai(st.session_state.current_sub, st.session_state.lesson_txt, st.session_state.used_questions)
+                        next_used = list(st.session_state.used_questions)
+                        if st.session_state.q_data:
+                            next_used.append(st.session_state.q_data['q'])
+                        res = fetch_q_ai(st.session_state.current_sub, st.session_state.lesson_txt, next_used)
                         if res:
-                            st.session_state.used_questions.append(res['q'])
+                            st.session_state.used_questions = next_used
                             st.session_state.update({"q_data": res, "q_count": st.session_state.q_count + 1, "checked": False})
                             st.rerun()
                 else:
@@ -338,18 +379,30 @@ elif st.session_state.step == "lesson_run":
         if (not st.session_state.quiz_active or st.session_state.quiz_finished) and st.session_state.get("current_sub"):
             if st.session_state.quiz_finished:
                 st.success(f"🏆 ציון: {st.session_state.correct_answers} מתוך 10.")
-            ca, cb = st.columns([1, 1])
+
+            ca, cb, cc = st.columns([1, 1, 1])
+
             if ca.button("📝 שאלון תרגול" if not st.session_state.quiz_finished else "🔄 תרגול חוזר"):
                 with st.spinner("מייצר שאלה..."):
-                    res = fetch_q_ai(st.session_state.current_sub, st.session_state.lesson_txt, [])
+                    prev_questions = list(st.session_state.used_questions)
+                    res = fetch_q_ai(st.session_state.current_sub, st.session_state.lesson_txt, prev_questions)
                     if res:
                         reset_quiz_state()
-                        st.session_state.used_questions = [res['q']]
+                        st.session_state.used_questions = prev_questions + [res['q']]
                         st.session_state.update({"q_data": res, "quiz_active": True, "q_count": 1, "checked": False})
                         st.rerun()
-            if cb.button("לתפריט הראשי", key="main_back"):
+
+            if cb.button("🔄 החלף נושא"):
+                reset_quiz_state()
+                st.session_state.update({"lesson_txt": "", "current_sub": None})
+                st.session_state.step = "study"
+                st.rerun()
+
+            if cc.button("לתפריט הראשי", key="main_back"):
                 reset_quiz_state()
                 st.session_state.step = "menu"
                 st.rerun()
+
+            st.markdown(SCROLL_TOP_BTN, unsafe_allow_html=True)
 
 # סוף קובץ
