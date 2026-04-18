@@ -1,4 +1,4 @@
-# Project: מתווך בקליק | Version: training_full_V16 | 2026-04-18
+# Project: מתווך בקליק | Version: training_full_V18 | 2026-04-18
 import streamlit as st
 import google.generativeai as genai
 import json
@@ -108,8 +108,11 @@ def stream_ai_lesson(sub_topic):
         prompt = f"{system}\n\nנושא: {sub_topic}\n\nמידע מבוסס מבחנים אמיתיים שחובה לכלול:\n{insights}\n\nהרחב והסבר את הנקודות הללו בצורה מעמיקה."
     else:
         prompt = f"{system}\n\nנושא: {sub_topic}"
-    for _ in range(3):
+
+    for attempt in range(3):
         try:
+            if attempt > 0:
+                time.sleep(2)
             response = model.generate_content(prompt, stream=True)
             placeholder = st.empty()
             full_text = ""
@@ -119,8 +122,9 @@ def stream_ai_lesson(sub_topic):
             placeholder.markdown(full_text)
             return full_text
         except:
-            pass
-    return "⚠️ תקלה בטעינה. אנא בחר נושא מחדש."
+            if attempt < 2:
+                continue
+    return None
 
 
 def fetch_q_ai(sub_topic, lesson_context, used_qs):
@@ -179,7 +183,7 @@ def show_scroll_top():
 
 def show_bottom_nav(show_quiz_btn=False, quiz_finished=False):
     if show_quiz_btn:
-        ca, cb, cc = st.columns([1, 1, 1])
+        ca, cb = st.columns([1, 1])
         if ca.button("📝 שאלון תרגול" if not quiz_finished else "🔄 תרגול חוזר"):
             with st.spinner("מייצר שאלה..."):
                 prev_questions = list(st.session_state.used_questions)
@@ -189,23 +193,12 @@ def show_bottom_nav(show_quiz_btn=False, quiz_finished=False):
                     st.session_state.used_questions = prev_questions + [res['q']]
                     st.session_state.update({"q_data": res, "quiz_active": True, "q_count": 1, "checked": False})
                     st.rerun()
-        if cb.button("🔄 החלף נושא", key="change_topic_bottom"):
-            reset_quiz_state()
-            st.session_state.update({"lesson_txt": "", "current_sub": None})
-            st.session_state.step = "study"
-            st.rerun()
-        if cc.button("לתפריט הראשי", key="main_back"):
+        if cb.button("לתפריט הראשי", key="main_back"):
             reset_quiz_state()
             st.session_state.step = "menu"
             st.rerun()
     else:
-        cb, cc = st.columns([1, 1])
-        if cb.button("🔄 החלף נושא", key="change_topic_quiz"):
-            reset_quiz_state()
-            st.session_state.update({"lesson_txt": "", "current_sub": None})
-            st.session_state.step = "study"
-            st.rerun()
-        if cc.button("לתפריט הראשי", key="q_back"):
+        if st.button("לתפריט הראשי", key="q_back"):
             reset_quiz_state()
             st.session_state.step = "menu"
             st.rerun()
@@ -242,173 +235,3 @@ if st.session_state.step == "login":
     else:
         if not st.session_state.get("otp_sent"):
             parts = u_in.split()
-            valid_name = len(parts) >= 2 and all(len(p) >= 2 for p in parts)
-            valid_email = "@" in email_in and "." in email_in
-            if u_in and not valid_name:
-                st.caption("יש להזין שם ושם משפחה")
-            st.caption("להשלמת הכניסה קוד יישלח לכתובת המייל שהכנסת")
-            if st.button("שלח קוד"):
-                if valid_name and valid_email:
-                    code = str(random.randint(100000, 999999))
-                    if send_otp(email_in, code):
-                        st.session_state.otp_code = code
-                        st.session_state.otp_time = time.time()
-                        st.session_state.otp_user = u_in
-                        st.session_state.otp_email = email_in
-                        st.session_state.otp_sent = True
-                        st.rerun()
-                    else:
-                        st.error("שגיאה בשליחת המייל. נסה שוב.")
-                else:
-                    st.warning("יש למלא שם מלא וכתובת מייל תקינה.")
-        else:
-            st.info(f"קוד נשלח ל-{st.session_state.get('otp_email')}. תקף ל-2 דקות.")
-            code_in = st.text_input("קוד", placeholder="הזן קוד", autocomplete="off", label_visibility="collapsed").strip()
-            if st.button("אישור"):
-                elapsed = time.time() - st.session_state.get("otp_time", 0)
-                if elapsed > 120:
-                    st.error("הקוד פג תוקף. רענן את הדף ונסה שוב.")
-                    st.session_state.otp_sent = False
-                elif code_in == st.session_state.get("otp_code"):
-                    st.session_state.user = st.session_state.otp_user
-                    st.session_state.step = "menu"
-                    st.session_state.otp_sent = False
-                    st.rerun()
-                else:
-                    attempts = st.session_state.get("otp_attempts", 0) + 1
-                    st.session_state.otp_attempts = attempts
-                    if attempts >= 3:
-                        st.error("3 ניסיונות כושלים — יש להתחיל מחדש.")
-                        st.session_state.otp_sent = False
-                        st.session_state.otp_attempts = 0
-                    else:
-                        st.error(f"קוד שגוי. נותרו {3 - attempts} ניסיונות.")
-
-# -------------------------
-# MENU
-# -------------------------
-elif st.session_state.step == "menu":
-    show_header()
-    c1, c2, _ = st.columns([1.5, 1.5, 3])
-    if c1.button("📚 לימוד לפי נושאים"):
-        st.session_state.step = "study"
-        st.rerun()
-    if c2.button("⏱️ גש/י למבחן"):
-        st.session_state.step = "exam_frame"
-        st.rerun()
-
-# -------------------------
-# EXAM FRAME
-# -------------------------
-elif st.session_state.step == "exam_frame":
-    st.markdown(f"""
-        <style>
-            header {{ visibility: hidden !important; }}
-            .block-container {{ padding: 0 !important; }}
-            .nav-link-box {{
-                position: fixed; top: 15px; left: 20px; z-index: 9999;
-                background: white; padding: 8px 15px; border-radius: 8px;
-                border: 1px solid #ddd; box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            }}
-            .nav-link {{ text-decoration: none !important; color: #31333F !important; font-weight: bold !important; font-family: sans-serif; }}
-        </style>
-        <div class="nav-link-box">
-            <a href="/?user={st.session_state.user}" target="_self" class="nav-link">🏠 לתפריט הראשי</a>
-        </div>
-    """, unsafe_allow_html=True)
-    base_url = "https://fullrealestatebroker-yevuzewxde4obgrpgacrpc.streamlit.app/"
-    exam_url = f"{base_url}?user={st.session_state.user}&embed=true"
-    st.markdown(f'<iframe src="{exam_url}" style="width:100%; height:100vh; border:none; margin-top:-40px;"></iframe>', unsafe_allow_html=True)
-
-# -------------------------
-# STUDY
-# -------------------------
-elif st.session_state.step == "study":
-    show_header()
-    sel = st.selectbox("בחר נושא לימוד:", ["בחר..."] + list(SYLLABUS.keys()))
-    col_a, col_b = st.columns([1, 1])
-    if col_a.button("טען נושא") and sel != "בחר...":
-        reset_quiz_state()
-        st.session_state.update({"selected_topic": sel, "step": "lesson_run", "lesson_txt": "", "current_sub": None})
-        st.rerun()
-    if col_b.button("לתפריט הראשי"):
-        reset_quiz_state()
-        st.session_state.step = "menu"
-        st.rerun()
-
-# -------------------------
-# LESSON RUN
-# -------------------------
-elif st.session_state.step == "lesson_run":
-    show_header()
-    if not st.session_state.get("selected_topic"):
-        st.session_state.step = "study"
-        st.rerun()
-    st.header(f"📖 {st.session_state.selected_topic}")
-    subs = SYLLABUS.get(st.session_state.selected_topic, [])
-    cols = st.columns(len(subs))
-
-    for i, s in enumerate(subs):
-        if cols[i].button(s, key=f"s_{i}"):
-            reset_quiz_state()
-            st.session_state.update({"current_sub": s, "lesson_txt": "LOADING"})
-            st.rerun()
-
-    if not st.session_state.get("current_sub"):
-        if st.button("לתפריט הראשי", key="back_no_sub"):
-            reset_quiz_state()
-            st.session_state.step = "menu"
-            st.rerun()
-    else:
-        if st.session_state.get("lesson_txt") == "LOADING":
-            st.session_state.lesson_txt = stream_ai_lesson(st.session_state.current_sub)
-            st.rerun()
-        elif st.session_state.get("lesson_txt"):
-            st.markdown(st.session_state.lesson_txt)
-
-        if st.session_state.quiz_active and st.session_state.q_data and not st.session_state.quiz_finished:
-            st.divider()
-            q = st.session_state.q_data
-            st.subheader(f"📝 שאלה {st.session_state.q_count} מתוך 10")
-            ans = st.radio(q['q'], q['options'], index=None, key=f"q_{st.session_state.q_count}", disabled=st.session_state.checked)
-            qc1, qc2 = st.columns([2, 2])
-
-            if qc1.button("בדוק/י תשובה", disabled=(ans is None or st.session_state.checked)):
-                st.session_state.checked = True
-                st.rerun()
-
-            if qc2.button("לשאלה הבאה" if st.session_state.q_count < 10 else "🏁 סיכום", disabled=not st.session_state.checked):
-                if st.session_state.q_count < 10:
-                    with st.spinner("מביא שאלה חדשה..."):
-                        next_used = list(st.session_state.used_questions)
-                        if st.session_state.q_data:
-                            next_used.append(st.session_state.q_data['q'])
-                        res = fetch_q_ai(st.session_state.current_sub, st.session_state.lesson_txt, next_used)
-                        if res:
-                            st.session_state.used_questions = next_used
-                            st.session_state.update({"q_data": res, "q_count": st.session_state.q_count + 1, "checked": False})
-                            st.rerun()
-                else:
-                    st.session_state.quiz_finished = True
-                    st.rerun()
-
-            if st.session_state.checked:
-                if ans == q['correct']:
-                    st.success("נכון מאוד!")
-                    if f"sc_{st.session_state.q_count}" not in st.session_state:
-                        st.session_state.correct_answers += 1
-                        st.session_state[f"sc_{st.session_state.q_count}"] = True
-                else:
-                    st.error(f"טעות. הנכון הוא: {q['correct']}")
-                st.info(f"הסבר: {q['explain']}")
-
-            show_bottom_nav(show_quiz_btn=False)
-
-        if (not st.session_state.quiz_active or st.session_state.quiz_finished) and st.session_state.get("current_sub"):
-            if st.session_state.quiz_finished:
-                st.success(f"🏆 ציון: {st.session_state.correct_answers} מתוך 10.")
-            show_bottom_nav(show_quiz_btn=True, quiz_finished=st.session_state.quiz_finished)
-
-        show_scroll_top()
-
-# סוף קובץ
