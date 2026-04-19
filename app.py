@@ -1,4 +1,4 @@
-# Project: מתווך בקליק | Version: training_full_V20 | 2026-04-19
+# Project: מתווך בקליק | Version: training_full_V21 | 2026-04-19
 import streamlit as st
 import google.generativeai as genai
 import json
@@ -135,12 +135,12 @@ def fetch_q_ai(sub_topic, lesson_context, used_qs):
     model = genai.GenerativeModel('gemini-2.0-flash')
     json_fmt = '{"q": "","options": ["","","",""], "correct": "", "explain": ""}'
     history = "\n".join([f"- {q}" for q in used_qs]) if used_qs else "אין שאלות קודמות."
-    prompt = f"""בהתבסס על טקסט השיעור הבא בנושא {sub_topic}:
+    prompt = f"""להלן תוכן שיעור בנושא {sub_topic}:
         ---
         {lesson_context}
         ---
-        צור שאלת הבנה פשוטה שבודקת אם הלומד הבין את החומר שנלמד בשיעור.
-        השאלה צריכה להיות על הסבר או מושג שהופיע בשיעור — לא שאלה בסגנון מבחן.
+        צור שאלה קצרה וישירה על אחד המושגים או העקרונות מהשיעור.
+        אל תפתח את השאלה עם "לפי השיעור" או "על פי מה שלמדת" — שאל ישירות.
         אל תחזור על נושאים שכבר נשאלו: {history}
         החזר אך ורק JSON תקני: {json_fmt}"""
     for _ in range(5):
