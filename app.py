@@ -1,4 +1,4 @@
-# Project: מתווך בקליק | Version: training_full_V19 | 2026-04-18
+# Project: מתווך בקליק | Version: training_full_V20 | 2026-04-19
 import streamlit as st
 import google.generativeai as genai
 import json
@@ -135,11 +135,13 @@ def fetch_q_ai(sub_topic, lesson_context, used_qs):
     model = genai.GenerativeModel('gemini-2.0-flash')
     json_fmt = '{"q": "","options": ["","","",""], "correct": "", "explain": ""}'
     history = "\n".join([f"- {q}" for q in used_qs]) if used_qs else "אין שאלות קודמות."
-    prompt = f"""בהתבסס אך ורק על טקסט השיעור הבא בנושא {sub_topic}:
+    prompt = f"""בהתבסס על טקסט השיעור הבא בנושא {sub_topic}:
         ---
         {lesson_context}
         ---
-        צור שאלה אמריקאית חדשה לבדיקת הבנה. אל תחזור על נושאים שכבר נשאלו כאן: {history}
+        צור שאלת הבנה פשוטה שבודקת אם הלומד הבין את החומר שנלמד בשיעור.
+        השאלה צריכה להיות על הסבר או מושג שהופיע בשיעור — לא שאלה בסגנון מבחן.
+        אל תחזור על נושאים שכבר נשאלו: {history}
         החזר אך ורק JSON תקני: {json_fmt}"""
     for _ in range(5):
         try:
@@ -339,7 +341,6 @@ elif st.session_state.step == "lesson_run":
         st.session_state.step = "study"
         st.rerun()
 
-    # תפריט עליון קבוע
     topic_list = ["בחר..."] + list(SYLLABUS.keys())
     current_index = topic_list.index(st.session_state.selected_topic) if st.session_state.selected_topic in topic_list else 0
     sel = st.selectbox("בחר נושא לימוד:", topic_list, index=current_index, key="lesson_select")
