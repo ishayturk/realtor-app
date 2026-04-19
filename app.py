@@ -1,4 +1,4 @@
-# Project: מתווך בקליק | Version: training_full_V21 | 2026-04-19
+# Project: מתווך בקליק | Version: training_full_V22 | 2026-04-19
 import streamlit as st
 import google.generativeai as genai
 import json
@@ -44,8 +44,6 @@ SYLLABUS = {
     "חוק המתווכים": ["רישוי והגבלות", "הגינות וזהירות", "הזמנה ובלעדיות", "פעולות שאינן תיווך"],
     "תקנות המתווכים": ["פרטי הזמנה 1997", "פעולות שיווק 2004", "דמי תיווך"],
     "תקנות האתיקה המקצועית תשפ״ד-2024": ["חובת נאמנות וגילוי", "ניגוד עניינים", "איסור הטעיה", "כבוד המקצוע וסודיות"],
-    "דיני שליחות": ["מהות השליחות ויצירתה", "חריגה מהרשאה", "שליחות לכאורה", "ביטול השליחות"],
-    "עשיית עושר ולא במשפט": ["יסודות העילה", "השבה ללא חוזה תקין", "דמי תיווך ללא הזמנה בכתב"],
     "פסיקה מרכזית": ["זכאות לדמי תיווך", "הסיבה המניעה ובלעדיות", "עסקאות נוגדות והערת אזהרה"],
     "חוק המקרקעין": ["בעלות וזכויות", "בתים משותפים", "עסקאות נוגדות", "הערות אזהרה", "שכירות וזיקה"],
     "חוק המכר (דירות)": ["מפרט וגילוי", "בדק ואחריות", "איחור במסירה", "הבטחת השקעות"],
@@ -167,7 +165,7 @@ if "step" not in st.session_state:
 
 def show_header():
     if st.session_state.get("user"):
-        st.markdown(f"""<a name="top"></a><div class="header-container">
+        st.markdown(f"""<div class="header-container">
             <div class="header-title">🏠 מתווך בקליק</div>
             <div class="header-spacer"></div>
             <div class="header-user">👤 <b>{st.session_state.user}</b></div>
@@ -176,7 +174,7 @@ def show_header():
 
 def show_scroll_top():
     st.markdown("""
-        <a href="#top" class="scroll-top-btn" title="חזור לראש הדף">
+        <a href="#page-top" class="scroll-top-btn" title="חזור לראש הדף">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
                 <path d="M12 4L4 12H9V20H15V12H20L12 4Z" fill="white"/>
             </svg>
@@ -211,6 +209,7 @@ def show_bottom_nav(show_quiz_btn=False, quiz_finished=False):
 # LOGIN
 # -------------------------
 if st.session_state.step == "login":
+    st.markdown('<a name="page-top"></a>', unsafe_allow_html=True)
     st.title("🏠 מתווך בקליק")
     st.markdown("""
     <style>
@@ -284,6 +283,7 @@ if st.session_state.step == "login":
 # MENU
 # -------------------------
 elif st.session_state.step == "menu":
+    st.markdown('<a name="page-top"></a>', unsafe_allow_html=True)
     show_header()
     c1, c2, _ = st.columns([1.5, 1.5, 3])
     if c1.button("📚 לימוד לפי נושאים"):
@@ -320,6 +320,7 @@ elif st.session_state.step == "exam_frame":
 # STUDY
 # -------------------------
 elif st.session_state.step == "study":
+    st.markdown('<a name="page-top"></a>', unsafe_allow_html=True)
     show_header()
     sel = st.selectbox("בחר נושא לימוד:", ["בחר..."] + list(SYLLABUS.keys()), key="study_select")
     col_a, col_b = st.columns([1, 1])
@@ -336,6 +337,7 @@ elif st.session_state.step == "study":
 # LESSON RUN
 # -------------------------
 elif st.session_state.step == "lesson_run":
+    st.markdown('<a name="page-top"></a>', unsafe_allow_html=True)
     show_header()
     if not st.session_state.get("selected_topic"):
         st.session_state.step = "study"
