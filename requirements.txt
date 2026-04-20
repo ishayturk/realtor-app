@@ -2,5 +2,5 @@ streamlit
 beautifulsoup4
 requests
 Flask
-google-genai==1.10.0
+google-generativeai
 pdfplumber
