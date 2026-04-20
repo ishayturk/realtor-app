@@ -1,7 +1,6 @@
-# Project: מתווך בקליק | Version: training_full_V23 | 2026-04-20
+# Project: מתווך בקליק | Version: training_full_V26 | 2026-04-20
 import streamlit as st
-import streamlit.components.v1 as components
-import google.generativeai as genai
+from google import genai
 import json
 import re
 import random
@@ -88,8 +87,7 @@ def send_otp(email, code):
 
 
 def stream_ai_lesson(sub_topic):
-    genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-    model = genai.GenerativeModel('gemini-2.0-flash')
+    client = genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
     insights = EXAM_INSIGHTS.get(sub_topic, "")
     system = """אתה מורה המכין נבחנים לבחינת רשם המתווכים בישראל.
 כתוב שיעור הכנה מעמיק על הנושא שיינתן לך.
@@ -113,10 +111,12 @@ def stream_ai_lesson(sub_topic):
         try:
             if attempt > 0:
                 time.sleep(2)
-            response = model.generate_content(prompt, stream=True)
             placeholder = st.empty()
             full_text = ""
-            for chunk in response:
+            for chunk in client.models.generate_content_stream(
+                model="gemini-2.0-flash",
+                contents=prompt
+            ):
                 full_text += chunk.text
                 placeholder.markdown(full_text + "▌")
             placeholder.markdown(full_text)
@@ -130,8 +130,7 @@ def stream_ai_lesson(sub_topic):
 def fetch_q_ai(sub_topic, lesson_context, used_qs):
     if len(lesson_context.split()) < 100:
         return None
-    genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-    model = genai.GenerativeModel('gemini-2.0-flash')
+    client = genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
     json_fmt = '{"q": "","options": ["","","",""], "correct": "", "explain": ""}'
     history = "\n".join([f"- {q}" for q in used_qs]) if used_qs else "אין שאלות קודמות."
     prompt = f"""להלן תוכן שיעור בנושא {sub_topic}:
@@ -144,7 +143,10 @@ def fetch_q_ai(sub_topic, lesson_context, used_qs):
         החזר אך ורק JSON תקני: {json_fmt}"""
     for _ in range(5):
         try:
-            response = model.generate_content(prompt)
+            response = client.models.generate_content(
+                model="gemini-2.0-flash",
+                contents=prompt
+            )
             res_text = response.text.replace('```json', '').replace('```', '').strip()
             match = re.search(r'\{.*\}', res_text, re.DOTALL)
             if match:
