@@ -1,5 +1,6 @@
-# Project: מתווך בקליק | Version: training_full_V22 | 2026-04-19
+# Project: מתווך בקליק | Version: training_full_V23 | 2026-04-20
 import streamlit as st
+import streamlit.components.v1 as components
 import google.generativeai as genai
 import json
 import re
@@ -30,13 +31,6 @@ st.markdown("""
         .header-user { font-size: 1rem !important; text-align: left; white-space: nowrap; }
     }
     @media (min-width: 769px) { .header-spacer { display: none; } }
-    .scroll-top-btn {
-        position: fixed; bottom: 30px; left: 30px; z-index: 9999;
-        background: #888; border-radius: 50%; width: 48px; height: 48px;
-        display: flex; align-items: center; justify-content: center;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.2); text-decoration: none;
-    }
-    .scroll-top-btn:hover { background: #666; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -173,13 +167,24 @@ def show_header():
 
 
 def show_scroll_top():
-    st.markdown("""
-        <a href="#page-top" class="scroll-top-btn" title="חזור לראש הדף">
+    components.html("""
+        <style>
+            body { margin: 0; padding: 0; background: transparent; }
+            .scroll-btn {
+                position: fixed; bottom: 30px; left: 30px; z-index: 9999;
+                background: #888; border-radius: 50%; width: 48px; height: 48px;
+                display: flex; align-items: center; justify-content: center;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.2); cursor: pointer;
+                border: none; outline: none;
+            }
+            .scroll-btn:hover { background: #666; }
+        </style>
+        <button class="scroll-btn" onclick="window.parent.document.querySelector('.main').scrollTo({top:0,behavior:'smooth'})">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
                 <path d="M12 4L4 12H9V20H15V12H20L12 4Z" fill="white"/>
             </svg>
-        </a>
-    """, unsafe_allow_html=True)
+        </button>
+    """, height=80)
 
 
 def show_bottom_nav(show_quiz_btn=False, quiz_finished=False):
@@ -209,7 +214,6 @@ def show_bottom_nav(show_quiz_btn=False, quiz_finished=False):
 # LOGIN
 # -------------------------
 if st.session_state.step == "login":
-    st.markdown('<a name="page-top"></a>', unsafe_allow_html=True)
     st.title("🏠 מתווך בקליק")
     st.markdown("""
     <style>
@@ -283,7 +287,6 @@ if st.session_state.step == "login":
 # MENU
 # -------------------------
 elif st.session_state.step == "menu":
-    st.markdown('<a name="page-top"></a>', unsafe_allow_html=True)
     show_header()
     c1, c2, _ = st.columns([1.5, 1.5, 3])
     if c1.button("📚 לימוד לפי נושאים"):
@@ -320,7 +323,6 @@ elif st.session_state.step == "exam_frame":
 # STUDY
 # -------------------------
 elif st.session_state.step == "study":
-    st.markdown('<a name="page-top"></a>', unsafe_allow_html=True)
     show_header()
     sel = st.selectbox("בחר נושא לימוד:", ["בחר..."] + list(SYLLABUS.keys()), key="study_select")
     col_a, col_b = st.columns([1, 1])
@@ -337,7 +339,6 @@ elif st.session_state.step == "study":
 # LESSON RUN
 # -------------------------
 elif st.session_state.step == "lesson_run":
-    st.markdown('<a name="page-top"></a>', unsafe_allow_html=True)
     show_header()
     if not st.session_state.get("selected_topic"):
         st.session_state.step = "study"
