@@ -1,2 +1,6 @@
 streamlit
-google-genai==1.10.0
+beautifulsoup4
+requests
+Flask
+google-generativeai
+pdfplumber
