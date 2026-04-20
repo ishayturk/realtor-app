@@ -1,4 +1,4 @@
-# Project: מתווך בקליק | Version: training_full_V24 | 2026-04-20
+# Project: מתווך בקליק | Version: training_full_V25 | 2026-04-20
 import streamlit as st
 import google.generativeai as genai
 import json
@@ -342,9 +342,15 @@ elif st.session_state.step == "lesson_run":
     topic_list = ["בחר..."] + list(SYLLABUS.keys())
     current_index = topic_list.index(st.session_state.selected_topic) if st.session_state.selected_topic in topic_list else 0
     sel = st.selectbox("בחר נושא לימוד:", topic_list, index=current_index, key="lesson_select")
-    if sel != "בחר..." and sel != st.session_state.selected_topic:
+
+    col_a, col_b = st.columns([1, 1])
+    if col_a.button("טען נושא") and sel != "בחר...":
         reset_quiz_state()
         st.session_state.update({"selected_topic": sel, "lesson_txt": "", "current_sub": None})
+        st.rerun()
+    if col_b.button("לתפריט הראשי", key="back_lesson"):
+        reset_quiz_state()
+        st.session_state.step = "menu"
         st.rerun()
 
     st.header(f"📖 {st.session_state.selected_topic}")
@@ -355,11 +361,6 @@ elif st.session_state.step == "lesson_run":
             reset_quiz_state()
             st.session_state.update({"current_sub": s, "lesson_txt": "LOADING"})
             st.rerun()
-
-    if st.button("לתפריט הראשי", key="back_lesson"):
-        reset_quiz_state()
-        st.session_state.step = "menu"
-        st.rerun()
 
     st.divider()
 
