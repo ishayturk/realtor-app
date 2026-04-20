@@ -1,5 +1,6 @@
-# Project: מתווך בקליק | Version: training_full_V25 | 2026-04-20
+# Project: מתווך בקליק | Version: training_full_V23 | 2026-04-20
 import streamlit as st
+import streamlit.components.v1 as components
 import google.generativeai as genai
 import json
 import re
