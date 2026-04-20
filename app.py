@@ -179,7 +179,11 @@ def show_scroll_top():
             }
             .scroll-btn:hover { background: #666; }
         </style>
-        <button class="scroll-btn" onclick="window.parent.document.querySelector('.main').scrollTo({top:0,behavior:'smooth'})">
+        <button class="scroll-btn" onclick="
+            var el = window.parent.document.querySelector('section.main');
+            if (!el) el = window.parent.document.querySelector('[data-testid=stAppViewContainer]');
+            if (el) el.scrollTo({top:0, behavior:'smooth'});
+        ">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
                 <path d="M12 4L4 12H9V20H15V12H20L12 4Z" fill="white"/>
             </svg>
