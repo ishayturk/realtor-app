@@ -1,6 +1,5 @@
-# Project: מתווך בקליק | Version: training_full_V23 | 2026-04-20
+# Project: מתווך בקליק | Version: training_full_V24 | 2026-04-20
 import streamlit as st
-import streamlit.components.v1 as components
 import google.generativeai as genai
 import json
 import re
@@ -31,6 +30,13 @@ st.markdown("""
         .header-user { font-size: 1rem !important; text-align: left; white-space: nowrap; }
     }
     @media (min-width: 769px) { .header-spacer { display: none; } }
+    .scroll-top-btn {
+        position: fixed; bottom: 30px; left: 30px; z-index: 9999;
+        background: #888; border-radius: 50%; width: 48px; height: 48px;
+        display: flex; align-items: center; justify-content: center;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.2); text-decoration: none;
+    }
+    .scroll-top-btn:hover { background: #666; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -159,7 +165,7 @@ if "step" not in st.session_state:
 
 def show_header():
     if st.session_state.get("user"):
-        st.markdown(f"""<div class="header-container">
+        st.markdown(f"""<a name="top"></a><div class="header-container">
             <div class="header-title">🏠 מתווך בקליק</div>
             <div class="header-spacer"></div>
             <div class="header-user">👤 <b>{st.session_state.user}</b></div>
@@ -167,28 +173,13 @@ def show_header():
 
 
 def show_scroll_top():
-    components.html("""
-        <style>
-            body { margin: 0; padding: 0; background: transparent; }
-            .scroll-btn {
-                position: fixed; bottom: 30px; left: 30px; z-index: 9999;
-                background: #888; border-radius: 50%; width: 48px; height: 48px;
-                display: flex; align-items: center; justify-content: center;
-                box-shadow: 0 2px 8px rgba(0,0,0,0.2); cursor: pointer;
-                border: none; outline: none;
-            }
-            .scroll-btn:hover { background: #666; }
-        </style>
-        <button class="scroll-btn" onclick="
-            var el = window.parent.document.querySelector('section.main');
-            if (!el) el = window.parent.document.querySelector('[data-testid=stAppViewContainer]');
-            if (el) el.scrollTo({top:0, behavior:'smooth'});
-        ">
+    st.markdown("""
+        <a href="#top" class="scroll-top-btn" title="חזור לראש הדף">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
                 <path d="M12 4L4 12H9V20H15V12H20L12 4Z" fill="white"/>
             </svg>
-        </button>
-    """, height=80)
+        </a>
+    """, unsafe_allow_html=True)
 
 
 def show_bottom_nav(show_quiz_btn=False, quiz_finished=False):
