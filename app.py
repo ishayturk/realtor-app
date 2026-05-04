@@ -1,4 +1,4 @@
-# Project: מתווך בקליק | Version: training_full_V27 | 2026-04-20
+# Project: מתווך בקליק | Version: training_full_V28 | 2026-05-04
 import streamlit as st
 import google.generativeai as genai
 import json
@@ -140,14 +140,32 @@ def fetch_q_ai(sub_topic, lesson_context, used_qs):
         צור שאלה קצרה וישירה על אחד המושגים או העקרונות מהשיעור.
         אל תפתח את השאלה עם "לפי השיעור" או "על פי מה שלמדת" — שאל ישירות.
         אל תחזור על נושאים שכבר נשאלו: {history}
-        החזר אך ורק JSON תקני: {json_fmt}"""
+
+        חוקים קריטיים ל-JSON שתחזיר — חובה לעמוד בכולם:
+        1. השדה "correct" חייב להיות העתק מדויק, מילה במילה, של אחת מ-4 האפשרויות ב-"options"
+        2. השדה "explain" חייב להסביר מדוע התשובה שב-"correct" היא הנכונה — לא תשובה אחרת
+        3. אל תסתור בין "correct" לבין "explain" — שניהם חייבים להצביע על אותה תשובה
+        4. בדוק את עצמך לפני שאתה מחזיר: האם "correct" מופיע בדיוק ב-"options"? האם "explain" מסביר את "correct"?
+
+        החזר אך ורק JSON תקני ללא שום טקסט נוסף: {json_fmt}"""
+
     for _ in range(5):
         try:
             response = model.generate_content(prompt)
             res_text = response.text.replace('```json', '').replace('```', '').strip()
             match = re.search(r'\{.*\}', res_text, re.DOTALL)
             if match:
-                return json.loads(match.group())
+                data = json.loads(match.group())
+                # ולידציה: correct חייב להיות בדיוק אחת מה-options
+                if (
+                    data.get('correct') and
+                    data.get('options') and
+                    data['correct'] in data['options'] and
+                    data.get('q') and
+                    data.get('explain')
+                ):
+                    return data
+                # אם הולידציה נכשלה — ננסה שוב
         except:
             pass
     return None
